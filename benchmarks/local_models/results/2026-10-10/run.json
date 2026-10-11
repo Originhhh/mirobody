@@ -7,7 +7,7 @@
   "commit": "248df0f2aead8051c81ef1f7a9fa431e627e8791",
   "repo_head_at_run": "248df0f2aead8051c81ef1f7a9fa431e627e8791",
   "build": "mirobody-gen build --seed 7 --people 6 --out <dir> --render",
-  "corpus": "/Users/admin/Desktop/development/Mirobody/mirobody/internal/model-eval/bench-2026-10-10/gen7",
+  "corpus": "<scratch>/gen7",
   "sha256": {
    "devices.jsonl": "887e6cdf2fe5ad5f68142e3a23137323e8316eacabbbdc34f832a243a4678860",
    "files.jsonl": "5bad865b1e5cba4979d453338f79b2d5bf342e9c19b8cd8061901ae1dab09b11",
@@ -23,7 +23,7 @@
   "models_max": 2
  },
  "machine": {
-  "chip": "Apple M4 Pro",
+  "chip": "Apple silicon",
   "memory_gb": 48,
   "os": "Darwin 26.6",
   "docker_vm": "colima 4 CPU, 6 GB"
@@ -48,7 +48,7 @@
      "commit": "248df0f2aead8051c81ef1f7a9fa431e627e8791",
      "repo_head_at_run": "248df0f2aead8051c81ef1f7a9fa431e627e8791",
      "build": "mirobody-gen build --seed 7 --people 6 --out <dir> --render",
-     "corpus": "/Users/admin/Desktop/development/Mirobody/mirobody/internal/model-eval/bench-2026-10-10/gen7",
+     "corpus": "<scratch>/gen7",
      "sha256": {
       "devices.jsonl": "887e6cdf2fe5ad5f68142e3a23137323e8316eacabbbdc34f832a243a4678860",
       "files.jsonl": "5bad865b1e5cba4979d453338f79b2d5bf342e9c19b8cd8061901ae1dab09b11",
@@ -64,7 +64,7 @@
      "models_max": 2
     },
     "machine": {
-     "chip": "Apple M4 Pro",
+     "chip": "Apple silicon",
      "memory_gb": 48,
      "os": "Darwin 26.6",
      "docker_vm": "colima 4 CPU, 6 GB"
@@ -85,7 +85,7 @@
    "models": [
     {
      "id": "minicpm5-2b",
-     "model_path": "/Users/admin/Desktop/development/Mirobody/local-models/small/minicpm5-2b/MiniCPM5-2B-Q4_K_M.gguf",
+     "model_path": "<local>/small/minicpm5-2b/MiniCPM5-2B-Q4_K_M.gguf",
      "ctx_size": "32768",
      "parallel": "2",
      "files": [
@@ -98,8 +98,8 @@
     },
     {
      "id": "glm-ocr",
-     "model_path": "/Users/admin/Desktop/development/Mirobody/local-models/glm-ocr/GLM-OCR-Q8_0.gguf",
-     "mmproj_path": "/Users/admin/Desktop/development/Mirobody/local-models/glm-ocr/mmproj-GLM-OCR-Q8_0.gguf",
+     "model_path": "<local>/glm-ocr/GLM-OCR-Q8_0.gguf",
+     "mmproj_path": "<local>/glm-ocr/mmproj-GLM-OCR-Q8_0.gguf",
      "ctx_size": "16384",
      "parallel": "2",
      "files": [
@@ -205,7 +205,7 @@
      "commit": "248df0f2aead8051c81ef1f7a9fa431e627e8791",
      "repo_head_at_run": "248df0f2aead8051c81ef1f7a9fa431e627e8791",
      "build": "mirobody-gen build --seed 7 --people 6 --out <dir> --render",
-     "corpus": "/Users/admin/Desktop/development/Mirobody/mirobody/internal/model-eval/bench-2026-10-10/gen7",
+     "corpus": "<scratch>/gen7",
      "sha256": {
       "devices.jsonl": "887e6cdf2fe5ad5f68142e3a23137323e8316eacabbbdc34f832a243a4678860",
       "files.jsonl": "5bad865b1e5cba4979d453338f79b2d5bf342e9c19b8cd8061901ae1dab09b11",
@@ -221,7 +221,7 @@
      "models_max": 2
     },
     "machine": {
-     "chip": "Apple M4 Pro",
+     "chip": "Apple silicon",
      "memory_gb": 48,
      "os": "Darwin 26.6",
      "docker_vm": "colima 4 CPU, 6 GB"
@@ -240,7 +240,7 @@
    "models": [
     {
      "id": "minicpm5-2b",
-     "model_path": "/Users/admin/Desktop/development/Mirobody/local-models/small/minicpm5-2b/MiniCPM5-2B-Q4_K_M.gguf",
+     "model_path": "<local>/small/minicpm5-2b/MiniCPM5-2B-Q4_K_M.gguf",
      "ctx_size": "32768",
      "parallel": "2",
      "files": [
@@ -253,8 +253,8 @@
     },
     {
      "id": "glm-ocr",
-     "model_path": "/Users/admin/Desktop/development/Mirobody/local-models/glm-ocr/GLM-OCR-Q8_0.gguf",
-     "mmproj_path": "/Users/admin/Desktop/development/Mirobody/local-models/glm-ocr/mmproj-GLM-OCR-Q8_0.gguf",
+     "model_path": "<local>/glm-ocr/GLM-OCR-Q8_0.gguf",
+     "mmproj_path": "<local>/glm-ocr/mmproj-GLM-OCR-Q8_0.gguf",
      "ctx_size": "16384",
      "parallel": "2",
      "files": [
@@ -349,7 +349,7 @@
      "commit": "248df0f2aead8051c81ef1f7a9fa431e627e8791",
      "repo_head_at_run": "248df0f2aead8051c81ef1f7a9fa431e627e8791",
      "build": "mirobody-gen build --seed 7 --people 6 --out <dir> --render",
-     "corpus": "/Users/admin/Desktop/development/Mirobody/mirobody/internal/model-eval/bench-2026-10-10/gen7",
+     "corpus": "<scratch>/gen7",
      "sha256": {
       "devices.jsonl": "887e6cdf2fe5ad5f68142e3a23137323e8316eacabbbdc34f832a243a4678860",
       "files.jsonl": "5bad865b1e5cba4979d453338f79b2d5bf342e9c19b8cd8061901ae1dab09b11",
@@ -365,7 +365,7 @@
      "models_max": 2
     },
     "machine": {
-     "chip": "Apple M4 Pro",
+     "chip": "Apple silicon",
      "memory_gb": 48,
      "os": "Darwin 26.6",
      "docker_vm": "colima 4 CPU, 6 GB"
@@ -384,7 +384,7 @@
    "models": [
     {
      "id": "minicpm5-2b",
-     "model_path": "/Users/admin/Desktop/development/Mirobody/local-models/small/minicpm5-2b/MiniCPM5-2B-Q4_K_M.gguf",
+     "model_path": "<local>/small/minicpm5-2b/MiniCPM5-2B-Q4_K_M.gguf",
      "ctx_size": "32768",
      "parallel": "2",
      "files": [
@@ -397,8 +397,8 @@
     },
     {
      "id": "glm-ocr",
-     "model_path": "/Users/admin/Desktop/development/Mirobody/local-models/glm-ocr/GLM-OCR-Q8_0.gguf",
-     "mmproj_path": "/Users/admin/Desktop/development/Mirobody/local-models/glm-ocr/mmproj-GLM-OCR-Q8_0.gguf",
+     "model_path": "<local>/glm-ocr/GLM-OCR-Q8_0.gguf",
+     "mmproj_path": "<local>/glm-ocr/mmproj-GLM-OCR-Q8_0.gguf",
      "ctx_size": "16384",
      "parallel": "2",
      "files": [
@@ -493,7 +493,7 @@
      "commit": "248df0f2aead8051c81ef1f7a9fa431e627e8791",
      "repo_head_at_run": "248df0f2aead8051c81ef1f7a9fa431e627e8791",
      "build": "mirobody-gen build --seed 7 --people 6 --out <dir> --render",
-     "corpus": "/Users/admin/Desktop/development/Mirobody/mirobody/internal/model-eval/bench-2026-10-10/gen7",
+     "corpus": "<scratch>/gen7",
      "sha256": {
       "devices.jsonl": "887e6cdf2fe5ad5f68142e3a23137323e8316eacabbbdc34f832a243a4678860",
       "files.jsonl": "5bad865b1e5cba4979d453338f79b2d5bf342e9c19b8cd8061901ae1dab09b11",
@@ -509,7 +509,7 @@
      "models_max": 2
     },
     "machine": {
-     "chip": "Apple M4 Pro",
+     "chip": "Apple silicon",
      "memory_gb": 48,
      "os": "Darwin 26.6",
      "docker_vm": "colima 4 CPU, 6 GB"
@@ -528,7 +528,7 @@
    "models": [
     {
      "id": "minicpm5-2b",
-     "model_path": "/Users/admin/Desktop/development/Mirobody/local-models/small/minicpm5-2b/MiniCPM5-2B-Q4_K_M.gguf",
+     "model_path": "<local>/small/minicpm5-2b/MiniCPM5-2B-Q4_K_M.gguf",
      "ctx_size": "32768",
      "parallel": "2",
      "files": [
@@ -541,8 +541,8 @@
     },
     {
      "id": "glm-ocr",
-     "model_path": "/Users/admin/Desktop/development/Mirobody/local-models/glm-ocr/GLM-OCR-Q8_0.gguf",
-     "mmproj_path": "/Users/admin/Desktop/development/Mirobody/local-models/glm-ocr/mmproj-GLM-OCR-Q8_0.gguf",
+     "model_path": "<local>/glm-ocr/GLM-OCR-Q8_0.gguf",
+     "mmproj_path": "<local>/glm-ocr/mmproj-GLM-OCR-Q8_0.gguf",
      "ctx_size": "16384",
      "parallel": "2",
      "files": [
@@ -637,7 +637,7 @@
      "commit": "248df0f2aead8051c81ef1f7a9fa431e627e8791",
      "repo_head_at_run": "248df0f2aead8051c81ef1f7a9fa431e627e8791",
      "build": "mirobody-gen build --seed 7 --people 6 --out <dir> --render",
-     "corpus": "/Users/admin/Desktop/development/Mirobody/mirobody/internal/model-eval/bench-2026-10-10/gen7",
+     "corpus": "<scratch>/gen7",
      "sha256": {
       "devices.jsonl": "887e6cdf2fe5ad5f68142e3a23137323e8316eacabbbdc34f832a243a4678860",
       "files.jsonl": "5bad865b1e5cba4979d453338f79b2d5bf342e9c19b8cd8061901ae1dab09b11",
@@ -653,7 +653,7 @@
      "models_max": 2
     },
     "machine": {
-     "chip": "Apple M4 Pro",
+     "chip": "Apple silicon",
      "memory_gb": 48,
      "os": "Darwin 26.6",
      "docker_vm": "colima 4 CPU, 6 GB"
@@ -672,7 +672,7 @@
    "models": [
     {
      "id": "minicpm5-2b",
-     "model_path": "/Users/admin/Desktop/development/Mirobody/local-models/small/minicpm5-2b/MiniCPM5-2B-Q4_K_M.gguf",
+     "model_path": "<local>/small/minicpm5-2b/MiniCPM5-2B-Q4_K_M.gguf",
      "ctx_size": "32768",
      "parallel": "2",
      "files": [
@@ -685,8 +685,8 @@
     },
     {
      "id": "glm-ocr",
-     "model_path": "/Users/admin/Desktop/development/Mirobody/local-models/glm-ocr/GLM-OCR-Q8_0.gguf",
-     "mmproj_path": "/Users/admin/Desktop/development/Mirobody/local-models/glm-ocr/mmproj-GLM-OCR-Q8_0.gguf",
+     "model_path": "<local>/glm-ocr/GLM-OCR-Q8_0.gguf",
+     "mmproj_path": "<local>/glm-ocr/mmproj-GLM-OCR-Q8_0.gguf",
      "ctx_size": "16384",
      "parallel": "2",
      "files": [
@@ -781,7 +781,7 @@
      "commit": "248df0f2aead8051c81ef1f7a9fa431e627e8791",
      "repo_head_at_run": "248df0f2aead8051c81ef1f7a9fa431e627e8791",
      "build": "mirobody-gen build --seed 7 --people 6 --out <dir> --render",
-     "corpus": "/Users/admin/Desktop/development/Mirobody/mirobody/internal/model-eval/bench-2026-10-10/gen7",
+     "corpus": "<scratch>/gen7",
      "sha256": {
       "devices.jsonl": "887e6cdf2fe5ad5f68142e3a23137323e8316eacabbbdc34f832a243a4678860",
       "files.jsonl": "5bad865b1e5cba4979d453338f79b2d5bf342e9c19b8cd8061901ae1dab09b11",
@@ -797,7 +797,7 @@
      "models_max": 2
     },
     "machine": {
-     "chip": "Apple M4 Pro",
+     "chip": "Apple silicon",
      "memory_gb": 48,
      "os": "Darwin 26.6",
      "docker_vm": "colima 4 CPU, 6 GB"
@@ -816,7 +816,7 @@
    "models": [
     {
      "id": "minicpm5-2b",
-     "model_path": "/Users/admin/Desktop/development/Mirobody/local-models/small/minicpm5-2b/MiniCPM5-2B-Q4_K_M.gguf",
+     "model_path": "<local>/small/minicpm5-2b/MiniCPM5-2B-Q4_K_M.gguf",
      "ctx_size": "32768",
      "parallel": "2",
      "files": [
@@ -829,8 +829,8 @@
     },
     {
      "id": "glm-ocr",
-     "model_path": "/Users/admin/Desktop/development/Mirobody/local-models/glm-ocr/GLM-OCR-Q8_0.gguf",
-     "mmproj_path": "/Users/admin/Desktop/development/Mirobody/local-models/glm-ocr/mmproj-GLM-OCR-Q8_0.gguf",
+     "model_path": "<local>/glm-ocr/GLM-OCR-Q8_0.gguf",
+     "mmproj_path": "<local>/glm-ocr/mmproj-GLM-OCR-Q8_0.gguf",
      "ctx_size": "16384",
      "parallel": "2",
      "files": [
@@ -925,7 +925,7 @@
      "commit": "248df0f2aead8051c81ef1f7a9fa431e627e8791",
      "repo_head_at_run": "248df0f2aead8051c81ef1f7a9fa431e627e8791",
      "build": "mirobody-gen build --seed 7 --people 6 --out <dir> --render",
-     "corpus": "/Users/admin/Desktop/development/Mirobody/mirobody/internal/model-eval/bench-2026-10-10/gen7",
+     "corpus": "<scratch>/gen7",
      "sha256": {
       "devices.jsonl": "887e6cdf2fe5ad5f68142e3a23137323e8316eacabbbdc34f832a243a4678860",
       "files.jsonl": "5bad865b1e5cba4979d453338f79b2d5bf342e9c19b8cd8061901ae1dab09b11",
@@ -941,7 +941,7 @@
      "models_max": 2
     },
     "machine": {
-     "chip": "Apple M4 Pro",
+     "chip": "Apple silicon",
      "memory_gb": 48,
      "os": "Darwin 26.6",
      "docker_vm": "colima 4 CPU, 6 GB"
@@ -960,7 +960,7 @@
    "models": [
     {
      "id": "minicpm5-2b",
-     "model_path": "/Users/admin/Desktop/development/Mirobody/local-models/small/minicpm5-2b/MiniCPM5-2B-Q4_K_M.gguf",
+     "model_path": "<local>/small/minicpm5-2b/MiniCPM5-2B-Q4_K_M.gguf",
      "ctx_size": "32768",
      "parallel": "2",
      "files": [
@@ -973,8 +973,8 @@
     },
     {
      "id": "glm-ocr",
-     "model_path": "/Users/admin/Desktop/development/Mirobody/local-models/glm-ocr/GLM-OCR-Q8_0.gguf",
-     "mmproj_path": "/Users/admin/Desktop/development/Mirobody/local-models/glm-ocr/mmproj-GLM-OCR-Q8_0.gguf",
+     "model_path": "<local>/glm-ocr/GLM-OCR-Q8_0.gguf",
+     "mmproj_path": "<local>/glm-ocr/mmproj-GLM-OCR-Q8_0.gguf",
      "ctx_size": "16384",
      "parallel": "2",
      "files": [
@@ -1069,7 +1069,7 @@
      "commit": "248df0f2aead8051c81ef1f7a9fa431e627e8791",
      "repo_head_at_run": "248df0f2aead8051c81ef1f7a9fa431e627e8791",
      "build": "mirobody-gen build --seed 7 --people 6 --out <dir> --render",
-     "corpus": "/Users/admin/Desktop/development/Mirobody/mirobody/internal/model-eval/bench-2026-10-10/gen7",
+     "corpus": "<scratch>/gen7",
      "sha256": {
       "devices.jsonl": "887e6cdf2fe5ad5f68142e3a23137323e8316eacabbbdc34f832a243a4678860",
       "files.jsonl": "5bad865b1e5cba4979d453338f79b2d5bf342e9c19b8cd8061901ae1dab09b11",
@@ -1085,7 +1085,7 @@
      "models_max": 2
     },
     "machine": {
-     "chip": "Apple M4 Pro",
+     "chip": "Apple silicon",
      "memory_gb": 48,
      "os": "Darwin 26.6",
      "docker_vm": "colima 4 CPU, 6 GB"
@@ -1106,7 +1106,7 @@
    "models": [
     {
      "id": "minicpm5-1b",
-     "model_path": "/Users/admin/Desktop/development/Mirobody/local-models/small/minicpm5-1b/MiniCPM5-1B-Q8_0.gguf",
+     "model_path": "<local>/small/minicpm5-1b/MiniCPM5-1B-Q8_0.gguf",
      "ctx_size": "32768",
      "parallel": "2",
      "files": [
@@ -1119,8 +1119,8 @@
     },
     {
      "id": "glm-ocr",
-     "model_path": "/Users/admin/Desktop/development/Mirobody/local-models/glm-ocr/GLM-OCR-Q8_0.gguf",
-     "mmproj_path": "/Users/admin/Desktop/development/Mirobody/local-models/glm-ocr/mmproj-GLM-OCR-Q8_0.gguf",
+     "model_path": "<local>/glm-ocr/GLM-OCR-Q8_0.gguf",
+     "mmproj_path": "<local>/glm-ocr/mmproj-GLM-OCR-Q8_0.gguf",
      "ctx_size": "16384",
      "parallel": "2",
      "files": [
@@ -1217,7 +1217,7 @@
      "commit": "248df0f2aead8051c81ef1f7a9fa431e627e8791",
      "repo_head_at_run": "248df0f2aead8051c81ef1f7a9fa431e627e8791",
      "build": "mirobody-gen build --seed 7 --people 6 --out <dir> --render",
-     "corpus": "/Users/admin/Desktop/development/Mirobody/mirobody/internal/model-eval/bench-2026-10-10/gen7",
+     "corpus": "<scratch>/gen7",
      "sha256": {
       "devices.jsonl": "887e6cdf2fe5ad5f68142e3a23137323e8316eacabbbdc34f832a243a4678860",
       "files.jsonl": "5bad865b1e5cba4979d453338f79b2d5bf342e9c19b8cd8061901ae1dab09b11",
@@ -1233,7 +1233,7 @@
      "models_max": 2
     },
     "machine": {
-     "chip": "Apple M4 Pro",
+     "chip": "Apple silicon",
      "memory_gb": 48,
      "os": "Darwin 26.6",
      "docker_vm": "colima 4 CPU, 6 GB"
@@ -1252,7 +1252,7 @@
    "models": [
     {
      "id": "minicpm5-1b",
-     "model_path": "/Users/admin/Desktop/development/Mirobody/local-models/small/minicpm5-1b/MiniCPM5-1B-Q8_0.gguf",
+     "model_path": "<local>/small/minicpm5-1b/MiniCPM5-1B-Q8_0.gguf",
      "ctx_size": "32768",
      "parallel": "2",
      "files": [
@@ -1265,8 +1265,8 @@
     },
     {
      "id": "glm-ocr",
-     "model_path": "/Users/admin/Desktop/development/Mirobody/local-models/glm-ocr/GLM-OCR-Q8_0.gguf",
-     "mmproj_path": "/Users/admin/Desktop/development/Mirobody/local-models/glm-ocr/mmproj-GLM-OCR-Q8_0.gguf",
+     "model_path": "<local>/glm-ocr/GLM-OCR-Q8_0.gguf",
+     "mmproj_path": "<local>/glm-ocr/mmproj-GLM-OCR-Q8_0.gguf",
      "ctx_size": "16384",
      "parallel": "2",
      "files": [
@@ -1361,7 +1361,7 @@
      "commit": "248df0f2aead8051c81ef1f7a9fa431e627e8791",
      "repo_head_at_run": "248df0f2aead8051c81ef1f7a9fa431e627e8791",
      "build": "mirobody-gen build --seed 7 --people 6 --out <dir> --render",
-     "corpus": "/Users/admin/Desktop/development/Mirobody/mirobody/internal/model-eval/bench-2026-10-10/gen7",
+     "corpus": "<scratch>/gen7",
      "sha256": {
       "devices.jsonl": "887e6cdf2fe5ad5f68142e3a23137323e8316eacabbbdc34f832a243a4678860",
       "files.jsonl": "5bad865b1e5cba4979d453338f79b2d5bf342e9c19b8cd8061901ae1dab09b11",
@@ -1377,7 +1377,7 @@
      "models_max": 2
     },
     "machine": {
-     "chip": "Apple M4 Pro",
+     "chip": "Apple silicon",
      "memory_gb": 48,
      "os": "Darwin 26.6",
      "docker_vm": "colima 4 CPU, 6 GB"
@@ -1398,7 +1398,7 @@
    "models": [
     {
      "id": "minicpm5-2b",
-     "model_path": "/Users/admin/Desktop/development/Mirobody/local-models/small/minicpm5-2b/MiniCPM5-2B-Q8_0.gguf",
+     "model_path": "<local>/small/minicpm5-2b/MiniCPM5-2B-Q8_0.gguf",
      "ctx_size": "32768",
      "parallel": "2",
      "files": [
@@ -1411,8 +1411,8 @@
     },
     {
      "id": "glm-ocr",
-     "model_path": "/Users/admin/Desktop/development/Mirobody/local-models/glm-ocr/GLM-OCR-Q8_0.gguf",
-     "mmproj_path": "/Users/admin/Desktop/development/Mirobody/local-models/glm-ocr/mmproj-GLM-OCR-Q8_0.gguf",
+     "model_path": "<local>/glm-ocr/GLM-OCR-Q8_0.gguf",
+     "mmproj_path": "<local>/glm-ocr/mmproj-GLM-OCR-Q8_0.gguf",
      "ctx_size": "16384",
      "parallel": "2",
      "files": [
@@ -1509,7 +1509,7 @@
      "commit": "248df0f2aead8051c81ef1f7a9fa431e627e8791",
      "repo_head_at_run": "248df0f2aead8051c81ef1f7a9fa431e627e8791",
      "build": "mirobody-gen build --seed 7 --people 6 --out <dir> --render",
-     "corpus": "/Users/admin/Desktop/development/Mirobody/mirobody/internal/model-eval/bench-2026-10-10/gen7",
+     "corpus": "<scratch>/gen7",
      "sha256": {
       "devices.jsonl": "887e6cdf2fe5ad5f68142e3a23137323e8316eacabbbdc34f832a243a4678860",
       "files.jsonl": "5bad865b1e5cba4979d453338f79b2d5bf342e9c19b8cd8061901ae1dab09b11",
@@ -1525,7 +1525,7 @@
      "models_max": 2
     },
     "machine": {
-     "chip": "Apple M4 Pro",
+     "chip": "Apple silicon",
      "memory_gb": 48,
      "os": "Darwin 26.6",
      "docker_vm": "colima 4 CPU, 6 GB"
@@ -1544,8 +1544,8 @@
    "models": [
     {
      "id": "qwen3.8-27b",
-     "model_path": "/Users/admin/Desktop/development/Mirobody/local-models/qwen3.8-27b-gsq-rco/Qwen3.8-27B-GSQ-RCO-IQ3_S-mtp.gguf",
-     "mmproj_path": "/Users/admin/Desktop/development/Mirobody/local-models/qwen3.8-27b-gsq-rco/mmproj-Qwen3.8-27B-BF16.gguf",
+     "model_path": "<local>/qwen3.8-27b-gsq-rco/Qwen3.8-27B-GSQ-RCO-IQ3_S-mtp.gguf",
+     "mmproj_path": "<local>/qwen3.8-27b-gsq-rco/mmproj-Qwen3.8-27B-BF16.gguf",
      "ctx_size": "65536",
      "parallel": "2",
      "files": [
@@ -1563,8 +1563,8 @@
     },
     {
      "id": "glm-ocr",
-     "model_path": "/Users/admin/Desktop/development/Mirobody/local-models/glm-ocr/GLM-OCR-Q8_0.gguf",
-     "mmproj_path": "/Users/admin/Desktop/development/Mirobody/local-models/glm-ocr/mmproj-GLM-OCR-Q8_0.gguf",
+     "model_path": "<local>/glm-ocr/GLM-OCR-Q8_0.gguf",
+     "mmproj_path": "<local>/glm-ocr/mmproj-GLM-OCR-Q8_0.gguf",
      "ctx_size": "16384",
      "parallel": "2",
      "files": [
@@ -1659,7 +1659,7 @@
      "commit": "248df0f2aead8051c81ef1f7a9fa431e627e8791",
      "repo_head_at_run": "248df0f2aead8051c81ef1f7a9fa431e627e8791",
      "build": "mirobody-gen build --seed 7 --people 6 --out <dir> --render",
-     "corpus": "/Users/admin/Desktop/development/Mirobody/mirobody/internal/model-eval/bench-2026-10-10/gen7",
+     "corpus": "<scratch>/gen7",
      "sha256": {
       "devices.jsonl": "887e6cdf2fe5ad5f68142e3a23137323e8316eacabbbdc34f832a243a4678860",
       "files.jsonl": "5bad865b1e5cba4979d453338f79b2d5bf342e9c19b8cd8061901ae1dab09b11",
@@ -1675,7 +1675,7 @@
      "models_max": 2
     },
     "machine": {
-     "chip": "Apple M4 Pro",
+     "chip": "Apple silicon",
      "memory_gb": 48,
      "os": "Darwin 26.6",
      "docker_vm": "colima 4 CPU, 6 GB"
@@ -1694,7 +1694,7 @@
    "models": [
     {
      "id": "minicpm5-2b",
-     "model_path": "/Users/admin/Desktop/development/Mirobody/local-models/small/minicpm5-2b/MiniCPM5-2B-Q8_0.gguf",
+     "model_path": "<local>/small/minicpm5-2b/MiniCPM5-2B-Q8_0.gguf",
      "ctx_size": "32768",
      "parallel": "2",
      "files": [
@@ -1707,8 +1707,8 @@
     },
     {
      "id": "glm-ocr",
-     "model_path": "/Users/admin/Desktop/development/Mirobody/local-models/glm-ocr/GLM-OCR-Q8_0.gguf",
-     "mmproj_path": "/Users/admin/Desktop/development/Mirobody/local-models/glm-ocr/mmproj-GLM-OCR-Q8_0.gguf",
+     "model_path": "<local>/glm-ocr/GLM-OCR-Q8_0.gguf",
+     "mmproj_path": "<local>/glm-ocr/mmproj-GLM-OCR-Q8_0.gguf",
      "ctx_size": "16384",
      "parallel": "2",
      "files": [
@@ -1803,7 +1803,7 @@
      "commit": "248df0f2aead8051c81ef1f7a9fa431e627e8791",
      "repo_head_at_run": "248df0f2aead8051c81ef1f7a9fa431e627e8791",
      "build": "mirobody-gen build --seed 7 --people 6 --out <dir> --render",
-     "corpus": "/Users/admin/Desktop/development/Mirobody/mirobody/internal/model-eval/bench-2026-10-10/gen7",
+     "corpus": "<scratch>/gen7",
      "sha256": {
       "devices.jsonl": "887e6cdf2fe5ad5f68142e3a23137323e8316eacabbbdc34f832a243a4678860",
       "files.jsonl": "5bad865b1e5cba4979d453338f79b2d5bf342e9c19b8cd8061901ae1dab09b11",
@@ -1819,7 +1819,7 @@
      "models_max": 2
     },
     "machine": {
-     "chip": "Apple M4 Pro",
+     "chip": "Apple silicon",
      "memory_gb": 48,
      "os": "Darwin 26.6",
      "docker_vm": "colima 4 CPU, 6 GB"
@@ -1838,7 +1838,7 @@
    "models": [
     {
      "id": "minicpm5-2b",
-     "model_path": "/Users/admin/Desktop/development/Mirobody/local-models/small/minicpm5-2b/MiniCPM5-2B-Q4_K_M.gguf",
+     "model_path": "<local>/small/minicpm5-2b/MiniCPM5-2B-Q4_K_M.gguf",
      "ctx_size": "32768",
      "parallel": "2",
      "files": [
@@ -1851,8 +1851,8 @@
     },
     {
      "id": "glm-ocr",
-     "model_path": "/Users/admin/Desktop/development/Mirobody/local-models/glm-ocr/GLM-OCR-Q8_0.gguf",
-     "mmproj_path": "/Users/admin/Desktop/development/Mirobody/local-models/glm-ocr/mmproj-GLM-OCR-Q8_0.gguf",
+     "model_path": "<local>/glm-ocr/GLM-OCR-Q8_0.gguf",
+     "mmproj_path": "<local>/glm-ocr/mmproj-GLM-OCR-Q8_0.gguf",
      "ctx_size": "16384",
      "parallel": "2",
      "files": [
@@ -1949,7 +1949,7 @@
      "commit": "248df0f2aead8051c81ef1f7a9fa431e627e8791",
      "repo_head_at_run": "248df0f2aead8051c81ef1f7a9fa431e627e8791",
      "build": "mirobody-gen build --seed 7 --people 6 --out <dir> --render",
-     "corpus": "/Users/admin/Desktop/development/Mirobody/mirobody/internal/model-eval/bench-2026-10-10/gen7",
+     "corpus": "<scratch>/gen7",
      "sha256": {
       "devices.jsonl": "887e6cdf2fe5ad5f68142e3a23137323e8316eacabbbdc34f832a243a4678860",
       "files.jsonl": "5bad865b1e5cba4979d453338f79b2d5bf342e9c19b8cd8061901ae1dab09b11",
@@ -1965,7 +1965,7 @@
      "models_max": 2
     },
     "machine": {
-     "chip": "Apple M4 Pro",
+     "chip": "Apple silicon",
      "memory_gb": 48,
      "os": "Darwin 26.6",
      "docker_vm": "colima 4 CPU, 6 GB"
@@ -2135,7 +2135,7 @@
      "commit": "248df0f2aead8051c81ef1f7a9fa431e627e8791",
      "repo_head_at_run": "248df0f2aead8051c81ef1f7a9fa431e627e8791",
      "build": "mirobody-gen build --seed 7 --people 6 --out <dir> --render",
-     "corpus": "/Users/admin/Desktop/development/Mirobody/mirobody/internal/model-eval/bench-2026-10-10/gen7",
+     "corpus": "<scratch>/gen7",
      "sha256": {
       "devices.jsonl": "887e6cdf2fe5ad5f68142e3a23137323e8316eacabbbdc34f832a243a4678860",
       "files.jsonl": "5bad865b1e5cba4979d453338f79b2d5bf342e9c19b8cd8061901ae1dab09b11",
@@ -2151,7 +2151,7 @@
      "models_max": 2
     },
     "machine": {
-     "chip": "Apple M4 Pro",
+     "chip": "Apple silicon",
      "memory_gb": 48,
      "os": "Darwin 26.6",
      "docker_vm": "colima 4 CPU, 6 GB"
@@ -2325,7 +2325,7 @@
      "commit": "248df0f2aead8051c81ef1f7a9fa431e627e8791",
      "repo_head_at_run": "248df0f2aead8051c81ef1f7a9fa431e627e8791",
      "build": "mirobody-gen build --seed 7 --people 6 --out <dir> --render",
-     "corpus": "/Users/admin/Desktop/development/Mirobody/mirobody/internal/model-eval/bench-2026-10-10/gen7",
+     "corpus": "<scratch>/gen7",
      "sha256": {
       "devices.jsonl": "887e6cdf2fe5ad5f68142e3a23137323e8316eacabbbdc34f832a243a4678860",
       "files.jsonl": "5bad865b1e5cba4979d453338f79b2d5bf342e9c19b8cd8061901ae1dab09b11",
@@ -2341,7 +2341,7 @@
      "models_max": 2
     },
     "machine": {
-     "chip": "Apple M4 Pro",
+     "chip": "Apple silicon",
      "memory_gb": 48,
      "os": "Darwin 26.6",
      "docker_vm": "colima 4 CPU, 6 GB"
@@ -2515,7 +2515,7 @@
      "commit": "248df0f2aead8051c81ef1f7a9fa431e627e8791",
      "repo_head_at_run": "248df0f2aead8051c81ef1f7a9fa431e627e8791",
      "build": "mirobody-gen build --seed 7 --people 6 --out <dir> --render",
-     "corpus": "/Users/admin/Desktop/development/Mirobody/mirobody/internal/model-eval/bench-2026-10-10/gen7",
+     "corpus": "<scratch>/gen7",
      "sha256": {
       "devices.jsonl": "887e6cdf2fe5ad5f68142e3a23137323e8316eacabbbdc34f832a243a4678860",
       "files.jsonl": "5bad865b1e5cba4979d453338f79b2d5bf342e9c19b8cd8061901ae1dab09b11",
@@ -2531,7 +2531,7 @@
      "models_max": 2
     },
     "machine": {
-     "chip": "Apple M4 Pro",
+     "chip": "Apple silicon",
      "memory_gb": 48,
      "os": "Darwin 26.6",
      "docker_vm": "colima 4 CPU, 6 GB"
@@ -2702,7 +2702,7 @@
      "commit": "248df0f2aead8051c81ef1f7a9fa431e627e8791",
      "repo_head_at_run": "248df0f2aead8051c81ef1f7a9fa431e627e8791",
      "build": "mirobody-gen build --seed 7 --people 6 --out <dir> --render",
-     "corpus": "/Users/admin/Desktop/development/Mirobody/mirobody/internal/model-eval/bench-2026-10-10/gen7",
+     "corpus": "<scratch>/gen7",
      "sha256": {
       "devices.jsonl": "887e6cdf2fe5ad5f68142e3a23137323e8316eacabbbdc34f832a243a4678860",
       "files.jsonl": "5bad865b1e5cba4979d453338f79b2d5bf342e9c19b8cd8061901ae1dab09b11",
@@ -2718,7 +2718,7 @@
      "models_max": 2
     },
     "machine": {
-     "chip": "Apple M4 Pro",
+     "chip": "Apple silicon",
      "memory_gb": 48,
      "os": "Darwin 26.6",
      "docker_vm": "colima 4 CPU, 6 GB"
@@ -2888,7 +2888,7 @@
      "commit": "248df0f2aead8051c81ef1f7a9fa431e627e8791",
      "repo_head_at_run": "248df0f2aead8051c81ef1f7a9fa431e627e8791",
      "build": "mirobody-gen build --seed 7 --people 6 --out <dir> --render",
-     "corpus": "/Users/admin/Desktop/development/Mirobody/mirobody/internal/model-eval/bench-2026-10-10/gen7",
+     "corpus": "<scratch>/gen7",
      "sha256": {
       "devices.jsonl": "887e6cdf2fe5ad5f68142e3a23137323e8316eacabbbdc34f832a243a4678860",
       "files.jsonl": "5bad865b1e5cba4979d453338f79b2d5bf342e9c19b8cd8061901ae1dab09b11",
@@ -2904,7 +2904,7 @@
      "models_max": 2
     },
     "machine": {
-     "chip": "Apple M4 Pro",
+     "chip": "Apple silicon",
      "memory_gb": 48,
      "os": "Darwin 26.6",
      "docker_vm": "colima 4 CPU, 6 GB"
