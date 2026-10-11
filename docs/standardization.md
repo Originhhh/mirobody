@@ -71,8 +71,8 @@ Standardization here is not a lookup table but a complete terminology-normalizat
 - **We measure the claim instead of asserting it.**
   [`test_engine_coverage.py`](../mirobody/tests/test_engine_coverage.py) scores the offline
   resolver against the panels an ordinary checkup includes, written the way a report
-  prints them, in English, 简体中文, 繁體中文, 日本語, Russian and Estonian, plus the
-  wearable vocabulary the platform API teaches. **317/317 today; it scored 32/94 the day it
+  prints them, in English, 简体中文, 繁體中文, 日本語, Russian, Estonian and Turkish, plus
+  the wearable vocabulary the platform API teaches. **321/321 today; it scored 32/94 the day it
   was written.** It grades *clinical* correctness: answering `血红蛋白` with the
   HbA1c code is a failure, and `血脂` is required to resolve to nothing.
 

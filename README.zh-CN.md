@@ -53,7 +53,7 @@ git clone --depth 1 https://github.com/thetahealth/mirobody.git && cd mirobody
 COMPOSE_PROFILES=local-cpu ./deploy.sh
 ```
 
-脚本会把 Mirobody 指向 [llama.cpp](https://github.com/ggml-org/llama.cpp)，由它运行一个小型回答模型和一个文档识别模型，设置页无需再做选择。建议主机有 16 GB 内存，至少分配 8 GB 给 Docker；首次需下载约 3.7 GB。没有显卡时，第一个回答需要几分钟：Apple 芯片笔记本的 CPU 上约 2–3 分钟，4 vCPU 的 x86 服务器上最长约 15 分钟。在 Mac 上直接运行 `llama-server` 可以用上 GPU，16 GB 的 Apple 芯片笔记本每个回答约 30 秒。
+脚本会把 Mirobody 指向 [llama.cpp](https://github.com/ggml-org/llama.cpp)，由它运行一个小型回答模型和一个文档识别模型，设置页无需再做选择。建议主机有 16 GB 内存，至少分配 8 GB 给 Docker；首次需下载约 4.8 GB。没有显卡时，第一个回答需要几分钟：Apple 芯片笔记本的 CPU 上约 2–3 分钟，4 vCPU 的 x86 服务器上最长约 15 分钟。在 Mac 上直接运行 `llama-server` 可以用上 GPU，16 GB 的 Apple 芯片笔记本每个回答约 30 秒。
 
 <p align="center">
   <img src="docs/images/setup-demo.zh-CN.gif" alt="首次设置页：在 OpenRouter 的 Key 旁边修改模型名；再选择 100% 在本机运行：页面找到 llama.cpp 服务，列出它提供的模型，两个模型都已就绪" width="880">
@@ -131,7 +131,7 @@ COMPOSE_PROFILES=local-cpu ./deploy.sh
 不需要 Key、不联网，用 `uvx` 连安装都省了，先试试词表：
 
 ```bash
-uvx --python 3.12 mirobody resolve "LDL cholesterol" 血红蛋白 ヘモグロビン 血脂
+uvx --python 3.12 mirobody resolve "LDL cholesterol" 血红蛋白 ヘモグロビン "Total Kolesterol" 血脂
 ```
 
 ```python
@@ -148,7 +148,7 @@ resolve("血脂").resolved                                     # False    一个
 
 | 说法 | 怎么验证 |
 | --- | --- |
-| **317/317**：常规体检会打印的项目，覆盖英文、中文、日文、俄文和爱沙尼亚文 | 运行 [`test_engine_coverage.py`](mirobody/tests/test_engine_coverage.py) 会打印分数 |
+| **321/321**：常规体检会打印的项目，覆盖英文、中文、日文、俄文、爱沙尼亚文和土耳其文 | 运行 [`test_engine_coverage.py`](mirobody/tests/test_engine_coverage.py) 会打印分数 |
 | **330 个 UCUM 单位**，带量纲分析；**316 项标准设备指标** | [标准化详解](docs/standardization.zh-CN.md) · [设备对照表](docs/device-crosswalk.md) |
 | 包会说明是哪份词表在回答：`mirobody.BUNDLE_VERSION` 是 `loinc-2.83+2026.09.17-aacb2c715b56` | `python -c "import mirobody; print(mirobody.BUNDLE_VERSION)"` |
 | 公开的健康 agent 评测集：[ESL-Bench](https://huggingface.co/datasets/mirobody/ESL-Bench)、[MedHall-Bench](https://huggingface.co/datasets/mirobody/MedHall-Bench)、[MedHarm-Bench](https://huggingface.co/datasets/mirobody/MedHarm-Bench) | [`mirobody-eval`](https://github.com/thetahealth/mirobody-eval) · [`benchmarks/`](benchmarks/README.md) |
@@ -157,7 +157,7 @@ Mirobody 也是 [Theta Wellness](https://www.thetahealth.ai/) 这款已上线的
 
 ## 参与贡献
 
-最有价值的贡献，是找出解析器答错的术语。运行 `mirobody resolve "<术语>"`，结果错误或为空时，[提交 issue](https://github.com/thetahealth/mirobody/issues/new?template=wrong-term.yml)，或附上测试用例直接提交修复。环境搭建和检查命令见 [CONTRIBUTING.md](CONTRIBUTING.md)。
+最有价值的贡献，是找出解析器答错的术语。运行 `mirobody resolve "<术语>"`，结果错误或为空时，[提交 issue](https://github.com/thetahealth/mirobody/issues/new?template=wrong-term.yml)，或附上测试用例直接提交修复。词表就是这样扩展到新语言的：俄文的检验项目和爱沙尼亚文的维生素写法来自 [#88](https://github.com/thetahealth/mirobody/pull/88)，土耳其文化验单的写法来自 [#140](https://github.com/thetahealth/mirobody/pull/140)，每个术语都只是 [`resolver_overrides.tsv`](mirobody/res/loinc/resolver_overrides.tsv) 里的一行，加一个测试用例。环境搭建和检查命令见 [CONTRIBUTING.md](CONTRIBUTING.md)。
 
 本项目基于 [HL7 FHIR](https://hl7.org/fhir/)、[Regenstrief Institute](https://www.regenstrief.org/) 的 [LOINC](https://loinc.org/)、[UCUM](https://ucum.org/)、[ICPC-3](https://icpc-3.info/)（WONCA）、[CPIC](https://cpicpgx.org/)、[llama.cpp](https://github.com/ggml-org/llama.cpp) 与 [deepagents](https://github.com/langchain-ai/deepagents)，在此致谢。术语许可见 [`LICENSE-3RD-PARTY`](LICENSE-3RD-PARTY)。
 

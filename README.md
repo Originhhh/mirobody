@@ -53,7 +53,7 @@ From the cloned folder, start the stack with llama.cpp's CPU image beside it:
 COMPOSE_PROFILES=local-cpu ./deploy.sh
 ```
 
-The script points Mirobody at [llama.cpp](https://github.com/ggml-org/llama.cpp), which serves a small answering model and a document reader; the setup page has nothing to ask. Allow 16 GB of memory, at least 8 GB of it for Docker, and a one-time download of about 3.7 GB. With no GPU a first answer takes minutes: 2–3 on an Apple-silicon laptop's cores, up to about 15 on a 4-vCPU x86 server. On a Mac, running `llama-server` natively uses the GPU: about 30 s per answer on a 16 GB Apple-silicon laptop.
+The script points Mirobody at [llama.cpp](https://github.com/ggml-org/llama.cpp), which serves a small answering model and a document reader; the setup page has nothing to ask. Allow 16 GB of memory, at least 8 GB of it for Docker, and a one-time download of about 4.8 GB. With no GPU a first answer takes minutes: 2–3 on an Apple-silicon laptop's cores, up to about 15 on a 4-vCPU x86 server. On a Mac, running `llama-server` natively uses the GPU: about 30 s per answer on a 16 GB Apple-silicon laptop.
 
 <p align="center">
   <img src="docs/images/setup-demo.gif" alt="The first-run page: a model name edited beside an OpenRouter key, then 100% on this machine: the page finds the llama.cpp server, lists the models it serves, and both models are ready" width="880">
@@ -131,7 +131,7 @@ Over MCP the stack serves seven tools, each scoped to the signed-in person: four
 Try the vocabulary with no key, no network and, with `uvx`, no install:
 
 ```bash
-uvx --python 3.12 mirobody resolve "LDL cholesterol" 血红蛋白 ヘモグロビン 血脂
+uvx --python 3.12 mirobody resolve "LDL cholesterol" 血红蛋白 ヘモグロビン "Total Kolesterol" 血脂
 ```
 
 ```python
@@ -148,7 +148,7 @@ resolve("血脂").resolved                                     # False    a cate
 
 | Claim | Check it |
 | --- | --- |
-| **317/317** on the tests an ordinary checkup prints, in English, Chinese, Japanese, Russian and Estonian | [`test_engine_coverage.py`](mirobody/tests/test_engine_coverage.py) prints the score |
+| **321/321** on the tests an ordinary checkup prints, in English, Chinese, Japanese, Russian, Estonian and Turkish | [`test_engine_coverage.py`](mirobody/tests/test_engine_coverage.py) prints the score |
 | **330 UCUM units** with dimensional analysis, and **316 standard device indicators** | [Standardization](docs/standardization.md) · [Device crosswalk](docs/device-crosswalk.md) |
 | The package names its vocabulary: `mirobody.BUNDLE_VERSION` is `loinc-2.83+2026.09.17-aacb2c715b56` | `python -c "import mirobody; print(mirobody.BUNDLE_VERSION)"` |
 | Public health-agent benchmarks: [ESL-Bench](https://huggingface.co/datasets/mirobody/ESL-Bench), [MedHall-Bench](https://huggingface.co/datasets/mirobody/MedHall-Bench), [MedHarm-Bench](https://huggingface.co/datasets/mirobody/MedHarm-Bench) | [`mirobody-eval`](https://github.com/thetahealth/mirobody-eval) · [`benchmarks/`](benchmarks/README.md) |
@@ -157,7 +157,7 @@ Mirobody is the engine under [Theta Wellness](https://www.thetahealth.ai/), a li
 
 ## Contributing
 
-The most useful contribution is a term the resolver gets wrong. Run `mirobody resolve "<term>"`; if the answer is wrong or empty, [report it](https://github.com/thetahealth/mirobody/issues/new?template=wrong-term.yml) or send a fix with a test case. [CONTRIBUTING.md](CONTRIBUTING.md) has the setup and the checks.
+The most useful contribution is a term the resolver gets wrong. Run `mirobody resolve "<term>"`; if the answer is wrong or empty, [report it](https://github.com/thetahealth/mirobody/issues/new?template=wrong-term.yml) or send a fix with a test case. That is how the vocabulary grows into new languages: Russian panel and Estonian vitamin terms arrived in [#88](https://github.com/thetahealth/mirobody/pull/88) and Turkish lab-report spellings in [#140](https://github.com/thetahealth/mirobody/pull/140), each one row of [`resolver_overrides.tsv`](mirobody/res/loinc/resolver_overrides.tsv) and one test case per term. [CONTRIBUTING.md](CONTRIBUTING.md) has the setup and the checks.
 
 Built on [HL7 FHIR](https://hl7.org/fhir/), [LOINC](https://loinc.org/) from the [Regenstrief Institute](https://www.regenstrief.org/), [UCUM](https://ucum.org/), [ICPC-3](https://icpc-3.info/) (WONCA), [CPIC](https://cpicpgx.org/), [llama.cpp](https://github.com/ggml-org/llama.cpp) and [deepagents](https://github.com/langchain-ai/deepagents), with thanks. Terminology licences: [`LICENSE-3RD-PARTY`](LICENSE-3RD-PARTY).
 
