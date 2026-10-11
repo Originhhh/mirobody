@@ -21,7 +21,7 @@
  "models": [
   {
    "id": "minicpm5-2b",
-   "model_path": "/Users/admin/Desktop/development/Mirobody/local-models/small/minicpm5-2b/MiniCPM5-2B-Q4_K_M.gguf",
+   "model_path": "<local>/small/minicpm5-2b/MiniCPM5-2B-Q4_K_M.gguf",
    "ctx_size": "32768",
    "parallel": "2",
    "files": [
@@ -34,8 +34,8 @@
   },
   {
    "id": "glm-ocr",
-   "model_path": "/Users/admin/Desktop/development/Mirobody/local-models/glm-ocr/GLM-OCR-Q8_0.gguf",
-   "mmproj_path": "/Users/admin/Desktop/development/Mirobody/local-models/glm-ocr/mmproj-GLM-OCR-Q8_0.gguf",
+   "model_path": "<local>/glm-ocr/GLM-OCR-Q8_0.gguf",
+   "mmproj_path": "<local>/glm-ocr/mmproj-GLM-OCR-Q8_0.gguf",
    "ctx_size": "16384",
    "parallel": "2",
    "files": [
