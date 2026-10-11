@@ -478,7 +478,7 @@ CASES: list[tuple[str, str, str]] = [
     ("Витамин D (25-OH)",           r"25.hydroxyvitamin",            r""),
     ("Витамин В12",                 r"cobalamin|vitamin b12",        r""),
     ("Фолиевая кислота",            r"folate",                       r""),
-    # ── Turkish: as a Turkish lab report prints it. Uppercase dotted İ spellings
+    # ── Turkish: as a Turkish lab report prints it. All-caps İ and I (for ı) spellings
     #    are left out until the engine's casefolding handles them (discussion #137).
     ("Total Kolesterol",            r"cholesterol",                  r"LDL|HDL|VLDL|non.?HDL"),
     ("HDL Kolesterol",              r"cholesterol.*HDL|HDL.*cholesterol", r"LDL"),
