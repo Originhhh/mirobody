@@ -345,7 +345,8 @@ REM睡眠	REM sleep duration
 # as answering it with one of these two.
 
 # ══ Türkçe ═══════════════════════════════════════════════════════════
-# Spellings as printed on Turkish lab reports. Uppercase dotted İ is not covered here.
+# Spellings as printed on Turkish lab reports. All-caps İ, and I for ı, are not covered: casefold
+# gives "i" plus a combining dot and "i", never "ı" (GLUKOZ (AÇLIK) lands on plain glucose).
 Total Kolesterol	Cholesterol
 HDL Kolesterol	HDL-C
 Trigliserit	Triglyceride

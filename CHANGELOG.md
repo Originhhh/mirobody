@@ -1,4 +1,4 @@
-## Unreleased
+## 1.5.5
 
 ### Added
 
@@ -7,7 +7,10 @@
   glucose with the "fasting" qualifier lost. Each is now one row in
   `resolver_overrides.tsv`, with a must-not pattern in `test_engine_coverage.py`
   so a wrong neighbour (HDL vs total cholesterol, fasting vs plain glucose)
-  fails. Uppercase dotted İ spellings are not covered (Discussion #137).
+  fails. Turkish all-caps spellings of an i or ı are not covered:
+  casefolding turns `İ` into `i` plus a combining dot and `I` into `i`, never
+  `ı`, so `TRİGLİSERİT` resolves to nothing and `GLUKOZ (AÇLIK)` to plain
+  glucose (Discussion #137).
 - **Every number in a chat answer cites its source.** Each row a record tool
   shows carries a short id (`r3`) kept per conversation, and the answer cites
   it in the LongCite form; the web client draws a numbered chip that opens the
