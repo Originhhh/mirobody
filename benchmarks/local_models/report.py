@@ -113,6 +113,11 @@ def summary() -> str:
         lambda s: f"{rows[s]['qa_unsupported_numbers']} ({rows[s]['qa_answers_with_unsupported']})")
     row("… seconds per answer, median / p90", lambda s: f"{rows[s]['qa_median_s']} / {rows[s]['qa_p90_s']}")
     row("… timeouts", lambda s: str(rows[s]["qa_timeouts"]))
+    row("… tool calls, total (median per answer)",
+        lambda s: f"{rows[s]['qa_tool_calls']} ({rows[s]['qa_median_calls']})")
+    row("… tokens read / written, thousands (share read from cache)",
+        lambda s: f"{rows[s]['qa_input_tokens'] / 1000:.0f} / {rows[s]['qa_output_tokens'] / 1000:.1f} "
+                  f"({100 * rows[s]['qa_cached_tokens'] / max(rows[s]['qa_input_tokens'], 1):.0f}%)")
     if any(rows[s].get("new_n") for s in sizes):
         row("Questions added 2026-10-10, Claude Code grade",
             lambda s: "{}/{}".format(*totals[s]["new"]) if s in totals and totals[s]["new"][1] else "")

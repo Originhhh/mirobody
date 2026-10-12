@@ -501,6 +501,7 @@ def summarize(size_dir: Path) -> dict:
     traces = [r["score"]["trace"] for r in qa["runs"] if r["score"].get("trace")]
     shown = [t for t in traces if t["rows_shown"] or t["refs_shown"]]
     times = [r["seconds"] for r in runs]
+    usage = [_usage(r) for r in runs]
     docs = ext["documents"]
     sents = jnl["sentences"]
     found = sum(d["score"]["found"] for d in docs)
@@ -520,6 +521,10 @@ def summarize(size_dir: Path) -> dict:
         "qa_answers_with_unsupported": sum(bool(r["score"]["unsupported_numbers"]) for r in runs),
         "qa_timeouts": sum(r["score"]["timeout"] for r in runs),
         "qa_median_s": round(statistics.median(times), 1) if times else None, "qa_p90_s": pct(times, 0.9),
+        "qa_input_tokens": sum(u["input"] for u in usage), "qa_output_tokens": sum(u["output"] for u in usage),
+        "qa_cached_tokens": sum(u["cached"] for u in usage),
+        "qa_tool_calls": sum(u["calls"] for u in usage),
+        "qa_median_calls": statistics.median([u["calls"] for u in usage]) if usage else None,
         "ext_rows": sum(d["score"]["rows"] for d in docs), "ext_found": found,
         "ext_unit_ok": sum(d["score"]["unit_ok"] for d in docs), "ext_range_ok": sum(d["score"]["range_ok"] for d in docs),
         "ext_extra": sum(d["score"]["extra"] for d in docs),
@@ -537,6 +542,17 @@ def summarize(size_dir: Path) -> dict:
         "memory_peak_rss_mb": (meta.get("memory_run") or {}).get("peak_rss_mb"),
         "memory_peak_footprint_mb": (meta.get("memory_run") or {}).get("peak_footprint_mb"),
     }
+
+
+def _usage(run: dict) -> dict:
+    """The tokens a turn read and wrote (the app's `usage` block; the cache
+    share is what the server did not have to read again) and its tool calls."""
+    blocks = run.get("blocks") or []
+    used = [b for b in blocks if b.get("type") == "usage"]
+    return {"input": sum(b.get("input_tokens") or 0 for b in used),
+            "output": sum(b.get("output_tokens") or 0 for b in used),
+            "cached": sum((b.get("input_token_details") or {}).get("cache_read") or 0 for b in used),
+            "calls": sum(b.get("type") == "tool_call" for b in blocks)}
 
 
 def write_summary(size_dir: Path, cases: list[dict]) -> None:
