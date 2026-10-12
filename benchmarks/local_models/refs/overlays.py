@@ -73,6 +73,13 @@ REFS = {
         "model": "google/gemma-4-31b-it", "host": "deepinfra/fp8",
         "chat": {}, "utils": {},
     },
+    # A teacher candidate beside Gemma 4 31B: Qwen3.5-35B-A3B tuned for agents,
+    # Apache-2.0. Only Novita serves it, and only as `:free`; it passed the
+    # account's ZDR rule and returned a structured tool call (2026-10-12).
+    "apodex-1.1-mini": {
+        "model": "apodex/apodex-1.1-mini:free", "host": "novita/bf16",
+        "chat": {}, "utils": {},
+    },
     "gemini-3.8-flash": {
         "model": "google/gemini-3.8-flash", "host": "google-vertex",
         "chat": {},
