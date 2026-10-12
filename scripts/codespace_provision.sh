@@ -69,6 +69,10 @@ if [[ ! -f .env ]]; then
     echo "== .env =="
     umask 077
     {
+        # `mirobody dev` takes a URL and nothing else: `--pg-url`, `PG_URL` or
+        # `DATABASE_URL`. `serve` and the worker read the `PG_*` keys instead,
+        # so both spellings are written.
+        echo "PG_URL=postgres://${DB_USER}:${DB_PASSWORD}@127.0.0.1:5432/${DB_NAME}"
         echo "PG_HOST=127.0.0.1"
         echo "PG_PORT=5432"
         echo "PG_USER=${DB_USER}"
