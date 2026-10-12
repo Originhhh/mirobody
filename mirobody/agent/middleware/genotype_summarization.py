@@ -61,7 +61,11 @@ class GenotypeSafeSummarizationMiddleware(DeepSummarizationMiddleware):
                                        SUMMARIZATION_SESSION_ID_KEY: None})
 
     def _build_new_messages_with_path(self, summary: str, file_path: str | None) -> list[Any]:
-        messages = super()._build_new_messages_with_path(summary, file_path)
+        # The history file is still written, but not named to the model. Told
+        # where it was, MiniCPM5-2B read it page by page, each read compacting
+        # the context again and lengthening the file (270 to 1,653 lines) until
+        # the turn ran out; no cloud model read it in the 570 answers of 2026-10-10.
+        messages = super()._build_new_messages_with_path(summary, None)
         return [message.model_copy(update={"additional_kwargs": {
             **message.additional_kwargs, _SAFE_MARKER: True,
         }}) for message in messages]
