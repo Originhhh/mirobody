@@ -2,19 +2,13 @@
 
 **[English](quickstart.md)** · **中文**
 
-**想看到完整产品，从 Docker 开始。** 两条命令就能启动带着一份合成示例数据的网页应用；剩下的交给一把模型 Key，或者本地模型：
-
-```bash
-git clone --depth 1 https://github.com/thetahealth/mirobody.git && cd mirobody
-./deploy.sh
-```
-
-这页剩下的部分是给只想要其中一部分的开发者看的。下面三条路是可选项，不是步骤：
+**一条命令体验标准化，在浏览器里运行完整应用，或让所有内容 100% 留在本机。** 按你想做的事情选择入口：
 
 | 你想要 | 去哪 | 需要 | 模型 Key |
 | --- | --- | --- | --- |
-| 在自己的代码里解析名称和单位 | [A · 这个库](#a--the-library) | Python 3.12 | 不需要 |
-| 运行完整产品，并带有数据 | [B · 整套服务](#b--the-stack) | 带 Compose 的 Docker | 一把，或者用 llama.cpp 上的本地模型则不需要 |
+| 在终端或 Python 中标准化数据 | [A · 这个库](#a--the-library) | 一条命令体验用 uv；集成到代码用 Python 3.12+ | 不需要 |
+| 在浏览器中体验完整应用 | [B · Codespaces](#try-it-in-codespaces) | GitHub 账号 | 你自己的 Key |
+| 应用、模型和记录都留在自己机器上 | [B · 本地 Docker](#run-it-100-locally) | 带 Compose 的 Docker；16 GB 内存 | 使用本地模型时不需要 |
 | 改代码并看到效果 | [C · 一份检出](#c--a-checkout) | Python + 一个带 pgvector 的 Postgres | 一把，或者一个本地模型服务 |
 
 要用托管的 API Key 和 `/v1` 接口，请用另一份 [云端快速开始](https://docs.mirobody.ai/zh/api-reference/quickstart/)。这一页讲的是开源引擎和它自己的命令。
@@ -23,14 +17,13 @@ git clone --depth 1 https://github.com/thetahealth/mirobody.git && cd mirobody
 
 ## A · 这个库
 
-两个包，唯一的依赖是 numpy。没有 Key、没有网络、没有数据库，你的机器上也不会运行任何模型：解析器是建在 LOINC 上的词法索引，不是大模型。
+解析器使用建在 LOINC 上的词法索引，唯一的依赖是 numpy，不需要模型、API Key 或数据库。[安装 uv](https://docs.astral.sh/uv/getting-started/installation/) 后，无需克隆仓库或手动管理 Python 环境，就可以试用：
 
 ```bash
-pip install mirobody
-mirobody resolve "LDL cholesterol" 血红蛋白 ヘモグロビン "空腹血糖(GLU)" 血脂
+uvx --python 3.12 mirobody resolve "LDL cholesterol" 血红蛋白 ヘモグロビン "空腹血糖(GLU)" 血脂
 ```
 
-用 [uv](https://docs.astral.sh/uv/) 的话什么都不用安装：`uvx --python 3.12 mirobody resolve ...`。`--python 3.12` 很重要：换成更老的默认解释器，uv 会选到 1.2 之前的版本。
+uv 会按需下载 Python，并在隔离环境里准备依赖包。首次下载需要联网，之后名称和单位解析可以离线完成。`--python 3.12` 用来选定受支持的解释器。
 
 <p align="center">
   <img src="images/resolve-demo.zh-CN.gif" alt="mirobody resolve：血红蛋白 和 ヘモグロビン 落到同一个 LOINC 码上，还有一次刻意的弃答" width="880">
@@ -38,7 +31,13 @@ mirobody resolve "LDL cholesterol" 血红蛋白 ヘモグロビン "空腹血糖
 
 `血脂` 说的是一个类别，不是一项具体的观测，所以它什么都解析不到。这是故意的设计：一个错的码会把两种不同的检验放进同一条趋势线。
 
-Python 里也一样。单位是一条读数身份的一部分，所以它能改变码：
+要集成到自己的 Python 3.12+ 环境中，先安装这个库：
+
+```bash
+pip install mirobody
+```
+
+Python 调用的是同一个引擎。单位是一条读数身份的一部分，所以它能改变编码：
 
 ```python
 from mirobody.engine import resolve, resolve_reading, standardize_reading
@@ -76,14 +75,36 @@ mirobody import apple ~/Downloads/export.zip
 
 ## B · 整套服务
 
-带 pgvector 的 Postgres、服务端和后台任务，连同已经播种好的示例记录。
+完整应用包含网页客户端、带 pgvector 的 Postgres、服务端和后台任务，并预置一份合成示例记录。先选择运行在哪里。
+
+<a id="try-it-in-codespaces"></a>
+
+### 在 Codespaces 体验
+
+[![在 GitHub Codespaces 中打开](https://github.com/codespaces/badge.svg)](https://codespaces.new/thetahealth/mirobody?quickstart=1)
+
+用你的 GitHub 账号创建 Codespace，不需要在本机安装 Docker 或 Python。等待终端中的自动设置完成，再打开它打印的 HTTPS 设置链接。填入你自己的模型 API Key，例如 [OpenRouter](https://openrouter.ai/keys) 或 [OpenAI](https://platform.openai.com/api-keys)。设置页会发送一次真实请求，验证通过后才保存 Key。应用默认使用仅自己可访问的 `18060` 转发端口。
+
+在「邮箱验证码」标签使用 `you@mirobody.ai`、验证码 `111111` 登录，问「我的胆固醇有什么变化？」。再到「数据」页上传 [`demo/upload/`](../demo/) 里的一份合成样例，体验文档处理。
+
+应用和存储的记录位于 GitHub 云端，需要模型处理的文档和问题会发送给你选择的模型服务商。体验时请使用随仓库提供的合成数据。[Codespaces 的使用与计费规则](https://docs.github.com/en/billing/concepts/product-billing/github-codespaces) 和模型服务商的收费规则分别适用。体验结束后请停止 Codespace；再次打开时，部署脚本会重新运行，启动应用。
+
+<a id="run-it-100-locally"></a>
+
+### 100% 在本机运行
+
+不需要模型 API Key。带 Compose 的 Docker 会同时启动应用和 llama.cpp 的 CPU 服务，由它运行回答模型和文档识别模型：
 
 ```bash
 git clone --depth 1 https://github.com/thetahealth/mirobody.git && cd mirobody
-./deploy.sh                       # → 在 http://localhost:18060 打印设置链接
+COMPOSE_PROFILES=local-cpu ./deploy.sh
 ```
 
-`deploy.sh` 会生成密钥写进 `.env`，并拉取预构建镜像；镜像里已经带着 LOINC 词表，所以 Docker 用户不需要 Git LFS。生成密钥需要 OpenSSL。这时候还没有模型，它会打印一个首次设置页的链接：在那里粘贴**一把**模型 Key，或者选择**100% 在本机运行**。要在 Docker 里跟服务一起运行模型，换成 `COMPOSE_PROFILES=local-cpu ./deploy.sh` 启动；[local-models.zh-CN.md](local-models.zh-CN.md) 有 GPU 和 Mac 的路线，以及各自需要什么。
+建议主机有 16 GB 内存，至少分配 8 GB 给 Docker。不需要显卡；Windows 用户请在 WSL 2 终端执行。首次启动需要下载容器镜像和模型权重；下载完成后，应用、模型、记录和文档处理都留在本机。CPU 回答可能需要几分钟；[local-models.zh-CN.md](local-models.zh-CN.md) 有 GPU 和 Mac 的配置方案。打开脚本打印的应用链接，使用下面的示例账号登录。
+
+`deploy.sh` 会生成密钥写进 `.env`，并拉取预构建镜像；镜像里已经带着 LOINC 词表，所以 Docker 用户不需要 Git LFS。主机需要 Git 和 OpenSSL。本地 profile 会自动选好本地模型。
+
+**如果希望在 Docker 中使用云端模型，** 不启用本地 profile，改为运行 `./deploy.sh`。打开它打印的 `http://localhost:18060` 设置链接，填入一把模型 API Key。应用和记录留在你自己的主机上，需要模型处理的文档和问题会发送给模型服务商。
 
 在「邮箱验证码」标签用 `you@mirobody.ai`、验证码 `111111` 登录；不涉及任何邮件服务商。`SEED_DEMO_DATA` 默认打开，所以两个账号下已经有 2,019 条读数。如果打算保存真实数据，请在第一次启动前把它设为 `false`，这样两个账号都不会被创建。[`demo/upload/`](../demo/) 里的四份文件是刻意没有播种进去的，所以把其中一份拖到 Data 页走的是真实路径。
 

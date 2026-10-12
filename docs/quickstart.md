@@ -2,21 +2,14 @@
 
 **English** · **[中文](quickstart.zh-CN.md)**
 
-**To see the whole product, start with Docker.** Two commands bring up the web
-app with a synthetic demo record; a model key or the local models do the rest:
-
-```bash
-git clone --depth 1 https://github.com/thetahealth/mirobody.git && cd mirobody
-./deploy.sh
-```
-
-The rest of this page is for developers who want one part of it. The three
-ways in are alternatives, not steps:
+**Start with one command, try the full app in your browser, or keep everything
+100% local.** Choose the entry point that fits what you want to do:
 
 | You want | Go to | Needs | Model key |
 | --- | --- | --- | --- |
-| Names and units resolved in your own code | [A · the library](#a--the-library) | Python 3.12 | none |
-| The whole product running, with data in it | [B · the stack](#b--the-stack) | Docker with Compose | one, or none with the local models on llama.cpp |
+| Standardize data from your terminal or Python | [A · the library](#a--the-library) | uv for the one-command trial; Python 3.12+ for your own code | none |
+| Try the full app in your browser | [B · Codespaces](#try-it-in-codespaces) | A GitHub account | your own key |
+| Keep the app, models and records on your machine | [B · local Docker](#run-it-100-locally) | Docker with Compose; 16 GB memory | none with local models |
 | To change the code and see it | [C · a checkout](#c--a-checkout) | Python + a Postgres with pgvector | one, or a local model server |
 
 For a hosted API key and `/v1` requests, use the separate [Cloud
@@ -25,18 +18,18 @@ covers the open-source engine and its own commands.
 
 ## A · the library
 
-Two packages, numpy the only dependency. No key, no network, no database, and
-no model runs on your machine: the resolver is a lexical index over LOINC,
-not an LLM.
+The resolver uses a lexical index over LOINC, with numpy as its only dependency.
+It needs no model, API key or database. With [uv
+installed](https://docs.astral.sh/uv/getting-started/installation/), try it without
+cloning the repository or managing a Python environment:
 
 ```bash
-pip install mirobody
-mirobody resolve "LDL cholesterol" 血红蛋白 ヘモグロビン "空腹血糖(GLU)" 血脂
+uvx --python 3.12 mirobody resolve "LDL cholesterol" 血红蛋白 ヘモグロビン "空腹血糖(GLU)" 血脂
 ```
 
-With [uv](https://docs.astral.sh/uv/) there is nothing to install:
-`uvx --python 3.12 mirobody resolve ...`. The `--python 3.12` matters: on an
-older default interpreter uv would pick a release from before 1.2.
+uv downloads Python if needed and prepares the package in an isolated
+environment. The initial download needs a network connection; name and unit
+resolution then work offline. `--python 3.12` selects a supported interpreter.
 
 <p align="center">
   <img src="images/resolve-demo.gif" alt="mirobody resolve: 血红蛋白 and ヘモグロビン landing on the same LOINC code, and one deliberate abstention" width="880">
@@ -45,8 +38,14 @@ older default interpreter uv would pick a release from before 1.2.
 `血脂` names a category rather than one observation, so it resolves to nothing.
 That is the design: a wrong code puts two different tests on one trend line.
 
-The same from Python. The unit is part of a reading's identity, so it can
-change the code:
+For your own Python 3.12+ environment, install the library:
+
+```bash
+pip install mirobody
+```
+
+The same engine works from Python. The unit is part of a reading's identity,
+so it can change the code:
 
 ```python
 from mirobody.engine import resolve, resolve_reading, standardize_reading
@@ -91,21 +90,58 @@ depth, and [`examples/`](../examples/README.md) has runnable scripts.
 
 ## B · the stack
 
-Postgres with pgvector, the server and the worker, with the demo record
-already seeded.
+The full app includes the web client, Postgres with pgvector, the server and
+the worker, with a synthetic demo record already seeded. Choose where to run it.
+
+### Try it in Codespaces
+
+[![Open in GitHub Codespaces](https://github.com/codespaces/badge.svg)](https://codespaces.new/thetahealth/mirobody?quickstart=1)
+
+Create the codespace with your GitHub account; no local Docker or Python
+installation is needed. Wait for automatic setup to finish in its terminal,
+then open the HTTPS setup link it prints. Enter your own model API key, such
+as [OpenRouter](https://openrouter.ai/keys) or
+[OpenAI](https://platform.openai.com/api-keys). The setup page checks the key
+with a real request before saving it. The app uses private forwarded port
+`18060` by default.
+
+Sign in as `you@mirobody.ai`, code `111111`, on the Email code tab and ask
+"How has my cholesterol changed?" Upload a synthetic sample from
+[`demo/upload/`](../demo/) on the Data page to try document processing.
+
+The app and stored records are in GitHub's cloud, and documents and questions
+sent for model processing go to your model provider. Use the included
+synthetic data for the trial. [Codespaces usage and
+billing](https://docs.github.com/en/billing/concepts/product-billing/github-codespaces)
+and your model provider's charges apply. Stop the codespace when you finish;
+reopening it runs the deployment script again to bring the app back up.
+
+### Run it 100% locally
+
+No model API key is needed. Docker with Compose starts both the app and
+llama.cpp's CPU service, which runs the answering model and document reader:
 
 ```bash
 git clone --depth 1 https://github.com/thetahealth/mirobody.git && cd mirobody
-./deploy.sh                       # → prints the setup link on http://localhost:18060
+COMPOSE_PROFILES=local-cpu ./deploy.sh
 ```
+
+Allow 16 GB of memory, at least 8 GB of it for Docker. No GPU is required;
+Windows users should run the commands in a WSL 2 terminal. The first start
+downloads container images and model weights. Once downloaded, the app,
+models, records and document processing all stay on your machine. CPU answers
+can take minutes; [local-models.md](local-models.md) has GPU and Mac options.
+Open the app link the script prints and use the demo account below.
 
 `deploy.sh` writes a `.env` with generated secrets and pulls the prebuilt
 image, which already contains the LOINC bundle, so Docker users need no Git
-LFS. It needs OpenSSL for the secrets. With no model yet it prints a link to
-the first-run page: paste **one** model key there, or choose **100% on this
-machine**. To run the models in Docker beside the stack, start with
-`COMPOSE_PROFILES=local-cpu ./deploy.sh` instead; [local-models.md](local-models.md)
-has the GPU and Mac routes and what each needs.
+LFS. It needs Git and OpenSSL on the host. The local profile selects the local
+models automatically.
+
+**To run Docker with a cloud model instead**, use `./deploy.sh` without a
+local profile. Open the setup link it prints on `http://localhost:18060` and
+paste one model API key. The app and records stay on your host; the model
+provider processes the documents and questions sent to it.
 
 Sign in as `you@mirobody.ai` with code `111111` on the Email code tab; no mail
 provider is involved. `SEED_DEMO_DATA` is on, so 2,019 readings across two

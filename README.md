@@ -10,7 +10,7 @@
 **Turn scattered health data into answers you can trace.**
 
 A self-hosted AI health data engine that brings lab reports, wearables and genetic files into one standardized record.<br>
-Start with Docker and one model key, or run every model on your own machine.
+Standardize health data with one command. Try the full app in Codespaces with your own model key, or run everything—including the models—100% locally.
 
 **English** · **[中文](README.zh-CN.md)**
 
@@ -18,7 +18,7 @@ Start with Docker and one model key, or run every model on your own machine.
 [![License: Apache-2.0](https://badgen.net/badge/license/Apache-2.0/blue)](LICENSE)
 [![GitHub stars](https://badgen.net/github/stars/thetahealth/mirobody?icon=github&label=stars)](https://github.com/thetahealth/mirobody/stargazers)
 
-**[▶ Live demo](https://chat.mirobody.ai/demo)** · **[🐳 Start with Docker](#start-with-docker)** · **[📚 Documentation](https://docs.mirobody.ai/en/self-host)**
+**[▶ Live demo](https://chat.mirobody.ai/demo)** · **[Try one command](#try-the-engine-with-one-command)** · **[Open in Codespaces](#try-the-full-app-in-codespaces)** · **[100% local](#run-everything-100-locally)**
 
 </div>
 
@@ -27,41 +27,63 @@ Start with Docker and one model key, or run every model on your own machine.
 </p>
 <p align="center"><em>Three reports, three names for the same test. One trend, with the file behind every number.</em></p>
 
-## Start with Docker
+## Choose where to start
 
-Docker with Compose is all the stack needs: no Python, Node.js or GPU. On Windows, run these in a WSL 2 terminal.
+| You want to | Start here | What you need |
+| --- | --- | --- |
+| Standardize names and units | [One command](#try-the-engine-with-one-command) | uv; no model or API key |
+| Try the full app in your browser | [GitHub Codespaces](#try-the-full-app-in-codespaces) | A GitHub account and your own model API key |
+| Keep the app, models and records on your machine | [100% local with Docker](#run-everything-100-locally) | Docker with Compose; 16 GB memory; no API key |
+
+## Try the engine with one command
+
+With [uv installed](https://docs.astral.sh/uv/getting-started/installation/), paste this into your terminal:
+
+```bash
+uvx --python 3.12 mirobody resolve "LDL cholesterol" 血红蛋白 ヘモグロビン "Total Kolesterol" 血脂
+```
+
+No repository clone, Docker, model or API key. uv prepares Python and the package for you; the first run needs a network connection to download them. The resolver then works offline from the bundled vocabulary.
+
+`血红蛋白` and `ヘモグロビン` both resolve to `718-7`. `血脂` stays unresolved: it names a category, not one test. The same engine standardizes names and units across the full app.
+
+<p align="center">
+  <img src="docs/images/resolve-demo.gif" alt="mirobody resolve: Chinese and Japanese names for haemoglobin resolve to the same LOINC code, while a broad category stays unresolved" width="880">
+</p>
+
+→ [Use the engine from Python or MCP](docs/quickstart.md#a--the-library)
+
+## Try the full app in Codespaces
+
+Run the web app in your browser with your own model API key. GitHub prepares the environment; you do not need to install Docker or Python on your computer.
+
+[![Open in GitHub Codespaces](https://github.com/codespaces/badge.svg)](https://codespaces.new/thetahealth/mirobody?quickstart=1)
+
+1. **Create the codespace** and wait for the automatic setup to finish in its terminal. It starts the app, Postgres, the worker and the synthetic demo data.
+2. **Open the setup link printed in the terminal** and enter your own model API key: [OpenRouter](https://openrouter.ai/keys), [OpenAI](https://platform.openai.com/api-keys), [Gemini](https://aistudio.google.com/apikey), [Anthropic](https://platform.claude.com/settings/keys), DeepSeek, DashScope, or any OpenAI-compatible gateway. The key is saved only after a real request succeeds. The forwarded app port is private by default.
+3. **Sign in** as `you@mirobody.ai`, code `111111`, on the Email code tab. Ask **"How has my cholesterol changed?"** The demo holds **2,019 readings** across your record and `mom@mirobody.ai`'s, shared with you view-only.
+4. **Upload a synthetic sample** from [`demo/upload/`](demo/) on the Data page to see a new report join the record, or switch to mom's record and ask again.
+
+The app and its records run in GitHub's cloud; the model service receives the documents and questions it processes. Use the included synthetic data to explore. Codespaces has [usage limits and billing](https://docs.github.com/en/billing/concepts/product-billing/github-codespaces); model usage is billed by your model provider. Stop the codespace when you finish. For complete control on your own machine, use the local route below.
+
+## Run everything 100% locally
+
+**The app, records and models all run on your own machine. No model API key needed.** Docker with Compose starts the stack and [llama.cpp](https://github.com/ggml-org/llama.cpp), with a small answering model and a document reader:
 
 ```bash
 git clone --depth 1 https://github.com/thetahealth/mirobody.git && cd mirobody
-./deploy.sh
-```
-
-Open the setup link the script prints and paste one model key: [OpenRouter](https://openrouter.ai/keys), [OpenAI](https://platform.openai.com/api-keys), [Gemini](https://aistudio.google.com/apikey), [Anthropic](https://platform.claude.com/settings/keys), DeepSeek, DashScope, or any OpenAI-compatible gateway. The key is kept only after one real request through it works. Postgres, the server, the worker and a synthetic demo record start together.
-
-1. **Sign in** as `you@mirobody.ai`, code `111111`, on the Email code tab. The demo holds **2,019 readings** across two records: yours, and `mom@mirobody.ai`'s, which she shares with you view-only.
-2. **Ask** "How has my cholesterol changed?" The answer charts the trend and names the file behind each number.
-3. **Upload** a sample from [`demo/upload/`](demo/) on the Data page, or switch to mom's record and ask again.
-
-<details>
-<summary><strong>Prefer every model on your own machine? No model key needed.</strong></summary>
-
-<br>
-
-From the cloned folder, start the stack with llama.cpp's CPU image beside it:
-
-```bash
 COMPOSE_PROFILES=local-cpu ./deploy.sh
 ```
 
-The script points Mirobody at [llama.cpp](https://github.com/ggml-org/llama.cpp), which serves a small answering model and a document reader; the setup page has nothing to ask. Allow 16 GB of memory, at least 8 GB of it for Docker, and a one-time download of about 4.8 GB. With no GPU a first answer takes minutes: 2–3 on an Apple-silicon laptop's cores, up to about 15 on a 4-vCPU x86 server. On a Mac, running `llama-server` natively uses the GPU: about 30 s per answer on a 16 GB Apple-silicon laptop.
+Allow 16 GB of memory, at least 8 GB of it for Docker. No GPU is required; on Windows, run the commands in a WSL 2 terminal. The first start needs a network connection to download container images and model weights. After those downloads, document reading, standardization and answers run locally. CPU answers can take minutes; [Mac, NVIDIA and Windows options](docs/local-models.md) explain how to use your GPU.
+
+Open the app link the script prints. The local models are already selected; sign in with the same demo account above, ask a question or upload a sample. [Which model to choose](docs/model-choice.md) compares the local options.
 
 <p align="center">
   <img src="docs/images/setup-demo.gif" alt="The first-run page: a model name edited beside an OpenRouter key, then 100% on this machine: the page finds the llama.cpp server, lists the models it serves, and both models are ready" width="880">
 </p>
 
-[Mac, NVIDIA and Windows setup](docs/local-models.md) · [Which model to choose](docs/model-choice.md)
-
-</details>
+**Prefer Docker with a cloud model?** Run `./deploy.sh` without a local model profile, then paste your own model key into the printed setup link. The app and records stay on your host; the model service processes your documents and questions.
 
 → [Self-host guide](https://docs.mirobody.ai/en/self-host) · [Walkthrough](docs/walkthrough.md) · [Deploy on a server](https://docs.mirobody.ai/en/deployment/production)
 
@@ -106,13 +128,16 @@ Joining a care circle shares nothing by itself. Each member decides whether othe
 
 ## What stays on your machine
 
-Your record lives in a Postgres you run, and nothing here reports usage anywhere. What leaves depends on who reads it:
+Where the app runs and where the model runs are separate choices. Mirobody does not report usage anywhere.
 
-| | With a model key | 100% on this machine |
-| --- | --- | --- |
-| Your documents and questions | sent to that model vendor, under its terms | stay here |
-| A name to a code, a unit to UCUM (**② Translate**) | here, from the bundled vocabulary, with no network | the same |
-| Model weights | none | downloaded once from Hugging Face |
+| | Codespaces + a model key | Local Docker + a model key | 100% on this machine |
+| --- | --- | --- | --- |
+| App and stored records | in your codespace on GitHub's cloud | on your machine | on your machine |
+| Documents and questions sent for model processing | sent to your model vendor, under its terms | sent to your model vendor, under its terms | stay on your machine |
+| A name to a code, a unit to UCUM (**② Translate**) | in the codespace, from the bundled vocabulary | on your machine, with no network | on your machine, with no network |
+| Model weights | managed by the model vendor | managed by the model vendor | downloaded once from Hugging Face |
+
+The command-line resolver also runs on your machine without a model or network access after its initial download.
 
 Device vendors see data only after you link one. Before this reaches a network you do not control, read [SECURITY.md](SECURITY.md): it lists every address the server can call.
 
@@ -128,11 +153,7 @@ Device vendors see data only after you link one. Before this reaches a network y
 
 Over MCP the stack serves seven tools, each scoped to the signed-in person: four read your record (readings, medications, genotypes, pharmacogenomics) and three resolve names and units.
 
-Try the vocabulary with no key, no network and, with `uvx`, no install:
-
-```bash
-uvx --python 3.12 mirobody resolve "LDL cholesterol" 血红蛋白 ヘモグロビン "Total Kolesterol" 血脂
-```
+After `pip install mirobody`, use the same engine from Python:
 
 ```python
 from mirobody.engine import resolve, resolve_reading

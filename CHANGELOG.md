@@ -1,3 +1,20 @@
+## Unreleased
+
+### Added
+
+- **Try Mirobody before setting up a local server.** The README led with
+  Docker and buried the offline engine command. Both editions now start with
+  three choices: standardize names with `uvx` and no model key, run the full
+  app in GitHub Codespaces with your own key, or keep the app, records and
+  models 100% local with Docker and llama.cpp. The Codespaces configuration no
+  longer needs Docker: PostgreSQL and pgvector install inside the container and
+  the server runs from the checkout, so the first page arrives without a
+  multi-gigabyte image pull. It forwards only the app, prints the
+  browser-accessible setup link, and asks for four cores, because two left a
+  comparable multi-service stack answering in 18 seconds or not at all. The
+  local-model command and its hardware requirements are visible alongside that
+  path.
+
 ## 1.5.6
 
 ### Changed

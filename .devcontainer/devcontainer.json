@@ -1,0 +1,40 @@
+{
+  "name": "Mirobody — try the full app",
+  "image": "mcr.microsoft.com/devcontainers/base:ubuntu-24.04",
+  // No docker-in-docker: PostgreSQL runs natively here, the way Zulip's
+  // codespaces do it. `scripts/codespace_provision.sh` explains the tradeoff.
+  "features": {
+    "ghcr.io/devcontainers/features/python:1": {
+      "version": "3.12"
+    },
+    "ghcr.io/devcontainers/features/git-lfs:1": {},
+    // Without this `gh codespace ssh` cannot reach the container and only the
+    // browser terminal works. Zulip omits it and loses scripted access.
+    "ghcr.io/devcontainers/features/sshd:1": {}
+  },
+  "remoteUser": "vscode",
+  // 2 cores is the Codespaces default and it is not enough: Zulip's stack
+  // answered in 18s or timed out there and recovered only at 4.
+  "hostRequirements": {
+    "cpus": 4,
+    "memory": "8gb"
+  },
+  "postCreateCommand": "bash scripts/codespace_provision.sh",
+  "postAttachCommand": "bash scripts/codespace_start.sh",
+  "forwardPorts": [18060],
+  "portsAttributes": {
+    "18060": {
+      "label": "Mirobody",
+      "protocol": "http",
+      "onAutoForward": "notify"
+    }
+  },
+  "otherPortsAttributes": {
+    "onAutoForward": "ignore"
+  },
+  "customizations": {
+    "codespaces": {
+      "openFiles": ["README.md"]
+    }
+  }
+}

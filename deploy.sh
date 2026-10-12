@@ -294,23 +294,30 @@ case "${bind:-127.0.0.1}" in
     *) host="$bind" ;;
 esac
 url="http://${host}:$(host_port MIROBODY_HOST_PORT 18060)"
+# Browser links in Codespaces use GitHub's proxy; readiness probes still
+# reach the local port without GitHub authentication.
+browser_url="$url"
+if [[ "${CODESPACES:-}" == true && -n "${CODESPACE_NAME:-}" \
+    && -n "${GITHUB_CODESPACES_PORT_FORWARDING_DOMAIN:-}" ]]; then
+    browser_url="https://${CODESPACE_NAME}-$(host_port MIROBODY_HOST_PORT 18060).${GITHUB_CODESPACES_PORT_FORWARDING_DOMAIN}"
+fi
 # A key or server in .env, or a choice saved from the setup page earlier: only
 # the app knows which, so it is asked rather than .env counted.
 model_setup="$(curl -fsS "${url}/mirobody.json" 2>/dev/null \
     | sed -n 's/.*"__MODEL_SETUP__": *"\([a-z]*\)".*/\1/p' || true)"
 case "$model_setup" in
     ready)
-        printf '\nOpen %s\n' "$url"
+        printf '\nOpen %s\n' "$browser_url"
         ;;
     needed)
-        printf '\nChoose a model: open %s/setup?token=%s\n' "$url" "$(setting SETUP_TOKEN)"
+        printf '\nChoose a model: open %s/setup?token=%s\n' "$browser_url" "$(setting SETUP_TOKEN)"
         if [[ "$local_models" != true ]]; then
             printf 'and paste one API key, or run every model on this machine with llama.cpp.\n'
             printf 'Or give it here instead, e.g.  OPENROUTER_API_KEY=sk-or-... ./deploy.sh\n'
         fi
         ;;
     *)
-        printf '\nOpen %s\n' "$url"
+        printf '\nOpen %s\n' "$browser_url"
         printf 'The app did not say whether it has a model yet; docker compose logs mirobody says why.\n' >&2
         ;;
 esac
