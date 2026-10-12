@@ -43,6 +43,8 @@ class MedicationsService(RecordTool):
         self._tz = tz  # subject_id -> IANA zone; the reference reads the user row
         self._now = now
 
+    # The parameters are `input_schema` (meds.TOOL_SCHEMA, published verbatim);
+    # the docstring is what the model reads, so this note stays out of it.
     async def query_medications(self, user_info: dict[str, Any], **args: Any) -> dict[str, Any]:
         """
         Read this person's medications: the list they keep (plan), the doses
@@ -57,9 +59,6 @@ class MedicationsService(RecordTool):
         DO NOT use it for readings (`query_health_indicators`), for drug
         information or interactions, or for a person outside the caller's
         care circle. Read-only: it cannot add, change or stop a medication.
-
-        The parameters are documented in the schema (`input_schema` IS
-        `meds.TOOL_SCHEMA`, published verbatim).
 
         Returns:
             A compact table plus a `meta` block. Absence means "not on file

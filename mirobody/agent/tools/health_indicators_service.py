@@ -129,6 +129,9 @@ class HealthIndicatorsService(RecordTool):
             self._health_query = PostgresHealthQuery()
         return self._health_query
 
+    # No `Args:` in the docstring: the loader would lay a second, drifting copy of
+    # the parameters over `input_schema` (query.TOOL_SCHEMA, published verbatim).
+    # The docstring is what the model reads, so maintainer notes go here.
     async def query_health_indicators(self, user_info: dict[str, Any], **args: Any) -> dict[str, Any]:
         """
         Read this person's health record over time: readings (labs, vitals,
@@ -150,11 +153,6 @@ class HealthIndicatorsService(RecordTool):
         DO NOT use it for medications (`query_medications`) or for general
         medical knowledge or reference ranges. Do not call it twice with the same arguments:
         the second call returns the same rows and costs another round trip.
-
-        The parameters are documented in the schema, not here: `input_schema`
-        IS `query.TOOL_SCHEMA`, published verbatim, and an `Args:` section in
-        this docstring would silently overwrite the contract's own
-        descriptions with a second copy that drifts.
 
         Returns:
             A compact table plus a `meta` block saying which window was read,
