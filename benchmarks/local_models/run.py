@@ -719,6 +719,8 @@ def main() -> None:
     ap = argparse.ArgumentParser(description="Run the local-model evaluation for one size.")
     who = ap.add_mutually_exclusive_group(required=True)
     who.add_argument("--size", choices=sorted(SIZES))
+    who.add_argument("--model", help="any answering model the router serves, by its preset section (a trained "
+                                     "checkpoint's GGUF, say), run as a size; --name names its results")
     who.add_argument("--ref", help="a reference the stack is already configured for (a cloud model, by env); "
                                    "results/ref-<REF>, no model switching and no llama-server")
     ap.add_argument("--corpus", required=True, help="the mirobody-gen build the cases and plan came from")
@@ -734,7 +736,7 @@ def main() -> None:
                     help="with --ref: the refs/<overlay>.llm.yaml the stack runs, when the results' name differs "
                          "(ref-gpt-6-luna-rules runs the gpt-6-luna overlay)")
     ap.add_argument("--name", default="",
-                    help="with --size: the results' name, e.g. small-v2, so a rerun on new code keeps the old run")
+                    help="with --size or --model: the results' name, e.g. small-v2, so a rerun on new code keeps the old run")
     ap.add_argument("--merge", action="store_true",
                     help="with --cases: keep the saved answers to the other cases in qa.json")
     ap.add_argument("--retries", type=int, default=0,
@@ -743,6 +745,10 @@ def main() -> None:
     ap.add_argument("--rescore", action="store_true",
                     help="score the saved results again with the current score.py; asks no model")
     args = ap.parse_args()
+    if args.model:
+        # A size by any other name: switch, load and describe read SIZES.
+        SIZES[args.model] = args.model
+        args.size = args.model
 
     corpus = Corpus(args.corpus)
     parts = set(args.parts.split(","))
@@ -797,6 +803,10 @@ def main() -> None:
         "mirobody_commit": git_head(ROOT), "mirobody_dirty": git_dirty(ROOT),
         "loaded": [] if args.ref else sorted(m for m, s in router_status().items() if s == "loaded"),
         "memory": meta["memory_idle"]})
+    busy = meta["passes"][-1]["resources"]
+    if busy["load_1m"] > (busy["cpus"] or 1):
+        log(f"WARNING: load {busy['load_1m']} on {busy['cpus']} CPUs: other jobs share this machine, "
+            "so timings and timeouts here are not the model's")
     if meta["memory_idle"]:
         log(f"memory, both loaded: RSS {meta['memory_idle']['children_rss_mb']} MB, "
             f"footprint {meta['memory_idle']['children_footprint_mb']} MB")

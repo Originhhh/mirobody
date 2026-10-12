@@ -353,8 +353,10 @@ class ResourceStop(RuntimeError):
 
 
 def resources() -> dict[str, Any]:
-    """Free disk where this checkout lives, and macOS's free-memory
-    percentage (`memory_pressure`; None elsewhere)."""
+    """Free disk where this checkout lives, macOS's free-memory percentage
+    (`memory_pressure`; None elsewhere), and the 1-minute load against the CPU
+    count: a run on a machine other jobs had saturated (load 130-160 on 128
+    cores, 2026-10-11) timed out eight questions and read as a worse model."""
     import shutil
 
     free_gb = shutil.disk_usage(HERE).free / 2**30          # GiB, as df -h reports it
@@ -365,7 +367,8 @@ def resources() -> dict[str, Any]:
         pct = int(m.group(1)) if m else None
     except (OSError, subprocess.TimeoutExpired):
         pass
-    return {"disk_free_gb": round(free_gb, 1), "memory_free_pct": pct, "swap_used_mb": _swap_used_mb()}
+    return {"disk_free_gb": round(free_gb, 1), "memory_free_pct": pct, "swap_used_mb": _swap_used_mb(),
+            "load_1m": round(os.getloadavg()[0], 1), "cpus": os.cpu_count()}
 
 
 def _short(r: dict[str, Any]) -> bool:
