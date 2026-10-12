@@ -342,7 +342,7 @@ async def attachment_reminder(backend: Any,
 
     listing = "\n".join(f"- {p}" for p in paths)
     note = (
-        "[System note: the user attached file(s) to THIS message. "
+        "[System note: the user attached file(s) to the message below. "
         "Read the relevant one(s) with read_file before answering:\n"
         f"{listing}"
     )

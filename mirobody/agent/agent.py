@@ -106,6 +106,20 @@ def _latest_question(messages: list) -> str:
     return ""
 
 
+def with_turn_note(messages: list, note: str) -> list:
+    """`messages` with `note` just before the last one, the person's question.
+    Before, not after: MiniCPM5-2B answers in the language of the last message
+    it reads, and an English note after a Chinese question turned the answer
+    English (2026-10-12). Matches the list's element type (BaseMessage or dict)."""
+    if not note or not messages:
+        return messages
+    *earlier, question = messages
+    if isinstance(question, BaseMessage):
+        from langchain_core.messages import HumanMessage
+        return [*earlier, HumanMessage(content=note), question]
+    return [*earlier, {"role": "user", "content": note}, question]
+
+
 class MirobodyAgent:
 
     def __init__(
@@ -691,18 +705,9 @@ class MirobodyAgent:
             final_messages = messages
             resume = await pending_answer(agent, stream_config, messages, user_id, may_write=self.may_write)
             if resume is None:
-                # Name this turn's attachments and where to read them, so the
-                # model never needs an `ls /uploads/` round trip and never
-                # silently misses one. A message of this turn, not part of the
-                # cached system prompt (`attachment_reminder`). Matches the list's
-                # element type (BaseMessage vs dict) rather than mixing forms.
-                reminder = await self._turn_note(backend, file_list, messages)
-                if reminder:
-                    if final_messages and isinstance(final_messages[-1], BaseMessage):
-                        from langchain_core.messages import HumanMessage
-                        final_messages = [*final_messages, HumanMessage(content=reminder)]
-                    else:
-                        final_messages = [*final_messages, {"role": "user", "content": reminder}]
+                # The turn's note (time, answer language, attachments) is a
+                # message of this turn, not part of the cached system prompt.
+                final_messages = with_turn_note(final_messages, await self._turn_note(backend, file_list, messages))
 
             async for event in self._stream_agent_response(
                 agent=agent,
