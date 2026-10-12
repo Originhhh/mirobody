@@ -28,14 +28,25 @@ sudo DEBIAN_FRONTEND=noninteractive apt-get install -y -qq \
 # come back after a codespace restart; `codespace_start.sh` starts it again.
 sudo pg_ctlcluster "${PG_VERSION}" main start 2>/dev/null || true
 
+# `sudo` in the base image is granted for `(root)` only, so `sudo -u postgres`
+# falls through to a password prompt, and with no TTY it waits for one forever:
+# measured at over ten minutes before it was killed. Zulip's codespace script
+# writes the same rule for the same reason.
+echo "== sudo for the postgres account =="
+printf '%s ALL=(postgres) NOPASSWD: ALL\n' "$(id -un)" \
+    | sudo tee /etc/sudoers.d/postgres-nopasswd >/dev/null
+sudo chmod 0440 /etc/sudoers.d/postgres-nopasswd
+sudo visudo -c >/dev/null
+
 echo "== database =="
 # `CREATE EXTENSION` needs a superuser, and the Compose stack's POSTGRES_USER is
 # one too (`docker-compose` passes no NOSUPERUSER), so this role matches it.
-sudo -u postgres psql -tAc "SELECT 1 FROM pg_roles WHERE rolname='${DB_USER}'" | grep -q 1 \
-    || sudo -u postgres psql -q -c \
+# `sudo -n` throughout: without it a missing rule hangs instead of failing.
+sudo -n -u postgres psql -tAc "SELECT 1 FROM pg_roles WHERE rolname='${DB_USER}'" | grep -q 1 \
+    || sudo -n -u postgres psql -q -c \
         "CREATE ROLE ${DB_USER} LOGIN PASSWORD '${DB_PASSWORD}' SUPERUSER"
-sudo -u postgres psql -tAc "SELECT 1 FROM pg_database WHERE datname='${DB_NAME}'" | grep -q 1 \
-    || sudo -u postgres createdb -O "${DB_USER}" "${DB_NAME}"
+sudo -n -u postgres psql -tAc "SELECT 1 FROM pg_database WHERE datname='${DB_NAME}'" | grep -q 1 \
+    || sudo -n -u postgres createdb -O "${DB_USER}" "${DB_NAME}"
 
 echo "== data bundles =="
 # Without this the resolver reads LFS pointer stubs and every lookup raises.
