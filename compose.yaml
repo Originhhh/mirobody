@@ -130,6 +130,7 @@ services:
       MODEL_ENDPOINT:
     volumes:
       - ${LOCAL_MODELS_PRESET:-./docker/local-models.ini}:/presets/local-models.ini:ro
+      - ./docker/minicpm5-2b.jinja:/app/docker/minicpm5-2b.jinja:ro   # the preset's chat-template-file
       - mirobody_models:/models
     deploy:
       resources:
