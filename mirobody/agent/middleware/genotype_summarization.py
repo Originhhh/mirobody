@@ -22,7 +22,7 @@ _SAFE_MARKER = "genotype_rows_redacted"
 
 
 #: A model with at most this input window is a local one (the `local` entry
-#: declares 48000; on a 32k server the agent narrows it to about 24k).
+#: declares 48000; on a 32k server the agent narrows it to 24576).
 _LOCAL_WINDOW = 65536
 
 
@@ -39,14 +39,21 @@ def history_path_for(model: Any, file_path: str | None) -> str | None:
     return None if _is_local(model) else file_path
 
 
+#: A local window at least this wide keeps a quarter of itself after compaction.
+_WIDE_WINDOW = 40000
+
+
 def _defaults(model: Any) -> dict:
-    """deepagents' thresholds, but a local compaction keeps a quarter of the
-    window (12k of 48k), not a tenth: at a tenth the report pages the turn
-    had just read were gone, and the model read them again."""
+    """deepagents' thresholds, but a wide local window (the GPU preset's 48k)
+    keeps a quarter of itself, 12k, not a tenth: at a tenth the report pages
+    the turn had just read were gone, and the model read them again. A narrow
+    one keeps the tenth. On the CPU preset's 24576 the input budget, 0.95 of
+    the window less the 6144-token reply, is about 17k beside a 9k prompt; a
+    quarter left no room for a report page and deepagents raised
+    ContextOverflowError (2026-10-12)."""
     defaults = compute_summarization_defaults(model)
-    if _is_local(model):
-        window = model.profile["max_input_tokens"]
-        defaults = {**defaults, "keep": ("tokens", window // 4)}
+    if _is_local(model) and model.profile["max_input_tokens"] >= _WIDE_WINDOW:
+        defaults = {**defaults, "keep": ("tokens", model.profile["max_input_tokens"] // 4)}
     return defaults
 
 
