@@ -61,7 +61,10 @@ _NOT_VALUES = re.compile(
     r"|\b10\s*[\^*]\s*\d+"                     # 10^9/L, 10*9/L
     r"|\b(?:19|20)\d{2}\b"                      # a bare year
 )
-_NUMBER = re.compile(r"(?<![\w.])[-+−]?\d+(?:[.,]\d+)?(?![\w])")
+#: Bounded by ASCII letters and digits only: CJK is `\w` to Python, so with `\w`
+#: bounds "体重65.2kg" read nothing and "65.2kg" read 65. Ids stay out ("r3",
+#: "CYP2C19", "HbA1c"), and so do English ordinals ("3rd").
+_NUMBER = re.compile(r"(?<![A-Za-z0-9_.])[-+−]?\d+(?:[.,]\d+)?(?!\d|(?:st|nd|rd|th)\b)")
 #: Typographic hyphens a model writes in dates ("2025‑11"), read as "-".
 _HYPHENS = str.maketrans({"\u2010": "-", "\u2011": "-", "\u2012": "-"})
 #: A range printed with two hyphens ("18.5--23.9"): its upper bound is not negative.

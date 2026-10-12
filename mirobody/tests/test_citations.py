@@ -92,9 +92,18 @@ def test_cite_kinds(cite, kind):
     ("your Aug 7 report and the 22nd March one", []),
     ("you may 5 times", [5.0]),
     ("BMI 21.8 (18.5--23.9)", [21.8, 18.5, 23.9]),
+    ("体重65.2kg，比上月少1.7kg", [65.2, 1.7]),
+    ("血压106/77，心率62次/分", [106.0, 77.0, 62.0]),
+    ("weight 65.2kg, LDL 3.8mmol/L, 120mmHg", [65.2, 3.8, 120.0]),
+    ("CYP2C19, HbA1c, rs4149056 and the 3rd reading", []),
 ])
 def test_numbers_are_values_not_dates_or_ids(text, expected):
     assert numbers(text) == expected
+
+
+def test_a_number_against_chinese_text_is_still_checked():
+    [problem] = check("<statement>体重65.2kg<cite>[r1]</cite></statement>，比上月少1.7kg。", {"r1": [65.2]})
+    assert problem.kind == "uncited_number" and problem.detail == "1.7"
 
 
 def test_a_traced_answer_has_no_problems():
