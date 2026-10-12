@@ -22,13 +22,8 @@ _SAFE_MARKER = "genotype_rows_redacted"
 
 
 #: A model with at most this input window is a local one (the `local` entry
-#: declares 48000).
+#: declares 48000; on a 32k server the agent narrows it to about 24k).
 _LOCAL_WINDOW = 65536
-
-#: Recent context a compaction keeps for a local model. deepagents
-#: keeps 10% of the window, 4.8k of 48k: less than the report pages the turn had
-#: just read, so the model read them again.
-_MIN_KEEP_TOKENS = 12000
 
 
 def _is_local(model: Any) -> bool:
@@ -45,9 +40,13 @@ def history_path_for(model: Any, file_path: str | None) -> str | None:
 
 
 def _defaults(model: Any) -> dict:
+    """deepagents' thresholds, but a local compaction keeps a quarter of the
+    window (12k of 48k), not a tenth: at a tenth the report pages the turn
+    had just read were gone, and the model read them again."""
     defaults = compute_summarization_defaults(model)
     if _is_local(model):
-        defaults = {**defaults, "keep": ("tokens", _MIN_KEEP_TOKENS)}
+        window = model.profile["max_input_tokens"]
+        defaults = {**defaults, "keep": ("tokens", window // 4)}
     return defaults
 
 

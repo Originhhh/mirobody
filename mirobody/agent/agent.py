@@ -439,6 +439,30 @@ class MirobodyAgent:
         spec = _route(model)
         return sees(spec) if spec is not None else True
 
+    def _fit_window(self, client: Any, model: str) -> Any:
+        """`client`, its input window no larger than what this turn's server
+        holds: its context less the reply and `_CONTEXT_MARGIN`. One `local`
+        entry answers for the GPU preset (64k) and the CPU one (32k: an 8-bit
+        KV cache reads a prompt at a quarter of the speed on x86), so the
+        server, not the entry, says how much fits. A copy: the next turn asks
+        again, and a server restarted with another preset is followed."""
+        from mirobody.utils.config.served import served_context
+
+        profile = getattr(client, "profile", None) or {}
+        window = profile.get("max_input_tokens")
+        spec = _route(model)
+        if not isinstance(window, int) or spec is None or not (spec.base_url_env and spec.base_url):
+            return client
+        context = served_context(spec.base_url, spec.model)
+        if not context:
+            return client
+        reply = int((chat_entries().get(model) or {}).get("max_tokens") or 0)
+        fits = max(context - reply - self._CONTEXT_MARGIN, context // 2)
+        if fits >= window:
+            return client
+        logger.info("input window %d -> %d tokens: the server holds %d", window, fits, context)
+        return client.model_copy(update={"profile": {**profile, "max_input_tokens": fits}})
+
     def _still_loading(self, model: str) -> bool:
         """Whether `model` runs on a local model server whose router is still
         downloading or loading it (`served.served_status`). A question sent
@@ -451,6 +475,10 @@ class MirobodyAgent:
         if spec is None or not (spec.base_url_env and spec.base_url):
             return False
         return served_status(spec.base_url, spec.model) == "loading"
+
+    #: Tokens a local server's context keeps free beside the input window and
+    #: the reply: the chat template, and a short utility call in the other slot.
+    _CONTEXT_MARGIN = 2048
 
     #: Read-only tools the `eval` REPL may call as `tools.<name>`; each guards
     #: itself because the PTC bridge bypasses the tool middleware.
@@ -685,6 +713,7 @@ class MirobodyAgent:
 
             supports_file_block = self._supports_file_block(llm_client)
             supports_image = await asyncio.to_thread(self._supports_image, llm_client, model)
+            llm_client = await asyncio.to_thread(self._fit_window, llm_client, model)
 
             agent, backend = await self._build_agent(
                 session_id=session_id,
