@@ -122,7 +122,8 @@ def _for_swift(messages: list[dict]) -> list[dict]:
         if m["role"] == "assistant":
             think = f"<think>\n{m['reasoning_content']}\n</think>\n\n" if m.get("reasoning_content") else ""
             calls = m.get("tool_calls") or []
-            out.append({"role": "assistant", "content": think + m.get("content", "") + ("\n" if calls else "")})
+            body = m.get("content", "")
+            out.append({"role": "assistant", "content": think + body + ("\n" if calls and body else "")})
             out += [{"role": "tool_call", "content": json.dumps(
                 {"name": c["function"]["name"], "arguments": json.loads(c["function"]["arguments"])},
                 ensure_ascii=False)} for c in calls]
