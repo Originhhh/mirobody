@@ -130,6 +130,12 @@ def test_a_statement_with_numbers_needs_a_cite():
     assert problem.kind == "statement_without_cite"
 
 
+def test_an_unclosed_statement_is_reported():
+    problems = check("<statement>LDL 3.8<cite>[r3]</cite> 下降 0.9。", SUPPORT)
+    assert [p.kind for p in problems] == ["unclosed_statement"]
+    assert check("<statement>LDL 3.8<cite>[r3]</cite></statement>", SUPPORT) == []
+
+
 def test_a_made_up_row_is_unknown():
     [problem] = check("<statement>LDL 3.8<cite>[r4]</cite></statement>", SUPPORT)
     assert problem.kind == "unknown_cite" and problem.detail == "r4"
