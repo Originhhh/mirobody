@@ -214,11 +214,12 @@ class MirobodyAgent:
 
 
     async def _turn_note(self, backend: Any, file_list: list[dict[str, Any]] | None, messages: list) -> str:
-        """What a new turn's question is sent with: the time and the answer
-        language (`turn_note`), kept out of the system prompt so it and the
-        tools stay a fixed prefix, then the attachments note, if any."""
+        """What a new turn's question is sent with: the attachments note, if
+        any, then the time and the answer language (`turn_note`), in the
+        question's language and last, so the words before the question are in
+        it. Kept out of the system prompt so it and the tools stay a fixed prefix."""
         reminder = await attachment_reminder(backend, file_list)
-        return "\n\n".join(p for p in (turn_note(self.timezone, _latest_question(messages)), reminder) if p)
+        return "\n\n".join(p for p in (reminder, turn_note(self.timezone, _latest_question(messages))) if p)
 
     async def _build_system_prompt(
         self,
