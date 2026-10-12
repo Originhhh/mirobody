@@ -460,7 +460,7 @@ class MirobodyAgent:
         fits = max(context - reply - self._CONTEXT_MARGIN, context // 2)
         if fits >= window:
             return client
-        logger.info("input window %d -> %d tokens: the server holds %d", window, fits, context)
+        logger.info("input window %d -> %d tokens: the server holds %d", window, fits, context)  # phi: ok token counts
         return client.model_copy(update={"profile": {**profile, "max_input_tokens": fits}})
 
     def _still_loading(self, model: str) -> bool:
