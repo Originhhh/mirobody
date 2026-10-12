@@ -22,8 +22,18 @@ _SAFE_MARKER = "genotype_rows_redacted"
 
 
 #: A model with at most this input window is a local one (the `local` entry
-#: declares 24000), and is not told where the compacted history went.
+#: declares 48000).
 _LOCAL_WINDOW = 65536
+
+#: Recent context a compaction keeps for a local model. deepagents
+#: keeps 10% of the window, 4.8k of 48k: less than the report pages the turn had
+#: just read, so the model read them again.
+_MIN_KEEP_TOKENS = 12000
+
+
+def _is_local(model: Any) -> bool:
+    window = (getattr(model, "profile", None) or {}).get("max_input_tokens")
+    return isinstance(window, int) and window <= _LOCAL_WINDOW
 
 
 def history_path_for(model: Any, file_path: str | None) -> str | None:
@@ -31,15 +41,21 @@ def history_path_for(model: Any, file_path: str | None) -> str | None:
     Told the path, MiniCPM5-2B read it page by page, each read compacting the
     context again and lengthening the file (270 to 1,653 lines) until the turn
     ran out. No cloud model read it in the 570 answers of 2026-10-10."""
-    window = (getattr(model, "profile", None) or {}).get("max_input_tokens")
-    return None if isinstance(window, int) and window <= _LOCAL_WINDOW else file_path
+    return None if _is_local(model) else file_path
+
+
+def _defaults(model: Any) -> dict:
+    defaults = compute_summarization_defaults(model)
+    if _is_local(model):
+        defaults = {**defaults, "keep": ("tokens", _MIN_KEEP_TOKENS)}
+    return defaults
 
 
 class GenotypeSafeSummarizationMiddleware(DeepSummarizationMiddleware):
     """Replace the DeepAgents core slot while preserving its normal thresholds."""
 
     def __init__(self, model: Any, backend: Any, guard: GenotypeRowGuardMiddleware) -> None:
-        super().__init__(model=model, backend=backend, **compute_summarization_defaults(model))
+        super().__init__(model=model, backend=backend, **_defaults(model))
         self._genotype_guard = guard
 
     @property
