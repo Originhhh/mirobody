@@ -21,6 +21,20 @@ _SAFE_SUMMARY = "Earlier conversation context was omitted because it may include
 _SAFE_MARKER = "genotype_rows_redacted"
 
 
+#: A model with at most this input window is a local one (the `local` entry
+#: declares 24000), and is not told where the compacted history went.
+_LOCAL_WINDOW = 65536
+
+
+def history_path_for(model: Any, file_path: str | None) -> str | None:
+    """The history file a compaction summary names: none for a local model.
+    Told the path, MiniCPM5-2B read it page by page, each read compacting the
+    context again and lengthening the file (270 to 1,653 lines) until the turn
+    ran out. No cloud model read it in the 570 answers of 2026-10-10."""
+    window = (getattr(model, "profile", None) or {}).get("max_input_tokens")
+    return None if isinstance(window, int) and window <= _LOCAL_WINDOW else file_path
+
+
 class GenotypeSafeSummarizationMiddleware(DeepSummarizationMiddleware):
     """Replace the DeepAgents core slot while preserving its normal thresholds."""
 
@@ -61,11 +75,7 @@ class GenotypeSafeSummarizationMiddleware(DeepSummarizationMiddleware):
                                        SUMMARIZATION_SESSION_ID_KEY: None})
 
     def _build_new_messages_with_path(self, summary: str, file_path: str | None) -> list[Any]:
-        # The history file is still written, but not named to the model. Told
-        # where it was, MiniCPM5-2B read it page by page, each read compacting
-        # the context again and lengthening the file (270 to 1,653 lines) until
-        # the turn ran out; no cloud model read it in the 570 answers of 2026-10-10.
-        messages = super()._build_new_messages_with_path(summary, None)
+        messages = super()._build_new_messages_with_path(summary, history_path_for(self.model, file_path))
         return [message.model_copy(update={"additional_kwargs": {
             **message.additional_kwargs, _SAFE_MARKER: True,
         }}) for message in messages]
