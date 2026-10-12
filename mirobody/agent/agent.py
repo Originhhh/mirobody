@@ -39,7 +39,7 @@ from .hitl import ASK_USER_INTERRUPT, ask_user, interrupt_block, pending_answer
 from .knowledge import tools as medical_knowledge
 from .models.clients import build_llm_clients, unavailable_reason
 from .models.usage import usage_block
-from .prompt import attachment_reminder, build_system_prompt, deployment_facts, question_language
+from .prompt import attachment_reminder, build_system_prompt, deployment_facts, question_language, turn_note
 from .wire.blocks import ERROR, NOTICE, TEXT
 from .wire.stream import TokenUsageCallback, stream_blocks
 from .middleware import (
@@ -198,6 +198,13 @@ class MirobodyAgent:
                     return value
         raise AgentError("No prompt template is configured (check PROMPTS in config)")
 
+
+    async def _turn_note(self, backend: Any, file_list: list[dict[str, Any]] | None, messages: list) -> str:
+        """What a new turn's question is sent with: the time and the answer
+        language (`turn_note`), kept out of the system prompt so it and the
+        tools stay a fixed prefix, then the attachments note, if any."""
+        reminder = await attachment_reminder(backend, file_list)
+        return "\n\n".join(p for p in (turn_note(self.timezone, _latest_question(messages)), reminder) if p)
 
     async def _build_system_prompt(
         self,
@@ -689,7 +696,7 @@ class MirobodyAgent:
                 # silently misses one. A message of this turn, not part of the
                 # cached system prompt (`attachment_reminder`). Matches the list's
                 # element type (BaseMessage vs dict) rather than mixing forms.
-                reminder = await attachment_reminder(backend, file_list)
+                reminder = await self._turn_note(backend, file_list, messages)
                 if reminder:
                     if final_messages and isinstance(final_messages[-1], BaseMessage):
                         from langchain_core.messages import HumanMessage

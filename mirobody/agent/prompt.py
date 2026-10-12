@@ -86,6 +86,20 @@ def question_language(text: str) -> str:
     return ""
 
 
+def turn_note(timezone: str, question: str) -> str:
+    """The current time and the language to answer in, as a note sent with the
+    question. In the system prompt both changed per hour or per question, and
+    the tool definitions after them were read again: 5.2k tokens for
+    MiniCPM5-2B on llama.cpp each time, 47 with this note (2026-10-12)."""
+    now = datetime.now(zone(timezone)).strftime("%A, %B %d, %Y, at %I:00 %p %Z (UTC%z)")
+    note = f"[System note: it is now {now}."
+    language = question_language(question)
+    if language:
+        note += (f" The latest question is in {language}: write the whole answer in {language}, "
+                 "however much of the tool output is in English.")
+    return note + "]"
+
+
 async def build_system_prompt(
     base_prompt: str,
     langchain_tools: list,

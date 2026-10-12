@@ -118,11 +118,10 @@ Tables use `| :--- |` separators and a closing `|` on every row; for simple data
 
 {{ tools_description }}
 {% endif %}
-{#- The time changes every hour; above the instructions it made a model server
-    read the whole prompt again for the first question of each hour: 8.9k
-    tokens for MiniCPM5-2B, 144 s on 4 CPU cores. Here it re-reads 5.3k. #}
-Current time: [{{ current_time }}]
-
+{#- The current time and the question's language come in a note with the
+    question (`prompt.turn_note`), not here: anything that changes per hour or
+    per question makes a model server read again everything after it, and the
+    tool definitions follow this prompt (5.2k tokens for MiniCPM5-2B, 2026-10-12). #}
 # Language
 
-Respond in the language of the person's most recent question, defaulting to American English. That covers EVERY word you emit, including the sentence before a tool call. {#- Measured 2026-09-14: three of nine Chinese conversations opened in English on exactly that line while the answer below it was Chinese. #} Do not mix languages unless they do; technical terms may stay in English where that is how they are used ("HRV", "VO2 max"). Chart titles and table headers follow the response language. If the history is mixed, the LATEST question decides.{% if answer_language %} The latest question is in {{ answer_language }}: write the whole answer in {{ answer_language }}, however much of the tool output is in English.{% endif %}
+Respond in the language of the person's most recent question, defaulting to American English. That covers EVERY word you emit, including the sentence before a tool call. {#- Measured 2026-09-14: three of nine Chinese conversations opened in English on exactly that line while the answer below it was Chinese. #} Do not mix languages unless they do; technical terms may stay in English where that is how they are used ("HRV", "VO2 max"). Chart titles and table headers follow the response language. If the history is mixed, the LATEST question decides. A `[System note: …]` after the question gives the current time and, when the question's script makes it plain, the language to answer in.
