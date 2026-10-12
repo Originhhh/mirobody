@@ -49,7 +49,7 @@ COMPOSE_PROFILES=local-cpu ./deploy.sh     # 服务加上 llama.cpp 的 CPU 镜�
 
 在一套正在运行的服务上，`docker compose --profile local-cpu up -d` 会在应用旁边启动这个服务（设置页显示的就是这一行）。同时也把 `COMPOSE_PROFILES=local-cpu` 加进 `.env`，否则一次 `docker compose down` 会把它移除，下一次 `up` 就不会带上它。
 
-**macOS**（Apple 芯片）。Mac 上的容器用不了它的 GPU，所以 llama.cpp 要运行在 Mac 本身上，设置页会找到它：
+**macOS**（Apple 芯片）。Mac 上的容器用不了它的 GPU，所以 llama.cpp 要运行在 Mac 本身上，设置页会找到它。请在检出目录的根目录下启动：预设里小号的对话模板（`docker/minicpm5-2b.jinja`）是相对这个目录的路径。
 
 ```bash
 brew install llama.cpp

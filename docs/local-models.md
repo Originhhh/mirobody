@@ -89,7 +89,9 @@ starts the service beside the app (the line the setup page shows). Add
 removes it and the next `up` leaves it out.
 
 **macOS** (Apple silicon). A container on a Mac cannot use its GPU, so
-llama.cpp runs on the Mac itself, and the setup page finds it:
+llama.cpp runs on the Mac itself, and the setup page finds it. Start it from
+the checkout's root: the preset names the small size's chat template
+(`docker/minicpm5-2b.jinja`) by a path relative to it.
 
 ```bash
 brew install llama.cpp
