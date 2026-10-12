@@ -58,7 +58,19 @@ nohup mirobody dev config.yaml --host 0.0.0.0 --port "${HTTP_PORT}" \
 
 # Each forwarded port is served on its own domain, and the server's own hint can
 # only name localhost (`server._print_setup_link`, which says so). Printed here
-# instead, from the variables Codespaces itself sets.
+# instead.
+#
+# `CODESPACE_NAME` is not in the environment of every process in the container:
+# measured, an SSH session and PID 1 both carry `CODESPACES` and not this. The
+# two values are read from the file Codespaces writes them to, taking only those
+# two keys because the same file holds GITHUB_TOKEN.
+codespace_env=/workspaces/.codespaces/shared/.env
+if [[ -z "${CODESPACE_NAME:-}" && -r "${codespace_env}" ]]; then
+    CODESPACE_NAME="$(sed -n 's/^CODESPACE_NAME=//p' "${codespace_env}" | head -1)"
+    GITHUB_CODESPACES_PORT_FORWARDING_DOMAIN="$(
+        sed -n 's/^GITHUB_CODESPACES_PORT_FORWARDING_DOMAIN=//p' "${codespace_env}" | head -1)"
+fi
+
 base="http://localhost:${HTTP_PORT}"
 if [[ -n "${CODESPACE_NAME:-}" && -n "${GITHUB_CODESPACES_PORT_FORWARDING_DOMAIN:-}" ]]; then
     base="https://${CODESPACE_NAME}-${HTTP_PORT}.${GITHUB_CODESPACES_PORT_FORWARDING_DOMAIN}"
