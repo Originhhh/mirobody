@@ -14,6 +14,11 @@ template training renders with; it defaults to docker/minicpm5-2b.jinja, the
 one the preset serves. Found 2026-10-12 on b11429: the GGUF's own template
 renders a list argument as `blood pressure血压` on llama.cpp and as
 `['blood pressure', '血压']` on Hugging Face, which is also how the model writes it.
+
+`--swift <model dir>` also encodes each case, with a final answer appended, as
+ms-swift trains it (`minicpm5_2b`) and compares the decoded text with the
+Hugging Face render. ms-swift's MiniCPM5 agent template wrote non-string
+arguments with `json.dumps` (`["blood pressure", "血压"]`, `true`).
 """
 
 from __future__ import annotations
@@ -104,19 +109,82 @@ def _hf(template: str, bos: str, messages: list[dict], thinking: bool) -> str:
     return rendered[0]
 
 
+ANSWER = {"role": "assistant", "content": "", "reasoning_content": "Done.",
+          "final": "<statement>118/76 mmHg<cite>[r1]</cite></statement>"}
+
+
+def _for_swift(messages: list[dict]) -> list[dict]:
+    """ms-swift's agent format: an assistant turn, then one `tool_call` message
+    per call, and `tool_response` for a result. Thinking is written into the
+    content, which the template splits back out."""
+    out = []
+    for m in messages:
+        if m["role"] == "assistant":
+            think = f"<think>\n{m['reasoning_content']}\n</think>\n\n" if m.get("reasoning_content") else ""
+            calls = m.get("tool_calls") or []
+            out.append({"role": "assistant", "content": think + m.get("content", "") + ("\n" if calls else "")})
+            out += [{"role": "tool_call", "content": json.dumps(
+                {"name": c["function"]["name"], "arguments": json.loads(c["function"]["arguments"])},
+                ensure_ascii=False)} for c in calls]
+        elif m["role"] == "tool":
+            out.append({"role": "tool_response", "content": m["content"]})
+        else:
+            out.append({"role": m["role"], "content": m["content"]})
+    return out
+
+
+def _swift_cases(model_dir: str, template_text: str, bos: str) -> int:
+    """Encode each case as a training sample with ms-swift and compare it with
+    the Hugging Face render of the same messages."""
+    from swift import get_processor
+    from swift.template import get_template
+    from transformers import AutoTokenizer
+    from transformers.utils.chat_template_utils import render_jinja_template
+
+    tok = AutoTokenizer.from_pretrained(model_dir, use_fast=True)
+    template = get_template(get_processor(model_dir), template_type="minicpm5_2b")
+    template.set_mode("train")
+    failed = 0
+    for name, (messages, thinking) in CASES.items():
+        if not thinking:
+            continue
+        answer = {"role": "assistant", "content": ANSWER["final"], "reasoning_content": ANSWER["reasoning_content"]}
+        whole = [*messages, answer]
+        trained = render_jinja_template(conversations=[_for_hf(whole)], tools=TOOLS, chat_template=template_text,
+                                        add_generation_prompt=False, bos_token=bos)[0][0]
+        swift_whole = [*_for_swift(messages), {"role": "assistant",
+                                               "content": f"<think>\n{ANSWER['reasoning_content']}\n</think>\n\n{ANSWER['final']}"}]
+        encoded = template.encode({"messages": swift_whole, "tools": json.dumps(TOOLS, ensure_ascii=False)},
+                                  return_template_inputs=False)
+        swift_text = tok.decode(encoded["input_ids"], skip_special_tokens=False)
+        if swift_text == trained:
+            print(f"same   swift: {name}")
+            continue
+        failed += 1
+        i = _first_difference(swift_text, trained)
+        print(f"DIFFER swift: {name} at char {i}\n  ms-swift:     {swift_text[max(0, i - 60):i + 60]!r}"
+              f"\n  transformers: {trained[max(0, i - 60):i + 60]!r}")
+    return failed
+
+
 def _first_difference(a: str, b: str) -> int:
     return next((i for i, (x, y) in enumerate(zip(a, b, strict=False)) if x != y), min(len(a), len(b)))
 
 
 def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
-    ap.add_argument("--server", default="http://127.0.0.1:8080")
+    ap.add_argument("--server", default="http://127.0.0.1:8080", help="empty to check only ms-swift (--swift)")
     ap.add_argument("--model", default="", help="the router's section name; empty for a single-model server")
     ap.add_argument("--hf-template", default=str(DEFAULT_TEMPLATE))
     ap.add_argument("--bos", default="<s>")
     ap.add_argument("--dump", default="", help="write both renders of every case to this JSON file")
+    ap.add_argument("--swift", default="", help="a model dir: also compare ms-swift's training encode")
     args = ap.parse_args()
     template = Path(args.hf_template).read_text(encoding="utf-8")
+    if args.swift and not args.server:
+        failed = _swift_cases(args.swift, template, args.bos)
+        print(f"ms-swift: {failed} case(s) differ")
+        return 1 if failed else 0
 
     failed, dump = 0, {}
     for name, (messages, thinking) in CASES.items():
@@ -133,6 +201,10 @@ def main() -> int:
     if args.dump:
         Path(args.dump).write_text(json.dumps(dump, ensure_ascii=False, indent=1), encoding="utf-8")
     print(f"{len(CASES) - failed} of {len(CASES)} cases render the same")
+    if args.swift:
+        swift_failed = _swift_cases(args.swift, template, args.bos)
+        print(f"ms-swift: {swift_failed} case(s) differ")
+        failed += swift_failed
     return 1 if failed else 0
 
 
