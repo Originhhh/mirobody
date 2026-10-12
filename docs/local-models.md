@@ -58,8 +58,12 @@ evaluation behind the figures and how to rerun it.
 
 ## Start the models
 
-Pick the line for your machine. Every one serves the same preset,
-[`docker/local-models.ini`](../docker/local-models.ini); start it in the
+Pick the line for your machine. A GPU serves
+[`docker/local-models.ini`](../docker/local-models.ini) and a CPU
+[`docker/local-models-cpu.ini`](../docker/local-models-cpu.ini): the same
+models, the small one at 64k with an 8-bit KV cache on a GPU and at 32k with a
+16-bit one on a CPU ([Without a GPU](#without-a-gpu)). The agent reads the
+server's context and fits its input window to it. Start it in the
 `mirobody` folder (the one with `deploy.sh`). `--models-max 2` keeps one
 answering model and the reader in memory, so choosing another size on the
 setup page unloads the one before.
@@ -105,8 +109,8 @@ llama-server --models-preset docker/local-models.ini --port 8080 --models-max 2
 COMPOSE_PROFILES=local ./deploy.sh         # the stack, plus the `llama` service on the CUDA image
 ```
 
-**Windows**, to use any GPU (Intel, AMD or NVIDIA, through Vulkan; the CPU when
-there is none). winget's `ggml.llamacpp` is llama.cpp's own Vulkan release
+**Windows**, to use any GPU (Intel, AMD or NVIDIA, through Vulkan; with no GPU,
+start it with `docker\local-models-cpu.ini` instead). winget's `ggml.llamacpp` is llama.cpp's own Vulkan release
 build, for x64 and arm64. In PowerShell, from the checkout in WSL (`Ubuntu` is
 the distribution's name in `wsl -l`), so that the preset's relative path
 resolves:
@@ -124,7 +128,7 @@ use the Docker line above, which needs no host networking.
 
 **Linux with another GPU** (AMD, Intel) or no Docker for the models: a
 [llama.cpp release](https://github.com/ggml-org/llama.cpp/releases) build for
-it, and the same `llama-server` line.
+it, and the same `llama-server` line; with no GPU, `docker/local-models-cpu.ini`.
 
 **Mirobody itself on Windows** runs in Docker Desktop (WSL 2 backend): open a
 WSL terminal (Ubuntu), clone the repository there and run `./deploy.sh`, as on
@@ -223,6 +227,12 @@ Both measurements below ran the small size in llama.cpp's CPU image (the
 - The CPU image logs `warning: no usable GPU found, --gpu-layers option will be
   ignored`: the preset asks for the GPU, which the `local` service uses, and
   the CPU build ignores the setting.
+- `local-cpu` serves `docker/local-models-cpu.ini`. On 4 cores of an Intel Xeon
+  (2026-10-12), the GPU preset's 8-bit KV cache read a prompt at 13 tokens a
+  second against 48 at 16 bits (24 with only the keys in 8 bits); flash
+  attention alone and a 64k context changed neither. 64k at 16 bits held
+  1.35 GB more, past what an 8 GB Docker VM has room for, so the CPU preset
+  serves 32k and the agent narrows its window to about 24k tokens.
 
 **Which file reads fastest without a GPU.** The same CPU image with 4 vCPUs,
 on a 48 GB Apple-silicon machine's colima VM, one model per container, every

@@ -151,6 +151,12 @@ services:
     <<: *llama
     profiles: [local-cpu]
     image: ${LLAMA_CPU_IMAGE:-ghcr.io/ggml-org/llama.cpp:server-b11429}
+    # The CPU preset: the small model at 32k with a 16-bit KV cache, which a
+    # CPU reads four times as fast as the GPU preset's 8-bit one.
+    volumes:
+      - ${LOCAL_MODELS_PRESET:-./docker/local-models-cpu.ini}:/presets/local-models.ini:ro
+      - ./docker/minicpm5-2b.jinja:/app/docker/minicpm5-2b.jinja:ro
+      - mirobody_models:/models
     deploy: {}
     networks:
       default:

@@ -37,7 +37,7 @@ Mirobody 用到的每一个模型，都能跟服务运行在同一台机器上�
 
 ## 启动模型
 
-按自己的机器选一行命令。每一行都提供同一份预设，[`docker/local-models.ini`](../docker/local-models.ini)；要在 `mirobody` 文件夹（也就是放着 `deploy.sh` 的那个）里启动。`--models-max 2` 让内存里只留一个回答模型和一个读文档的模型，所以在设置页换一个大小会先卸载前一个。
+按自己的机器选一行命令。有显卡用 [`docker/local-models.ini`](../docker/local-models.ini)，只有 CPU 用 [`docker/local-models-cpu.ini`](../docker/local-models-cpu.ini)。两份是同样的模型，区别只在小号：显卡上是 64k、8 位 KV 缓存，CPU 上是 32k、16 位（[没有显卡时](#without-a-gpu)）。agent 会读取模型服务的上下文长度，自动调整自己的输入窗口。要在 `mirobody` 文件夹（也就是放着 `deploy.sh` 的那个）里启动。`--models-max 2` 让内存里只留一个回答模型和一个读文档的模型，所以在设置页换一个大小会先卸载前一个。
 
 **任何装了 Docker、不需要显卡的电脑**（Windows、Linux 或 macOS）。最慢的一条路线，但除了 Docker 什么都不需要。首次启动会下载约 4.8 GB：4.1 GB 的模型加上约 0.7 GB 的镜像（llama.cpp 的 CPU 镜像约 310 MB，应用约 230 MB，Postgres 约 160 MB），解包后约占 2 GB（在 Linux x86 上分别是 850、640 和 460 MB）。
 
@@ -62,7 +62,7 @@ llama-server --models-preset docker/local-models.ini --port 8080 --models-max 2
 COMPOSE_PROFILES=local ./deploy.sh         # 服务加上运行在 CUDA 镜像上的 `llama` 服务
 ```
 
-**Windows**，要用任何显卡（Intel、AMD 或 NVIDIA，经 Vulkan；没有显卡就用 CPU）。winget 的 `ggml.llamacpp` 是 llama.cpp 官方的 Vulkan 发行版，有 x64 和 arm64 两种。在 PowerShell 里，从 WSL 里的检出目录进入（`Ubuntu` 是 `wsl -l` 里那个发行版的名字），这样预设里的相对路径才能解析：
+**Windows**，要用任何显卡（Intel、AMD 或 NVIDIA，经 Vulkan；没有显卡时改用 `docker\local-models-cpu.ini` 启动）。winget 的 `ggml.llamacpp` 是 llama.cpp 官方的 Vulkan 发行版，有 x64 和 arm64 两种。在 PowerShell 里，从 WSL 里的检出目录进入（`Ubuntu` 是 `wsl -l` 里那个发行版的名字），这样预设里的相对路径才能解析：
 
 ```powershell
 winget install --id ggml.llamacpp
@@ -72,7 +72,7 @@ llama-server --models-preset docker\local-models.ini --port 8080 --models-max 2
 
 设置页会通过 Docker Desktop 的 `host.docker.internal` 去找它，这个地址在 Mac 上能连到主机 `127.0.0.1` 上的服务（用 colima 测过）。**这条路线我们还没有在 Windows 上运行过**；如果页面找不到服务，请改用上面那条 Docker 命令，它不需要任何主机网络配置。
 
-**用别的显卡（AMD、Intel）的 Linux**，或者模型不想用 Docker：找一个对应的 [llama.cpp 发行版](https://github.com/ggml-org/llama.cpp/releases)构建，用同一行 `llama-server` 命令。
+**用别的显卡（AMD、Intel）的 Linux**，或者模型不想用 Docker：找一个对应的 [llama.cpp 发行版](https://github.com/ggml-org/llama.cpp/releases)构建，用同一行 `llama-server` 命令；没有显卡时用 `docker/local-models-cpu.ini`。
 
 **Mirobody 本身在 Windows 上**运行在 Docker Desktop 里（WSL 2 后端）：打开一个 WSL 终端（Ubuntu），在里面克隆仓库并运行 `./deploy.sh`，和在 Linux 上一样。脚本在每一份检出里都保持 LF 换行。
 
@@ -139,6 +139,7 @@ docker compose exec mirobody mirobody doctor --probe
 - 产品的工具调用探测（`doctor --probe`）通过了这个服务，两个模型下载之后都从它的缓存卷加载。
 - 这份缓存是某一个 compose 项目的 `mirobody_models` 卷：换一份检出，或者换一个 `COMPOSE_PROJECT_NAME`，模型就要重新下载。
 - CPU 镜像的日志里会出现 `warning: no usable GPU found, --gpu-layers option will be ignored`：预设要的是 GPU，`local` 服务用的就是这个设置，CPU 版本会把它忽略。
+- `local-cpu` 用的是 `docker/local-models-cpu.ini`。在 Intel Xeon 的 4 个核心上（2026-10-12），显卡预设的 8 位 KV 缓存读提示词每秒 13 个 token，16 位是 48 个（只把 K 改成 8 位是 24 个）；单开 flash attention 或者把上下文加到 64k 都不影响速度。但 64k、16 位要多占 1.35 GB，8 GB 的 Docker 虚拟机放不下，所以 CPU 预设用 32k，agent 的窗口会相应收窄到约 24k token。
 
 **没有显卡时哪个文件读得最快。** 同一个 CPU 镜像、4 个 vCPU，运行在一台 48 GB Apple 芯片主机的 colima 虚拟机里，每个容器只放一个模型，每个提示词都是冷读（2026-10-10）：
 
