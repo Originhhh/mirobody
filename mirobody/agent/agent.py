@@ -445,12 +445,13 @@ class MirobodyAgent:
     #: write its answer from what it already has rather than ending the turn.
     _QUERY_CALL_LIMIT = 12
     #: Native tools hidden from the model via the harness profile's
-    #: ``excluded_tools``. PgFilesystemBackend does not implement ``delete``,
-    #: but that alone does not hide it: the capability probe runs against
-    #: ``CompositeBackend``, which does implement it, so deepagents offers the
-    #: tool and every call comes back "unsupported" after the model has already
-    #: spent tokens on it. Excluding by name is what keeps it off the list.
-    _EXCLUDED_NATIVE_TOOLS = frozenset({"delete"})
+    #: ``excluded_tools``: the agent reads the person's files and never changes
+    #: them. Every mount is read-only, so `write_file` and `edit_file` could only
+    #: reach the scratch root, which no one sees; across the 570 answers of the
+    #: 2026-10-10 evaluation no model called either, and their schemas were 1.8k
+    #: of the 19k characters of tool definitions. ``delete`` is listed by name
+    #: because the capability probe runs against ``CompositeBackend``, which has it.
+    _EXCLUDED_NATIVE_TOOLS = frozenset({"delete", "write_file", "edit_file"})
 
     async def _build_agent(
         self,
