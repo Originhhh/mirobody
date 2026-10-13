@@ -92,8 +92,12 @@ services:
     ports: []
     environment:
       <<: *mirobody_env
+    # The image's check asks the web port, which the worker does not serve. A
+    # check that passes while it runs, not `disable: true`: Compose 2.32 fails
+    # `up --wait` on a disabled one, and deploy.sh stopped there (2026-10-13).
     healthcheck:
-      disable: true
+      test: ["CMD", "true"]
+      interval: 10s
     depends_on:
       pg:
         condition: service_healthy

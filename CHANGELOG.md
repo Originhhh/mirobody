@@ -43,6 +43,11 @@
   A cloud host's daemon mirror served `hello-world`, the probe, and not the
   database image, so no mirror was set and `docker compose up` failed. The
   probe is now the database image itself.
+- **`deploy.sh` finishes on Docker Compose 2.32.** The worker's
+  `healthcheck: disable: true` made `compose up --wait` fail ("has no
+  healthcheck configured") with the stack up, so the script stopped before
+  printing where to open it. The worker now has a check that passes while it
+  runs.
 - **A photo sent in chat reaches a text-only local model as its text.** A
   stale "not known" answer about whether the server sees images sent the
   photo itself, and the turn failed with a 500. Chat now asks the server
