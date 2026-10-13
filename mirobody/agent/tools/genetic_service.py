@@ -155,10 +155,7 @@ class GeneticService(RecordTool):
         upload's source and build in answers.
         """
         envelope = await self.envelope(user_info, **args)
-        columns = self.columns(args)
-        if any(row.get("rid") for row in envelope.data or ()):
-            columns = ("rid", *columns)
-        return {"result": render_compact(envelope, columns), **envelope_meta(envelope)}
+        return {"result": render_compact(envelope, self.columns(args)), **envelope_meta(envelope)}
 
     def columns(self, args: Mapping[str, Any]) -> tuple[str, ...]:
         """The columns an answer to `args` renders. A call the validator
