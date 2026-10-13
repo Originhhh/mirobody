@@ -78,7 +78,12 @@ def index_fold(s: str) -> str:
     imports it from here rather than keeping a second copy, which is what makes
     "the build and the runtime fold identically" a fact instead of a convention.
 
-    ``casefold`` (not ``lower``) handles ß / İ correctly; CJK is unaffected.
+    ``casefold`` (not ``lower``) handles ß correctly; CJK is unaffected. It does
+    not round-trip Turkish: `İ` folds to `i` plus a combining dot above and `I`
+    to `i` where Turkish reads `ı`. That gap is closed on the query side by
+    :func:`turkish_i_variants`, never here, because every key in
+    ``alias_keys.bin`` came out of this function and a change would lose the
+    keys it has rather than gain the ones it lacks.
     """
     if not s:
         return ""
@@ -238,10 +243,35 @@ def join_series_suffix(term: str) -> str:
     return _SERIES_SUFFIX.sub(r"\1\2", term or "")
 
 
+#: Turkish writes two i's that Unicode casefolding does not round-trip: `İ`
+#: casefolds to `i` plus a combining dot above, and `I` casefolds to `i` where
+#: Turkish reads `ı`. An all-caps report therefore folds to a key no Turkish row
+#: ever produced. Measured: `TRİGLİSERİT` to `tri̇gli̇seri̇t`, which matched
+#: nothing, and `GLUKOZ (AÇLIK)` to `glukoz (açlik)` against a stored
+#: `glukoz (açlık)`, so it fell back to plain glucose and dropped "fasting".
+_TR_READ_AS_TURKISH = str.maketrans({"İ": "i", "I": "ı"})
+_TR_READ_AS_ASCII = str.maketrans({"ı": "i"})
+
+
+def turkish_i_variants(term: str) -> list[str]:
+    """``term`` with its Turkish i's read the other way; empty when it has none.
+
+    Both directions, because either spelling may be the one that was printed:
+    `İ`/`I` as the Turkish lowercase `i`/`ı`, and `ı` as the ASCII `i` a
+    non-Turkish writer types. Callers append these after the term as written,
+    so they can only turn a miss into a hit.
+    """
+    out: list[str] = []
+    for candidate in (term.translate(_TR_READ_AS_TURKISH), term.translate(_TR_READ_AS_ASCII)):
+        if candidate and candidate != term and candidate not in out:
+            out.append(candidate)
+    return out
+
+
 def surface_variants(term: str) -> list[str]:
     """The spellings of ``term`` worth trying, most faithful first.
 
-    Never more than six, and the first is always the term as written, so a
+    Never more than eight, and the first is always the term as written, so a
     caller that stops at the first hit keeps today's answer for today's inputs.
     Every entry after the first can only turn a miss into a hit.
 
@@ -263,6 +293,7 @@ def surface_variants(term: str) -> list[str]:
         strip_trailing_abbreviation(term),
         join_series_suffix(term),
         fold_to_hans(term or ""),
+        *turkish_i_variants(term or ""),
     )
     for candidate in candidates:
         candidate = (candidate or "").strip()

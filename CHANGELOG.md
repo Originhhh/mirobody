@@ -17,6 +17,13 @@
 
 ### Fixed
 
+- **Turkish all-caps names resolve.** `TRİGLİSERİT` answered nothing and
+  `GLUKOZ (AÇLIK)` answered plain glucose with the fasting qualifier dropped:
+  Unicode casefolding turns `İ` into `i` plus a combining dot above, and `I`
+  into `i` where Turkish reads `ı`, so an all-caps report folded to a key no
+  Turkish row ever produced (Discussion #137). Reading the i's the other way is
+  now a last-resort spelling in `lexical.turkish_i_variants`, tried after the
+  term as written. Coverage 321/321 -> 325/325, the four all-caps cases pinned.
 - **`docs/quickstart.md` said `mirobody dev` does not serve the web client.**
   It does, whenever it runs from a repository root: `utils/config/http.py`
   mounts `frontend/` as soon as that directory exists in the working directory.

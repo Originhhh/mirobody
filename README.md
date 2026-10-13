@@ -169,7 +169,7 @@ resolve("血脂").resolved                                     # False    a cate
 
 | Claim | Check it |
 | --- | --- |
-| **321/321** on the tests an ordinary checkup prints, in English, Chinese, Japanese, Russian, Estonian and Turkish | [`test_engine_coverage.py`](mirobody/tests/test_engine_coverage.py) prints the score |
+| **325/325** on the tests an ordinary checkup prints, in English, Chinese, Japanese, Russian, Estonian and Turkish | [`test_engine_coverage.py`](mirobody/tests/test_engine_coverage.py) prints the score |
 | **330 UCUM units** with dimensional analysis, and **316 standard device indicators** | [Standardization](docs/standardization.md) · [Device crosswalk](docs/device-crosswalk.md) |
 | The package names its vocabulary: `mirobody.BUNDLE_VERSION` is `loinc-2.83+2026.09.17-aacb2c715b56` | `python -c "import mirobody; print(mirobody.BUNDLE_VERSION)"` |
 | Public health-agent benchmarks: [ESL-Bench](https://huggingface.co/datasets/mirobody/ESL-Bench), [MedHall-Bench](https://huggingface.co/datasets/mirobody/MedHall-Bench), [MedHarm-Bench](https://huggingface.co/datasets/mirobody/MedHarm-Bench) | [`mirobody-eval`](https://github.com/thetahealth/mirobody-eval) · [`benchmarks/`](benchmarks/README.md) |
