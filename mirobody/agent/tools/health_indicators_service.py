@@ -77,6 +77,10 @@ _WORDS_NOTE = (
 )
 _SELF_DIAGNOSED_NOTE = "a condition entry is what the person reports being diagnosed with, not a clinical record"
 
+#: A reading's modality when extraction wrote a value the document's text
+#: does not print (`collect.observations.MODALITY_UNVERIFIED`).
+_UNVERIFIED = "llm-unverified"
+
 
 #: Said on a day, week or month view: each of those reads one value per day
 #: (`collect/query.py::_DAY_AUTHORITY_CTE`), while `stats` counts every
@@ -320,6 +324,11 @@ def _envelope_for(
     assumptions.append(_ABSENCE_NOTE)
     if any(r.get("rid") for r in rows):
         assumptions.append(RID_NOTE)
+    unverified = sorted({str(r.get("indicator") or r.get("name") or "") for r in rows
+                         if r.get("modality") == _UNVERIFIED} - {""})
+    if unverified:
+        assumptions.append("the document's text does not print these values; check the file before relying on them: "
+                           + ", ".join(unverified))
     reported = [r for r in rows if r.get("provenance") == tools.PROVENANCE_REPORTED]
     if reported:
         assumptions.append(_WORDS_NOTE)

@@ -13,7 +13,11 @@ prints the unit twice anyway.
 """
 
 import logging
+import re
+import unicodedata
+from collections.abc import Callable
 from datetime import datetime
+from decimal import Decimal, InvalidOperation
 from typing import Any
 
 from mirobody.collect import observations
@@ -31,6 +35,40 @@ STORED_FLAGS = ("high", "low")
 
 #: The extraction's `detection_method` values whose rows are findings, not measurements.
 FINDING_METHODS = ("Imaging", "Pathological")
+
+_NUMBER = re.compile(r"\d+(?:\.\d+)?")
+_THOUSANDS = re.compile(r"(?<=\d),(?=\d{3}(?!\d))")
+_SPACE = re.compile(r"\s+")
+#: A non-numeric value longer than this is prose a model may rephrase; it is
+#: not checked against the text.
+_SHORT_WORD = 12
+
+
+def text_bears_out(text: str) -> Callable[[str], bool | None]:
+    """A check of one extracted value against the document's text: True when
+    the text prints it, False when it does not, None when this cannot say.
+    Numbers compare by value (`5.6` is the printed `5.60`); a short word such
+    as `阴性` or `++` by its letters. A model can write a value no line of the
+    page holds, and the text is the only witness left after extraction."""
+    folded = _THOUSANDS.sub("", unicodedata.normalize("NFKC", text or ""))
+    printed = {Decimal(n) for n in _NUMBER.findall(folded)}
+    letters = _SPACE.sub("", folded).casefold()
+
+    def check(value: str) -> bool | None:
+        v = _THOUSANDS.sub("", unicodedata.normalize("NFKC", value or "")).strip()
+        if not v or not letters:
+            return None
+        numbers = _NUMBER.findall(v)
+        if numbers:
+            try:
+                return all(Decimal(n) in printed for n in numbers)
+            except InvalidOperation:
+                return None
+        if len(v) > _SHORT_WORD:
+            return None
+        return _SPACE.sub("", v).casefold() in letters
+
+    return check
 
 
 def row_time(printed: Any, report_time: datetime) -> datetime:
@@ -72,9 +110,14 @@ async def save_indicators_to_db(
     date_source: str,
     file_key: str,
     extractor: str = "",
+    text: str = "",
 ) -> observations.Report:
     """Write a file's extracted indicators as observations; what the write
     did, row by row (`observations.Report`).
+
+    With the document's `text`, a measurement whose value the text does not
+    print is stored as `llm-unverified`: it stays in the record and the
+    catalogue, marked, and the agent is told which ones they are.
 
     `start_time` and `date_source` come from `resolve_report_date`; the
     caller resolves them so the same answer can be recorded on the file
@@ -85,6 +128,8 @@ async def save_indicators_to_db(
     readings in it.
     """
     drafts = []
+    bears_out = text_bears_out(text) if text else None
+    unverified = 0
     for ix, indicator in enumerate(indicators):
         original_indicator = indicator.get("original_indicator")
         if not original_indicator:
@@ -92,6 +137,10 @@ async def save_indicators_to_db(
         method = str(indicator.get("detection_method") or "")
         kind = observations.KIND_FINDING if method in FINDING_METHODS else observations.KIND_MEASUREMENT
         value, flag = value_and_flag(indicator)
+        modality = ""
+        if bears_out is not None and kind == observations.KIND_MEASUREMENT and bears_out(value) is False:
+            modality = observations.MODALITY_UNVERIFIED
+            unverified += 1
         drafts.append(observations.Draft(
             name_text=str(original_indicator),
             observed_start=row_time(indicator.get("date_time"), start_time),
@@ -103,7 +152,11 @@ async def save_indicators_to_db(
             note_text=str(indicator.get("notes") or ""),
             kind=kind,
             row_ix=ix,
+            modality=modality,
         ))
+    if unverified:
+        logger.warning("extracted values the text does not print: unverified_count=%d row_count=%d",
+                       unverified, len(drafts))
 
     provenance = observations.Provenance(
         modality=observations.MODALITY_LAB,
