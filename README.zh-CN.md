@@ -34,6 +34,7 @@
 | 统一健康指标名称和单位 | [一条命令](#一条命令体验标准化引擎) | uv；不需要模型或 API Key |
 | 在浏览器里体验完整应用 | [GitHub Codespaces](#在-codespaces-体验完整应用) | GitHub 账号和你自己的模型 API Key |
 | 应用、模型和记录都留在自己机器上 | [Docker 100% 本地部署](#100-本地部署应用数据和模型) | 带 Compose 的 Docker；16 GB 内存；无需 API Key |
+| 应用和记录留在自己机器上，且不用 Docker | [不用 Docker 运行](#不用-docker-运行) | Debian 或 Ubuntu；PostgreSQL 16；Python 3.12；你自己的模型 API Key |
 
 ## 一条命令体验标准化引擎
 
@@ -86,6 +87,20 @@ COMPOSE_PROFILES=local-cpu ./deploy.sh
 **也可以在 Docker 中使用云端模型。** 不启用本地模型 profile，直接运行 `./deploy.sh`，再在打印的设置链接中填写自己的模型 Key。应用和记录保存在你自己的主机上，文档和问题交给模型服务商处理。
 
 → [自部署指南](https://docs.mirobody.ai/zh/self-host) · [完整演示](docs/walkthrough.zh-CN.md) · [部署到服务器](https://docs.mirobody.ai/zh/deployment/production)
+
+## 不用 Docker 运行
+
+**不起容器，也不从镜像仓库拉取任何东西。** 在 Debian 或 Ubuntu 上，PostgreSQL 16 加 pgvector 直接来自发行版自己的仓库，应用从检出目录运行。这和 Codespaces 那条路用的是同一套安装：
+
+```bash
+git clone --depth 1 https://github.com/thetahealth/mirobody.git && cd mirobody
+scripts/install_native.sh   # PostgreSQL、pgvector、Python 包、一份 .env
+scripts/start_native.sh     # worker 和应用，端口 18060
+```
+
+打开脚本打印的链接，用 `you@mirobody.ai`、验证码 `111111` 登录：示例记录已经备好。在打印的设置链接里填一个模型 Key，就能做文档抽取和问答。`install_native.sh` 会用 `sudo` 安装系统包，并为 `postgres` 账号写一条 sudoers 规则，过程中会说明。
+
+本地模型属于 Docker 那条路，所以这条路通过模型服务来回答。其余部分与上一节在 [什么留在你的机器上](#什么留在你的机器上) 里是同一行：记录存在你刚装好的 PostgreSQL 里，名称到代码的转换从不离开本机。
 
 ## 你可以做什么
 

@@ -186,12 +186,13 @@ docker run -d -p 5432:5432 -e POSTGRES_USER=user -e POSTGRES_PASSWORD=pw \
     pgvector/pgvector:pg17
 ```
 
-**`docker` is not required for that part.** On Debian or Ubuntu, `postgresql`
-and `postgresql-16-pgvector` from the distribution's own repositories give a
-Postgres this schema accepts: measured on Ubuntu 24.04, where pgvector is 0.6.0
-and `CREATE EXTENSION vector` above is satisfied. `scripts/codespace_provision.sh`
-is that install written out, role and database included, for a machine you can
-throw away.
+**`docker` is not required for that part.** On Debian or Ubuntu,
+`scripts/install_native.sh` installs PostgreSQL and pgvector from the
+distribution's own repositories, starts the cluster, creates the role and the
+database, and puts the package in a virtualenv. Measured on Ubuntu 24.04, where
+pgvector is 0.6.0 and satisfies the `CREATE EXTENSION vector` above.
+`scripts/start_native.sh` then starts the worker and the server on port 18060,
+and prints where to open it.
 
 Then start the API, replacing the connection URL if you use an existing
 database. Check its health endpoint from another terminal:

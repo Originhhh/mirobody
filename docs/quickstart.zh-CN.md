@@ -137,7 +137,7 @@ docker run -d -p 5432:5432 -e POSTGRES_USER=user -e POSTGRES_PASSWORD=pw \
     pgvector/pgvector:pg17
 ```
 
-**这一步并不需要 `docker`。** 在 Debian 或 Ubuntu 上，用发行版自己的仓库装 `postgresql` 和 `postgresql-16-pgvector`，就能得到一个本 schema 接受的 Postgres：在 Ubuntu 24.04 上实测，那里的 pgvector 是 0.6.0，上面的 `CREATE EXTENSION vector` 可以满足。`scripts/codespace_provision.sh` 就是把这次安装写了出来，连角色和数据库一起，面向一台可以随时丢弃的机器。
+**这一步并不需要 `docker`。** 在 Debian 或 Ubuntu 上，`scripts/install_native.sh` 会用发行版自己的仓库装好 PostgreSQL 和 pgvector，启动集群，建好角色和数据库，再把包装进一个 virtualenv。在 Ubuntu 24.04 上实测，那里的 pgvector 是 0.6.0，上面的 `CREATE EXTENSION vector` 可以满足。之后 `scripts/start_native.sh` 会启动 worker 和 server（端口 18060），并打印打开它的地址。
 
 然后启动 API；如果用的是已有的数据库，替换掉连接地址。再开一个终端检查它的健康检查端点：
 

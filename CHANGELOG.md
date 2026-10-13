@@ -4,16 +4,26 @@
 
 - **Try Mirobody before setting up a local server.** The README led with
   Docker and buried the offline engine command. Both editions now start with
-  three choices: standardize names with `uvx` and no model key, run the full
-  app in GitHub Codespaces with your own key, or keep the app, records and
-  models 100% local with Docker and llama.cpp. The Codespaces configuration no
-  longer needs Docker: PostgreSQL and pgvector install inside the container and
-  the server runs from the checkout, so the first page arrives without a
-  multi-gigabyte image pull. It forwards only the app, prints the
-  browser-accessible setup link, and asks for four cores, because two left a
-  comparable multi-service stack answering in 18 seconds or not at all. The
-  local-model command and its hardware requirements are visible alongside that
-  path.
+  four choices: standardize names with `uvx` and no model key, run the full app
+  in GitHub Codespaces with your own key, keep the app, records and models 100%
+  local with Docker and llama.cpp, or run the app and records with no container
+  at all. The Codespaces configuration no longer needs Docker either: PostgreSQL
+  and pgvector install inside the container and the server runs from the
+  checkout, so the first page arrives without a multi-gigabyte image pull. It
+  forwards only the app, prints the browser-accessible setup link, and asks for
+  four cores, because two left a comparable multi-service stack answering in 18
+  seconds or not at all. The local-model command and its hardware requirements
+  are visible alongside that path.
+- **The no-container path is a first-class one.** `codespace_provision.sh` and
+  `codespace_start.sh` read as Codespaces-only, so a Debian or Ubuntu machine
+  whose network cannot reach a registry had nothing to run; they are
+  `scripts/install_native.sh` and `scripts/start_native.sh` now, one pair for
+  both callers, and the READMEs list them as the fourth way in. Measured end to
+  end on Ubuntu 24.04: `postgresql-16-pgvector` satisfies the schema's
+  `CREATE EXTENSION vector`, the demo record seeds 2 accounts and 2019 readings,
+  the web client is served from `frontend/`, a PDF upload extracts into three
+  new indicators, and the agent answers with `rid` citations. No image is pulled
+  at any point.
 
 ### Fixed
 

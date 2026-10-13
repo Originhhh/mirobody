@@ -1,10 +1,12 @@
 #!/usr/bin/env bash
 #
-# Starts Postgres, the task worker and the HTTP server.
+# Start Postgres, the task worker and the HTTP server.
 #
-# `postAttachCommand` runs this on every attach, so it exits as soon as the
-# server already answers. Running it by hand restarts nothing either; stop the
-# two processes first if you want a clean start.
+# Both callers of `install_native.sh` use this. In a codespace it runs from
+# `postStartCommand` and `postAttachCommand`, both of which fire repeatedly, so
+# it exits as soon as the server already answers; `postStartCommand` is what
+# brings the stack back when a stopped codespace resumes. On a machine, run it
+# by hand, in its own terminal or under `nohup`.
 #
 # The server creates the schema and seeds the demo record on first start
 # (`server/bootstrap.py`), so there is no separate migrate or seed step.
@@ -16,15 +18,15 @@ PG_VERSION=16
 LOG_DIR="${TMPDIR:-/tmp}"
 
 if [[ ! -x .venv/bin/mirobody ]]; then
-    echo "scripts/codespace_start.sh: .venv is missing." >&2
-    echo "Run scripts/codespace_provision.sh first." >&2
+    echo "scripts/start_native.sh: .venv is missing." >&2
+    echo "Run scripts/install_native.sh first." >&2
     exit 1
 fi
 
 # Exported, not merely left in the file for the configuration layer to find.
 # `mirobody dev` decides whether to generate JWT_KEY and CONFIG_ENCRYPTION_KEY
 # BEFORE `Config.init` loads `.env`, so a value that only lives in the file is
-# replaced on every start and no session survives a codespace restart.
+# replaced on every start and no session survives a restart.
 #
 # Sourced before the port is read so an edit to `.env` is honoured here too.
 if [[ -f .env ]]; then
@@ -36,8 +38,8 @@ fi
 
 HTTP_PORT="${HTTP_PORT:-18060}"
 
-# A dev container has no systemd, so the cluster does not come back on its own
-# after a codespace restart.
+# Started by hand rather than through systemd, which a dev container does not
+# run. Harmless where systemd already owns the cluster.
 sudo pg_ctlcluster "${PG_VERSION}" main start 2>/dev/null || true
 
 if curl -fsS "http://127.0.0.1:${HTTP_PORT}/api/health" >/dev/null 2>&1; then
@@ -60,10 +62,11 @@ nohup mirobody dev config.yaml --host 0.0.0.0 --port "${HTTP_PORT}" \
 # only name localhost (`server._print_setup_link`, which says so). Printed here
 # instead.
 #
-# `CODESPACE_NAME` is not in the environment of every process in the container:
+# `CODESPACE_NAME` is not in the environment of every process in a codespace:
 # measured, an SSH session and PID 1 both carry `CODESPACES` and not this. The
 # two values are read from the file Codespaces writes them to, taking only those
-# two keys because the same file holds GITHUB_TOKEN.
+# two keys because the same file holds GITHUB_TOKEN. On a machine that file is
+# absent and the localhost address below is the right one.
 codespace_env=/workspaces/.codespaces/shared/.env
 if [[ -z "${CODESPACE_NAME:-}" && -r "${codespace_env}" ]]; then
     CODESPACE_NAME="$(sed -n 's/^CODESPACE_NAME=//p' "${codespace_env}" | head -1)"
@@ -84,9 +87,9 @@ fi
 echo "  logs:   ${LOG_DIR}/mirobody-server.log"
 echo "          ${LOG_DIR}/mirobody-worker.log"
 echo
-# The port is private, so the browser authenticates against GitHub before it
-# reaches the app: one redirect, then the page. Saying so beats a reader taking
-# the interstitial for a hang. The first start also creates the schema and seeds
-# the demo record, which takes a few seconds.
+# The first start creates the schema and seeds the demo record, which takes a
+# few seconds. In a codespace the port is private, so the browser authenticates
+# against GitHub before it reaches the app: one redirect, then the page. Saying
+# so beats a reader taking the interstitial for a hang.
 echo "The first request may wait a few seconds: the schema and the demo record"
 echo "are created on this first start."
