@@ -10,7 +10,7 @@
 **Turn scattered health data into answers you can trace.**
 
 A self-hosted AI health data engine that brings lab reports, wearables and genetic files into one standardized record.<br>
-Standardize health data with one command. Try the full app in Codespaces with your own model key, or run everything—including the models—100% locally.
+Standardize health data with one command. Try the full app in Codespaces with your own model key, or run the app, the data and the models 100% on your own machine.
 
 **English** · **[中文](README.zh-CN.md)**
 
