@@ -207,6 +207,14 @@ Mirobody 也是 [Theta Wellness](https://www.thetahealth.ai/) 这款已上线的
 
 **如果 Mirobody 帮你把健康数据用起来，点一颗 Star，让更多人发现它。**
 
+<a href="https://www.star-history.com/#thetahealth/mirobody&Date">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/svg?repos=thetahealth/mirobody&type=Date&theme=dark" />
+    <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/svg?repos=thetahealth/mirobody&type=Date" />
+    <img alt="Star History 曲线" src="https://api.star-history.com/svg?repos=thetahealth/mirobody&type=Date" />
+  </picture>
+</a>
+
 [文档目录](docs/README.md) · [路线图](docs/roadmap.md) · [更新日志](CHANGELOG.md) · [安全](SECURITY.md) · [AGENTS.md](AGENTS.md)
 
 Apache 2.0 · © 2026 [Theta Health](https://thetahealth.ai)
