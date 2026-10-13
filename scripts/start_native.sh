@@ -94,9 +94,25 @@ fi
 echo "  logs:   ${LOG_DIR}/mirobody-server.log"
 echo "          ${LOG_DIR}/mirobody-worker.log"
 echo
-# The first start creates the schema and seeds the demo record, which takes a
-# few seconds. In a codespace the port is private, so the browser authenticates
-# against GitHub before it reaches the app: one redirect, then the page. Saying
-# so beats a reader taking the interstitial for a hang.
-echo "The first request may wait a few seconds: the schema and the demo record"
-echo "are created on this first start."
+
+# Wait for the server, and this is load-bearing where a lifecycle hook runs
+# this script rather than a person. Such a hook's parent is killed the moment
+# the script returns, and a child that has not reached `exec` yet dies with it:
+# upstream measures the log file created and empty, and prescribes a sleep
+# (microsoft/vscode-remote-release#8536). Waiting for the health endpoint gives
+# the children that time and reports the outcome, which a blind sleep cannot.
+ready=""
+for _ in $(seq 1 90); do
+    if curl -fsS "http://127.0.0.1:${HTTP_PORT}/api/health" >/dev/null 2>&1; then
+        ready=yes
+        break
+    fi
+    sleep 1
+done
+
+if [[ -n "$ready" ]]; then
+    echo "Mirobody is ready. The demo record is seeded; sign in as you@mirobody.ai,"
+    echo "code 111111. A model key from the setup link above adds extraction and answers."
+else
+    echo "Mirobody did not answer on ${HTTP_PORT} within 90s; see the logs above." >&2
+fi
