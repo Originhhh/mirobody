@@ -427,17 +427,24 @@ class MirobodyAgent:
         """Whether this turn's model, the `MODELS` entry `model` that
         `_chat_model` picked, is sent an image, or its OCR text.
 
-        A profile or entry `false` is final; a local entry asks its server
-        (`served.sees`), because the entry names the model it was written for
-        and a text-only one may be running instead (MiniCPM5-2B answered an
-        image block with "image input is not supported").
+        A profile or entry `false` is final; a local entry asks its server,
+        because the entry names the model it was written for and a text-only
+        one may be running instead (MiniCPM5-2B answered an image block with
+        "image input is not supported"). It asks afresh each turn, and a
+        server that does not say gets the OCR text, which every model reads:
+        an unknown cached before the model loaded sent a photo to MiniCPM5-2B
+        and the turn failed (2026-10-13).
         """
         if (getattr(client, "profile", None) or {}).get("image_inputs") is False:
             return False
-        from mirobody.utils.config.served import sees
+        from mirobody.utils.config.served import sees, served_vision
 
         spec = _route(model)
-        return sees(spec) if spec is not None else True
+        if spec is None:
+            return True
+        if spec.supports_image is not False and spec.base_url_env and spec.base_url:
+            return served_vision(spec.base_url, spec.model, fresh=True) is True
+        return sees(spec)
 
     def _fit_window(self, client: Any, model: str) -> Any:
         """`client`, its input window no larger than what this turn's server

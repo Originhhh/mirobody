@@ -101,18 +101,20 @@ def _refresh(key: tuple[str, str]) -> None:
             _refreshing.discard(key)
 
 
-def served_vision(base_url: str, model: str) -> bool | None:
+def served_vision(base_url: str, model: str, *, fresh: bool = False) -> bool | None:
     """True or False when the server says whether `model` takes images; None
     when it does not say or cannot be reached. Cached for five minutes (30 s
     for None). Callers run on the event loop, and a server that does not
     answer costs up to three timeouts: so a stale answer is returned at once
     and re-read beside the caller, and only the first question in a process
-    waits for the server."""
+    waits for the server. `fresh`, for a caller off the event loop, reads
+    again rather than take an expired answer or an unknown one."""
     if not base_url or not model:
         return None
     key = (base_url, model)
     hit = _cache.get(key)
-    if hit is None:
+    expired = hit is not None and time.monotonic() - hit[0] >= (_TTL_SEC if hit[1] is not None else _UNKNOWN_TTL_SEC)
+    if hit is None or (fresh and (hit[1] is None or expired)):
         return _read(key)
     if time.monotonic() - hit[0] >= (_TTL_SEC if hit[1] is not None else _UNKNOWN_TTL_SEC):
         with _lock:
