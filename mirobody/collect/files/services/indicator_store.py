@@ -129,7 +129,7 @@ async def save_indicators_to_db(
     """
     drafts = []
     bears_out = text_bears_out(text) if text else None
-    unverified = 0
+    unverified_count = 0
     for ix, indicator in enumerate(indicators):
         original_indicator = indicator.get("original_indicator")
         if not original_indicator:
@@ -140,7 +140,7 @@ async def save_indicators_to_db(
         modality = ""
         if bears_out is not None and kind == observations.KIND_MEASUREMENT and bears_out(value) is False:
             modality = observations.MODALITY_UNVERIFIED
-            unverified += 1
+            unverified_count += 1
         drafts.append(observations.Draft(
             name_text=str(original_indicator),
             observed_start=row_time(indicator.get("date_time"), start_time),
@@ -154,9 +154,9 @@ async def save_indicators_to_db(
             row_ix=ix,
             modality=modality,
         ))
-    if unverified:
+    if unverified_count:
         logger.warning("extracted values the text does not print: unverified_count=%d row_count=%d",
-                       unverified, len(drafts))
+                       unverified_count, len(drafts))
 
     provenance = observations.Provenance(
         modality=observations.MODALITY_LAB,
