@@ -745,6 +745,21 @@ python $B/run.py --size small --corpus $G --parts qa --cases p005-hemoglobin-ran
 
 `--parts qa,extraction,journal` picks parts, `--cases` picks questions,
 `--no-switch` keeps the loaded pair, `--no-ocr` (with it) unloads GLM-OCR.
+`--model <section>` runs any answering model the router serves (a trained
+checkpoint's GGUF added to the preset) as a size, `--name` naming its results.
+Each pass records the machine's load beside free disk and memory, and warns
+when it exceeds the CPU count: timings on a shared machine are not the model's.
+
+**Does llama.cpp render what training renders?** `template_check.py` sends
+fixed conversations (tool calls with list, boolean and nested arguments, code
+with `<`, an earlier turn) to llama-server's `/apply-template` and renders them
+with Hugging Face's jinja, then compares the two byte for byte. It needs
+`transformers`; `--hf-template` is the template training uses (the
+checkpoint's `chat_template.jinja`), `--model` the router section.
+
+```bash
+python $B/template_check.py --server http://127.0.0.1:8080 --model minicpm5-2b --hf-template <ckpt>/chat_template.jinja
+```
 `python $B/run.py --size small --corpus $G --rescore` scores a size's saved
 transcripts, its extraction account's stored readings and its journal entries
 again after a change to score.py, without asking a model.

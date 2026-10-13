@@ -388,14 +388,22 @@ async def _save(choice: SetupChoice) -> Any:
             return err(400, f"The key did not work: {detail}")
         await settings.save(dict.fromkeys(settings.allowed_names() - fixed, "") | {name: value} | models)
     else:
+        from mirobody.utils.config.llm import endpoint_value
+
+        given = choice.base_url.strip()
+        # deploy.sh writes the compose model service's address into .env; the
+        # page still chooses which models it runs. Only another address is
+        # refused, and the address .env names is the one tried.
         if "LOCAL_BASE_URL" in fixed:
-            return err(409, "LOCAL_BASE_URL is set in .env; change it there.")
+            pinned = endpoint_value("LOCAL_BASE_URL").strip()
+            if given and given.rstrip("/") != pinned.rstrip("/"):
+                return err(409, f"LOCAL_BASE_URL is set in .env ({pinned}); change it there.")
+            given = pinned
         # A vendor key is chosen before the local models whenever both exist.
         keys_in_env = sorted(n for n in fixed if n in KEYS_URL)
         if keys_in_env:
             return err(409, f"{', '.join(keys_in_env)} is set in .env, and a key is used before local models. "
                             "Remove it from .env, run docker compose up -d, and choose local again.")
-        given = choice.base_url.strip()
         if given and not given.startswith(("http://", "https://")):
             return err(400, "Give the address of the model server, e.g. http://host.docker.internal:8080/v1.")
         changes: dict[str, str] = {}
@@ -409,8 +417,9 @@ async def _save(choice: SetupChoice) -> Any:
         models = _local_models(_would_leave(changes, frozenset()))
         wanted = sorted({m for m in models.values() if m})
         base_url, ocr_base_url, answers = "", "", []
+        pinned_ocr = endpoint_value("LOCAL_OCR_BASE_URL").strip() if "LOCAL_OCR_BASE_URL" in fixed else ""
         for candidate in [given] if given else _candidates():
-            ocr = (choice.ocr_base_url.strip() if given else "") or candidate
+            ocr = pinned_ocr or (choice.ocr_base_url.strip() if given else "") or candidate
             served = await asyncio.to_thread(_served, candidate)
             if ocr != candidate:
                 served = {**served, **await asyncio.to_thread(_served, ocr)}
@@ -424,8 +433,8 @@ async def _save(choice: SetupChoice) -> Any:
                 return err(400, f"No server serves {', '.join(wanted)}: {'; '.join(answers)}.")
             tried = given or ", ".join(_candidates())
             return err(400, f"No model server answered at {tried}. Start it and try again.")
-        await settings.save(dict.fromkeys(KEYS_URL, "") | {"LOCAL_BASE_URL": base_url, "LOCAL_OCR_BASE_URL": ocr_base_url}
-                            | changes)
+        chosen = dict.fromkeys(KEYS_URL, "") | {"LOCAL_BASE_URL": base_url, "LOCAL_OCR_BASE_URL": ocr_base_url} | changes
+        await settings.save({name: value for name, value in chosen.items() if name not in fixed})
         for model in {models["agent"], models["ocr"]} - {""}:
             await asyncio.to_thread(_load, ocr_base_url if model == models["ocr"] else base_url, model)
 

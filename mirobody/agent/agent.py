@@ -39,7 +39,7 @@ from .hitl import ASK_USER_INTERRUPT, ask_user, interrupt_block, pending_answer
 from .knowledge import tools as medical_knowledge
 from .models.clients import build_llm_clients, unavailable_reason
 from .models.usage import usage_block
-from .prompt import attachment_reminder, build_system_prompt, deployment_facts, question_language
+from .prompt import attachment_reminder, build_system_prompt, deployment_facts, question_language, turn_note
 from .wire.blocks import ERROR, NOTICE, TEXT
 from .wire.stream import TokenUsageCallback, stream_blocks
 from .middleware import (
@@ -104,6 +104,20 @@ def _latest_question(messages: list) -> str:
             return content if isinstance(content, str) else " ".join(
                 b.get("text", "") for b in content or [] if isinstance(b, dict))
     return ""
+
+
+def with_turn_note(messages: list, note: str) -> list:
+    """`messages` with `note` just before the last one, the person's question.
+    Before, not after: MiniCPM5-2B answers in the language of the last message
+    it reads, and an English note after a Chinese question turned the answer
+    English (2026-10-12). Matches the list's element type (BaseMessage or dict)."""
+    if not note or not messages:
+        return messages
+    *earlier, question = messages
+    if isinstance(question, BaseMessage):
+        from langchain_core.messages import HumanMessage
+        return [*earlier, HumanMessage(content=note), question]
+    return [*earlier, {"role": "user", "content": note}, question]
 
 
 class MirobodyAgent:
@@ -198,6 +212,14 @@ class MirobodyAgent:
                     return value
         raise AgentError("No prompt template is configured (check PROMPTS in config)")
 
+
+    async def _turn_note(self, backend: Any, file_list: list[dict[str, Any]] | None, messages: list) -> str:
+        """What a new turn's question is sent with: the attachments note, if
+        any, then the time and the answer language (`turn_note`), in the
+        question's language and last, so the words before the question are in
+        it. Kept out of the system prompt so it and the tools stay a fixed prefix."""
+        reminder = await attachment_reminder(backend, file_list)
+        return "\n\n".join(p for p in (reminder, turn_note(self.timezone, _latest_question(messages))) if p)
 
     async def _build_system_prompt(
         self,
@@ -405,17 +427,48 @@ class MirobodyAgent:
         """Whether this turn's model, the `MODELS` entry `model` that
         `_chat_model` picked, is sent an image, or its OCR text.
 
-        A profile or entry `false` is final; a local entry asks its server
-        (`served.sees`), because the entry names the model it was written for
-        and a text-only one may be running instead (MiniCPM5-2B answered an
-        image block with "image input is not supported").
+        A profile or entry `false` is final; a local entry asks its server,
+        because the entry names the model it was written for and a text-only
+        one may be running instead (MiniCPM5-2B answered an image block with
+        "image input is not supported"). It asks afresh each turn, and a
+        server that does not say gets the OCR text, which every model reads:
+        an unknown cached before the model loaded sent a photo to MiniCPM5-2B
+        and the turn failed (2026-10-13).
         """
         if (getattr(client, "profile", None) or {}).get("image_inputs") is False:
             return False
-        from mirobody.utils.config.served import sees
+        from mirobody.utils.config.served import sees, served_vision
 
         spec = _route(model)
-        return sees(spec) if spec is not None else True
+        if spec is None:
+            return True
+        if spec.supports_image is not False and spec.base_url_env and spec.base_url:
+            return served_vision(spec.base_url, spec.model, fresh=True) is True
+        return sees(spec)
+
+    def _fit_window(self, client: Any, model: str) -> Any:
+        """`client`, its input window no larger than what this turn's server
+        holds: its context less the reply and `_CONTEXT_MARGIN`. One `local`
+        entry answers for the GPU preset (64k) and the CPU one (32k: an 8-bit
+        KV cache reads a prompt at a quarter of the speed on x86), so the
+        server, not the entry, says how much fits. A copy: the next turn asks
+        again, and a server restarted with another preset is followed."""
+        from mirobody.utils.config.served import served_context
+
+        profile = getattr(client, "profile", None) or {}
+        window = profile.get("max_input_tokens")
+        spec = _route(model)
+        if not isinstance(window, int) or spec is None or not (spec.base_url_env and spec.base_url):
+            return client
+        context = served_context(spec.base_url, spec.model)
+        if not context:
+            return client
+        reply = int((chat_entries().get(model) or {}).get("max_tokens") or 0)
+        fits = max(context - reply - self._CONTEXT_MARGIN, context // 2)
+        if fits >= window:
+            return client
+        logger.info("input window %d -> %d tokens: the server holds %d", window, fits, context)  # phi: ok token counts
+        return client.model_copy(update={"profile": {**profile, "max_input_tokens": fits}})
 
     def _still_loading(self, model: str) -> bool:
         """Whether `model` runs on a local model server whose router is still
@@ -429,6 +482,10 @@ class MirobodyAgent:
         if spec is None or not (spec.base_url_env and spec.base_url):
             return False
         return served_status(spec.base_url, spec.model) == "loading"
+
+    #: Tokens a local server's context keeps free beside the input window and
+    #: the reply: the chat template, and a short utility call in the other slot.
+    _CONTEXT_MARGIN = 2048
 
     #: Read-only tools the `eval` REPL may call as `tools.<name>`; each guards
     #: itself because the PTC bridge bypasses the tool middleware.
@@ -445,12 +502,13 @@ class MirobodyAgent:
     #: write its answer from what it already has rather than ending the turn.
     _QUERY_CALL_LIMIT = 12
     #: Native tools hidden from the model via the harness profile's
-    #: ``excluded_tools``. PgFilesystemBackend does not implement ``delete``,
-    #: but that alone does not hide it: the capability probe runs against
-    #: ``CompositeBackend``, which does implement it, so deepagents offers the
-    #: tool and every call comes back "unsupported" after the model has already
-    #: spent tokens on it. Excluding by name is what keeps it off the list.
-    _EXCLUDED_NATIVE_TOOLS = frozenset({"delete"})
+    #: ``excluded_tools``: the agent reads the person's files and never changes
+    #: them. Every mount is read-only, so `write_file` and `edit_file` could only
+    #: reach the scratch root, which no one sees; across the 570 answers of the
+    #: 2026-10-10 evaluation no model called either, and their schemas were 1.8k
+    #: of the 19k characters of tool definitions. ``delete`` is listed by name
+    #: because the capability probe runs against ``CompositeBackend``, which has it.
+    _EXCLUDED_NATIVE_TOOLS = frozenset({"delete", "write_file", "edit_file"})
 
     async def _build_agent(
         self,
@@ -662,6 +720,7 @@ class MirobodyAgent:
 
             supports_file_block = self._supports_file_block(llm_client)
             supports_image = await asyncio.to_thread(self._supports_image, llm_client, model)
+            llm_client = await asyncio.to_thread(self._fit_window, llm_client, model)
 
             agent, backend = await self._build_agent(
                 session_id=session_id,
@@ -683,18 +742,9 @@ class MirobodyAgent:
             final_messages = messages
             resume = await pending_answer(agent, stream_config, messages, user_id, may_write=self.may_write)
             if resume is None:
-                # Name this turn's attachments and where to read them, so the
-                # model never needs an `ls /uploads/` round trip and never
-                # silently misses one. A message of this turn, not part of the
-                # cached system prompt (`attachment_reminder`). Matches the list's
-                # element type (BaseMessage vs dict) rather than mixing forms.
-                reminder = await attachment_reminder(backend, file_list)
-                if reminder:
-                    if final_messages and isinstance(final_messages[-1], BaseMessage):
-                        from langchain_core.messages import HumanMessage
-                        final_messages = [*final_messages, HumanMessage(content=reminder)]
-                    else:
-                        final_messages = [*final_messages, {"role": "user", "content": reminder}]
+                # The turn's note (time, answer language, attachments) is a
+                # message of this turn, not part of the cached system prompt.
+                final_messages = with_turn_note(final_messages, await self._turn_note(backend, file_list, messages))
 
             async for event in self._stream_agent_response(
                 agent=agent,

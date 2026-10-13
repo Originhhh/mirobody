@@ -118,7 +118,8 @@ def standard_middleware(
        completion, and a pathological loop ends with an answer;
     6. one cap per named tool (``exit_behavior="continue"``: the tool is
        removed for the rest of the turn, the turn goes on);
-    7. the code interpreter, if given;
+    7. the code interpreter, if given, behind `EvalTopLevelReturnMiddleware`
+       (an `eval` that failed only on a top-level `return` runs again wrapped);
     8. ``tail``: whatever the agent adds last (prompt caching).
 
     A fresh stack per build is a fresh retry ledger per turn, which is what
@@ -128,6 +129,7 @@ def standard_middleware(
 
     from .middleware import (
         EmptyAnswerRepairMiddleware,
+        EvalTopLevelReturnMiddleware,
         InvalidToolCallRepairMiddleware,
         ModelCallBudgetMiddleware,
         RetryGovernanceMiddleware,
@@ -144,7 +146,7 @@ def standard_middleware(
     for tool_name, limit in (tool_call_limits or {}).items():
         stack.append(ToolCallLimitMiddleware(tool_name=tool_name, run_limit=limit, exit_behavior="continue"))
     if interpreter is not None:
-        stack.append(interpreter)
+        stack.extend([EvalTopLevelReturnMiddleware(), interpreter])
     stack.extend(tail)
     return stack
 

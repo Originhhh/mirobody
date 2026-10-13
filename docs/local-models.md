@@ -58,8 +58,12 @@ evaluation behind the figures and how to rerun it.
 
 ## Start the models
 
-Pick the line for your machine. Every one serves the same preset,
-[`docker/local-models.ini`](../docker/local-models.ini); start it in the
+Pick the line for your machine. A GPU serves
+[`docker/local-models.ini`](../docker/local-models.ini) and a CPU
+[`docker/local-models-cpu.ini`](../docker/local-models-cpu.ini): the same
+models, the small one at 64k with an 8-bit KV cache on a GPU and at 32k with a
+16-bit one on a CPU ([Without a GPU](#without-a-gpu)). The agent reads the
+server's context and fits its input window to it. Start it in the
 `mirobody` folder (the one with `deploy.sh`). `--models-max 2` keeps one
 answering model and the reader in memory, so choosing another size on the
 setup page unloads the one before.
@@ -89,7 +93,9 @@ starts the service beside the app (the line the setup page shows). Add
 removes it and the next `up` leaves it out.
 
 **macOS** (Apple silicon). A container on a Mac cannot use its GPU, so
-llama.cpp runs on the Mac itself, and the setup page finds it:
+llama.cpp runs on the Mac itself, and the setup page finds it. Start it from
+the checkout's root: the preset names the small size's chat template
+(`docker/minicpm5-2b.jinja`) by a path relative to it.
 
 ```bash
 brew install llama.cpp
@@ -103,8 +109,8 @@ llama-server --models-preset docker/local-models.ini --port 8080 --models-max 2
 COMPOSE_PROFILES=local ./deploy.sh         # the stack, plus the `llama` service on the CUDA image
 ```
 
-**Windows**, to use any GPU (Intel, AMD or NVIDIA, through Vulkan; the CPU when
-there is none). winget's `ggml.llamacpp` is llama.cpp's own Vulkan release
+**Windows**, to use any GPU (Intel, AMD or NVIDIA, through Vulkan; with no GPU,
+start it with `docker\local-models-cpu.ini` instead). winget's `ggml.llamacpp` is llama.cpp's own Vulkan release
 build, for x64 and arm64. In PowerShell, from the checkout in WSL (`Ubuntu` is
 the distribution's name in `wsl -l`), so that the preset's relative path
 resolves:
@@ -116,17 +122,23 @@ llama-server --models-preset docker\local-models.ini --port 8080 --models-max 2
 ```
 
 The setup page looks for it through Docker Desktop's `host.docker.internal`,
-which on a Mac reaches a server on the host's `127.0.0.1` (measured with
-colima). **This route has not been run on Windows by us**; if the page finds no server,
-use the Docker line above, which needs no host networking.
+which reaches a server on the host's `127.0.0.1`: measured on a Mac (colima)
+and on Windows 11 with Docker Desktop 4.95 (2026-10-12), with no `--host` and
+no firewall rule. For a CUDA build instead of the Vulkan one, pick it by the
+card: an RTX 50 card (compute capability 12.0, `nvidia-smi
+--query-gpu=compute_cap --format=csv`) needs a CUDA 13 build, since CUDA 12.4
+has no kernels for it.
 
 **Linux with another GPU** (AMD, Intel) or no Docker for the models: a
 [llama.cpp release](https://github.com/ggml-org/llama.cpp/releases) build for
-it, and the same `llama-server` line.
+it, and the same `llama-server` line; with no GPU, `docker/local-models-cpu.ini`.
 
-**Mirobody itself on Windows** runs in Docker Desktop (WSL 2 backend): open a
-WSL terminal (Ubuntu), clone the repository there and run `./deploy.sh`, as on
-Linux. The scripts keep LF line endings on every checkout.
+**Mirobody itself on Windows** runs in Docker Desktop (WSL 2 backend). Turn on
+its WSL integration for your distribution (Settings, Resources, WSL
+integration), open a WSL terminal (Ubuntu), clone the repository there and run
+`./deploy.sh`, as on Linux. If `docker` answers `permission denied` there,
+`sudo usermod -aG docker $USER`, then `wsl --shutdown` from Windows. The
+scripts keep LF line endings on every checkout.
 
 The first question after choosing a size waits for its download; later starts
 read the cache. Where huggingface.co is unreachable, point the download at a
@@ -177,6 +189,7 @@ its entry names.
 | `failed to initialize router models: ... Is a directory` in the model service's log | Docker could not see the checkout and mounted an empty directory where the preset should be. Colima shares only your home directory by default: keep the checkout under it, or add the path to colima's `mounts`. |
 | The model service stops when Docker runs out of memory | Give Docker's VM at least 8 GB: Docker Desktop's settings, or `colima start --memory 8`. |
 | A `.env` change has no effect | `docker compose up -d`; `docker compose restart` does not reread `.env`. |
+| `curl localhost:18060/api/health` answers 503 with a `Proxy-Connection` header, or a script's long request dies after a few minutes | A system proxy carries local traffic (WSL inherits Windows' proxy): `export NO_PROXY=localhost,127.0.0.1` in that shell. |
 
 **Networking on Linux.** `compose.yaml` maps `host.docker.internal` for Docker
 Engine on Linux and keeps it out of `HTTP_PROXY`. On a Mac (Docker Desktop or
@@ -221,6 +234,12 @@ Both measurements below ran the small size in llama.cpp's CPU image (the
 - The CPU image logs `warning: no usable GPU found, --gpu-layers option will be
   ignored`: the preset asks for the GPU, which the `local` service uses, and
   the CPU build ignores the setting.
+- `local-cpu` serves `docker/local-models-cpu.ini`. On 4 cores of an Intel Xeon
+  (2026-10-12), the GPU preset's 8-bit KV cache read a prompt at 13 tokens a
+  second against 48 at 16 bits (24 with only the keys in 8 bits); flash
+  attention alone and a 64k context changed neither. 64k at 16 bits held
+  1.35 GB more, past what an 8 GB Docker VM has room for, so the CPU preset
+  serves 32k and the agent narrows its window to about 24k tokens.
 
 **Which file reads fastest without a GPU.** The same CPU image with 4 vCPUs,
 on a 48 GB Apple-silicon machine's colima VM, one model per container, every

@@ -27,7 +27,7 @@ services:
   # is covered too. Files it already owns are skipped. A mount that refuses
   # the change (NFS with root_squash) is reported and never blocks the start.
   mirobody_init:
-    image: ${MIROBODY_IMAGE:-${DOCKER_MIRROR:-}thetahealth4mirobody/mirobody:1.5.5}
+    image: ${MIROBODY_IMAGE:-${DOCKER_MIRROR:-}thetahealth4mirobody/mirobody:1.5.6}
     user: "0:0"
     restart: "no"
     network_mode: none
@@ -43,7 +43,7 @@ services:
       - mirobody_upload:/app/.theta/mcp/upload
 
   mirobody: &mirobody
-    image: ${MIROBODY_IMAGE:-${DOCKER_MIRROR:-}thetahealth4mirobody/mirobody:1.5.5}
+    image: ${MIROBODY_IMAGE:-${DOCKER_MIRROR:-}thetahealth4mirobody/mirobody:1.5.6}
     restart: unless-stopped
     env_file:
       - ${MIROBODY_ENV_FILE:-./docker/empty-environment}
@@ -92,8 +92,12 @@ services:
     ports: []
     environment:
       <<: *mirobody_env
+    # The image's check asks the web port, which the worker does not serve. A
+    # check that passes while it runs, not `disable: true`: Compose 2.32 fails
+    # `up --wait` on a disabled one, and deploy.sh stopped there (2026-10-13).
     healthcheck:
-      disable: true
+      test: ["CMD", "true"]
+      interval: 10s
     depends_on:
       pg:
         condition: service_healthy
@@ -130,6 +134,7 @@ services:
       MODEL_ENDPOINT:
     volumes:
       - ${LOCAL_MODELS_PRESET:-./docker/local-models.ini}:/presets/local-models.ini:ro
+      - ./docker/minicpm5-2b.jinja:/app/docker/minicpm5-2b.jinja:ro   # the preset's chat-template-file
       - mirobody_models:/models
     deploy:
       resources:
@@ -150,6 +155,12 @@ services:
     <<: *llama
     profiles: [local-cpu]
     image: ${LLAMA_CPU_IMAGE:-ghcr.io/ggml-org/llama.cpp:server-b11429}
+    # The CPU preset: the small model at 32k with a 16-bit KV cache, which a
+    # CPU reads four times as fast as the GPU preset's 8-bit one.
+    volumes:
+      - ${LOCAL_MODELS_PRESET:-./docker/local-models-cpu.ini}:/presets/local-models.ini:ro
+      - ./docker/minicpm5-2b.jinja:/app/docker/minicpm5-2b.jinja:ro
+      - mirobody_models:/models
     deploy: {}
     networks:
       default:

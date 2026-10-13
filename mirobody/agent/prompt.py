@@ -86,6 +86,35 @@ def question_language(text: str) -> str:
     return ""
 
 
+#: The note in the question's own language. Written in English, it lost to
+#: 19k characters of English tool output: MiniCPM5-2B answered a Chinese chart
+#: question in English on two runs of three (2026-10-12).
+_TURN_NOTES = {
+    "Chinese (中文)": "[系统提示：现在是 {now}。最新的问题是中文：整个回答都用中文写，"
+                      "图表标题和坐标轴也用中文，即使工具返回的内容是英文。]",
+    "Traditional Chinese (繁體中文)": "[系統提示：現在是 {now}。最新的問題是繁體中文：整個回答都用繁體中文寫，"
+                                     "圖表標題和座標軸也用繁體中文，即使工具回傳的內容是英文。]",
+    "Japanese (日本語)": "[システム通知：現在は {now} です。最新の質問は日本語です。ツールの出力が英語でも、"
+                        "グラフのタイトルや軸を含め、回答はすべて日本語で書いてください。]",
+    "Korean (한국어)": "[시스템 안내: 지금은 {now}입니다. 최신 질문은 한국어입니다. 도구 출력이 영어여도 "
+                      "차트 제목과 축을 포함해 답변 전체를 한국어로 작성하세요.]",
+    "Russian (русский)": "[Системная заметка: сейчас {now}. Последний вопрос на русском: весь ответ, включая "
+                         "заголовки и оси графиков, пишите по-русски, даже если инструменты вернули текст на английском.]",
+}
+
+
+def turn_note(timezone: str, question: str) -> str:
+    """The current time and the language to answer in, as a note sent with the
+    question. In the system prompt both changed per hour or per question, and
+    the tool definitions after them were read again: 5.2k tokens for
+    MiniCPM5-2B on llama.cpp each time, 47 with this note (2026-10-12)."""
+    moment = datetime.now(zone(timezone))
+    template = _TURN_NOTES.get(question_language(question))
+    if template:
+        return template.format(now=moment.strftime("%Y-%m-%d %H:00 %Z (UTC%z)"))
+    return f"[System note: it is now {moment.strftime('%A, %B %d, %Y, at %I:00 %p %Z (UTC%z)')}.]"
+
+
 async def build_system_prompt(
     base_prompt: str,
     langchain_tools: list,
@@ -328,7 +357,7 @@ async def attachment_reminder(backend: Any,
 
     listing = "\n".join(f"- {p}" for p in paths)
     note = (
-        "[System note: the user attached file(s) to THIS message. "
+        "[System note: the user attached file(s) to the message below. "
         "Read the relevant one(s) with read_file before answering:\n"
         f"{listing}"
     )

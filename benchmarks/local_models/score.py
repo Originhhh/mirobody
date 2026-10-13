@@ -231,6 +231,7 @@ def trace_of(answer: str, tools: str) -> dict:
         "made_up": sorted(set(made_up)),
         "uncited_numbers": kinds_found["uncited_number"] + kinds_found["statement_without_cite"],
         "unsupported_numbers": kinds_found["unsupported_number"],
+        "unclosed_statements": kinds_found["unclosed_statement"],
         "rows_shown": len(support),
         "refs_shown": len(shown_refs),
     }

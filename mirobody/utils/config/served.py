@@ -1,5 +1,5 @@
-"""Whether a model server serves a model that can see, and whether it has
-loaded it yet.
+"""Whether a model server serves a model that can see, whether it has
+loaded it yet, and how much context one request to it gets.
 
 For entries whose address is configuration (`LOCAL_BASE_URL`): the model behind
 it can be swapped for a text-only one (MiniCPM5-2B, a quant served without its
@@ -18,6 +18,7 @@ Anything else says nothing, and the entry's own `supports_image` stands.
 from __future__ import annotations
 
 import json
+import re
 import threading
 import time
 import urllib.parse
@@ -34,6 +35,7 @@ _TIMEOUT_SEC = 3.0
 _STATUS_TTL_SEC = 5.0
 _cache: dict[tuple[str, str], tuple[float, bool | None]] = {}
 _status_cache: dict[tuple[str, str], tuple[float, str | None]] = {}
+_context_cache: dict[tuple[str, str], tuple[float, int | None]] = {}
 _refreshing: set[tuple[str, str]] = set()
 _lock = threading.Lock()
 
@@ -99,18 +101,20 @@ def _refresh(key: tuple[str, str]) -> None:
             _refreshing.discard(key)
 
 
-def served_vision(base_url: str, model: str) -> bool | None:
+def served_vision(base_url: str, model: str, *, fresh: bool = False) -> bool | None:
     """True or False when the server says whether `model` takes images; None
     when it does not say or cannot be reached. Cached for five minutes (30 s
     for None). Callers run on the event loop, and a server that does not
     answer costs up to three timeouts: so a stale answer is returned at once
     and re-read beside the caller, and only the first question in a process
-    waits for the server."""
+    waits for the server. `fresh`, for a caller off the event loop, reads
+    again rather than take an expired answer or an unknown one."""
     if not base_url or not model:
         return None
     key = (base_url, model)
     hit = _cache.get(key)
-    if hit is None:
+    expired = hit is not None and time.monotonic() - hit[0] >= (_TTL_SEC if hit[1] is not None else _UNKNOWN_TTL_SEC)
+    if hit is None or (fresh and (hit[1] is None or expired)):
         return _read(key)
     if time.monotonic() - hit[0] >= (_TTL_SEC if hit[1] is not None else _UNKNOWN_TTL_SEC):
         with _lock:
@@ -119,6 +123,58 @@ def served_vision(base_url: str, model: str) -> bool | None:
         if start:
             threading.Thread(target=_refresh, args=(key,), daemon=True).start()
     return hit[1]
+
+
+def _context_of_args(args: list) -> int | None:
+    """The context one request gets from llama-server's launch args: `c`, or
+    `c` divided between the slots when they do not share one KV pool."""
+    args = [str(a) for a in args]
+    value = {flag: args[i + 1] for i, flag in enumerate(args[:-1]) if args[i + 1].isdigit()}
+    context = int(value.get("--ctx-size") or value.get("-c") or 0)
+    if not context:
+        return None
+    slots = int(value.get("--parallel") or value.get("-np") or 1)
+    return context if "--kv-unified" in args or slots <= 1 else context // slots
+
+
+_PRESET_CONTEXT = re.compile(r"^\s*(?:c|ctx-size)\s*=\s*(\d+)\s*$", re.M)
+
+
+def _ask_context(root: str, model: str) -> int | None:
+    try:
+        props = _fetch(f"{root}/props")
+    except Exception:
+        props = None
+    if isinstance(props, dict) and props.get("role") == "router":
+        # The router lists a model's launch args before it loads it.
+        status = (_listed(root, model) or {}).get("status") or {}
+        found = _context_of_args(status.get("args") or [])
+        if found:
+            return found
+        match = _PRESET_CONTEXT.search(str(status.get("preset") or ""))
+        return int(match.group(1)) if match else None
+    settings = props.get("default_generation_settings") if isinstance(props, dict) else None
+    context = settings.get("n_ctx") if isinstance(settings, dict) else None
+    return context if isinstance(context, int) and context > 0 else None
+
+
+def served_context(base_url: str, model: str) -> int | None:
+    """The tokens one request to `model` may hold on the server behind
+    `base_url`; None when it does not say (Ollama, a cloud API) or cannot be
+    reached. Cached for five minutes (30 s for None). It blocks for up to two
+    timeouts, so async callers run it in a thread."""
+    if not base_url or not model:
+        return None
+    key = (base_url, model)
+    hit = _context_cache.get(key)
+    if hit is not None and time.monotonic() - hit[0] < (_TTL_SEC if hit[1] is not None else _UNKNOWN_TTL_SEC):
+        return hit[1]
+    try:
+        answer = _ask_context(base_url.rstrip("/").removesuffix("/v1"), model)
+    except Exception:
+        answer = None
+    _context_cache[key] = (time.monotonic(), answer)
+    return answer
 
 
 def served_status(base_url: str, model: str) -> str | None:
@@ -157,4 +213,4 @@ def sees(spec: Any) -> bool:
     return True
 
 
-__all__ = ["sees", "served_status", "served_vision"]
+__all__ = ["sees", "served_context", "served_status", "served_vision"]

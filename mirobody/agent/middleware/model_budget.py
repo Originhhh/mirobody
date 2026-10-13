@@ -14,6 +14,11 @@ calls switched off. Both are append-only on purpose. The tools stay declared
 history afterwards, because removing a tool or a message edits the prefix a
 reasoning model's earlier thinking blocks are bound to, which Anthropic's
 current models refuse ("preserved thinking").
+
+The same last call comes early when the turn's latest tool results are all
+failures (refused, invalid arguments, an `eval` error): on the 2026-10-10
+evaluation every answer behind five or more failures in a row graded 4 of 10
+or less, the longest after 48 failures and 52 calls, and none recovered.
 """
 
 from __future__ import annotations
@@ -21,7 +26,7 @@ from __future__ import annotations
 from typing import Any
 
 from langchain.agents.middleware import ModelCallLimitMiddleware, hook_config
-from langchain_core.messages import HumanMessage
+from langchain_core.messages import AIMessage, HumanMessage, ToolMessage
 
 #: `HumanMessage.name` of the instruction: the harness speaking, not the
 #: person, which is how the genotype redaction and the empty-answer repair
@@ -33,6 +38,30 @@ _LAST_CALL = (
     "Answer the person now from the tool results above, and say plainly what you "
     "could not look up."
 )
+
+
+#: Failed tool results in a row, since the person last spoke, that end the tools.
+FAILURE_STREAK = 5
+
+
+def _failed(message: ToolMessage) -> bool:
+    artifact = getattr(message, "artifact", None)
+    return (message.status == "error" or getattr(artifact, "status", None) == "error"
+            or str(message.content).lstrip().startswith("<error"))
+
+
+def failure_streak(messages: list) -> int:
+    """Failed tool results at the end of `messages`, back to the last success
+    or the last human message. The last-call instruction is read past: it is
+    appended before the call that must then be made without tools."""
+    streak = 0
+    for message in reversed(messages or []):
+        if isinstance(message, AIMessage) or getattr(message, "name", None) == LAST_CALL_NAME:
+            continue
+        if not isinstance(message, ToolMessage) or not _failed(message):
+            break
+        streak += 1
+    return streak
 
 
 def no_tool_choice(model: Any) -> str | dict[str, str]:
@@ -51,7 +80,8 @@ class ModelCallBudgetMiddleware(ModelCallLimitMiddleware):
         super().__init__(run_limit=run_limit, exit_behavior="end")
 
     def _last_call(self, state: Any) -> bool:
-        return state.get("run_model_call_count", 0) == self.run_limit - 1
+        return (state.get("run_model_call_count", 0) == self.run_limit - 1
+                or failure_streak(state.get("messages")) >= FAILURE_STREAK)
 
     @hook_config(can_jump_to=["end"])
     def before_model(self, state: Any, runtime: Any) -> dict[str, Any] | None:
@@ -75,4 +105,4 @@ class ModelCallBudgetMiddleware(ModelCallLimitMiddleware):
         return await handler(request)
 
 
-__all__ = ["LAST_CALL_NAME", "ModelCallBudgetMiddleware", "no_tool_choice"]
+__all__ = ["FAILURE_STREAK", "LAST_CALL_NAME", "ModelCallBudgetMiddleware", "failure_streak", "no_tool_choice"]

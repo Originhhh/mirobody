@@ -388,8 +388,10 @@ def load_tools_from_directory(dir: str) -> tuple[dict, list]:
 
     logger.debug(f"Loading tools from {target_directory}")
 
+    # Sorted: scandir's order is the filesystem's, and the tools reach the model
+    # in this order, so two machines would send the same tools in two orders.
     try:
-        entries = os.scandir(target_directory)
+        entries = sorted(os.scandir(target_directory), key=lambda e: e.name)
     except OSError as e:
         logger.warning("a tool directory could not be scanned: error_type=%s", type(e).__name__)
         return {}, []

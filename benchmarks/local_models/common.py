@@ -18,6 +18,7 @@ from dataclasses import dataclass, field
 from datetime import datetime
 from pathlib import Path
 from typing import Any
+from urllib.parse import urlsplit
 
 import requests
 
@@ -32,6 +33,20 @@ ROUTER = os.environ.get("LLAMA_ROUTER", "http://127.0.0.1:8080").rstrip("/")
 ROUTER_FROM_APP = os.environ.get("LLAMA_ROUTER_FROM_APP", "http://host.docker.internal:8080/v1")
 #: Where `docker compose` finds the stack (the checkout with compose.yaml and .env).
 COMPOSE_DIR = Path(os.environ.get("MIROBODY_COMPOSE_DIR", str(ROOT)))
+
+
+def _local_without_proxy(*urls: str) -> None:
+    """Keep requests to this machine off a system proxy. WSL 2 inherits Windows'
+    proxy variables, and `requests` and `urllib` then send localhost through it:
+    a CPU turn was cut at about 268 s while llama-server ran on, and /api/health
+    answered 503 (Windows 11, 2026-10-12). Calls to other hosts still use it."""
+    hosts = {"localhost", "127.0.0.1", "host.docker.internal"} | {urlsplit(u).hostname or "" for u in urls}
+    for name in ("NO_PROXY", "no_proxy"):
+        have = [h.strip() for h in os.environ.get(name, "").split(",") if h.strip()]
+        os.environ[name] = ",".join(have + sorted(h for h in hosts - set(have) if h))
+
+
+_local_without_proxy(APP, ROUTER)
 
 #: Every benchmark account signs in with this. A local test stack only.
 PASSWORD = os.environ.get("BENCH_PASSWORD", "local-models-bench")
@@ -353,8 +368,10 @@ class ResourceStop(RuntimeError):
 
 
 def resources() -> dict[str, Any]:
-    """Free disk where this checkout lives, and macOS's free-memory
-    percentage (`memory_pressure`; None elsewhere)."""
+    """Free disk where this checkout lives, macOS's free-memory percentage
+    (`memory_pressure`; None elsewhere), and the 1-minute load against the CPU
+    count: a run on a machine other jobs had saturated (load 130-160 on 128
+    cores, 2026-10-11) timed out eight questions and read as a worse model."""
     import shutil
 
     free_gb = shutil.disk_usage(HERE).free / 2**30          # GiB, as df -h reports it
@@ -365,7 +382,8 @@ def resources() -> dict[str, Any]:
         pct = int(m.group(1)) if m else None
     except (OSError, subprocess.TimeoutExpired):
         pass
-    return {"disk_free_gb": round(free_gb, 1), "memory_free_pct": pct, "swap_used_mb": _swap_used_mb()}
+    return {"disk_free_gb": round(free_gb, 1), "memory_free_pct": pct, "swap_used_mb": _swap_used_mb(),
+            "load_1m": round(os.getloadavg()[0], 1), "cpus": os.cpu_count()}
 
 
 def _short(r: dict[str, Any]) -> bool:

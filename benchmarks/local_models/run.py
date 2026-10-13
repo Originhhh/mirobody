@@ -501,6 +501,7 @@ def summarize(size_dir: Path) -> dict:
     traces = [r["score"]["trace"] for r in qa["runs"] if r["score"].get("trace")]
     shown = [t for t in traces if t["rows_shown"] or t["refs_shown"]]
     times = [r["seconds"] for r in runs]
+    usage = [_usage(r) for r in runs]
     docs = ext["documents"]
     sents = jnl["sentences"]
     found = sum(d["score"]["found"] for d in docs)
@@ -520,6 +521,10 @@ def summarize(size_dir: Path) -> dict:
         "qa_answers_with_unsupported": sum(bool(r["score"]["unsupported_numbers"]) for r in runs),
         "qa_timeouts": sum(r["score"]["timeout"] for r in runs),
         "qa_median_s": round(statistics.median(times), 1) if times else None, "qa_p90_s": pct(times, 0.9),
+        "qa_input_tokens": sum(u["input"] for u in usage), "qa_output_tokens": sum(u["output"] for u in usage),
+        "qa_cached_tokens": sum(u["cached"] for u in usage),
+        "qa_tool_calls": sum(u["calls"] for u in usage),
+        "qa_median_calls": statistics.median([u["calls"] for u in usage]) if usage else None,
         "ext_rows": sum(d["score"]["rows"] for d in docs), "ext_found": found,
         "ext_unit_ok": sum(d["score"]["unit_ok"] for d in docs), "ext_range_ok": sum(d["score"]["range_ok"] for d in docs),
         "ext_extra": sum(d["score"]["extra"] for d in docs),
@@ -537,6 +542,17 @@ def summarize(size_dir: Path) -> dict:
         "memory_peak_rss_mb": (meta.get("memory_run") or {}).get("peak_rss_mb"),
         "memory_peak_footprint_mb": (meta.get("memory_run") or {}).get("peak_footprint_mb"),
     }
+
+
+def _usage(run: dict) -> dict:
+    """The tokens a turn read and wrote (the app's `usage` block; the cache
+    share is what the server did not have to read again) and its tool calls."""
+    blocks = run.get("blocks") or []
+    used = [b for b in blocks if b.get("type") == "usage"]
+    return {"input": sum(b.get("input_tokens") or 0 for b in used),
+            "output": sum(b.get("output_tokens") or 0 for b in used),
+            "cached": sum((b.get("input_token_details") or {}).get("cache_read") or 0 for b in used),
+            "calls": sum(b.get("type") == "tool_call" for b in blocks)}
 
 
 def write_summary(size_dir: Path, cases: list[dict]) -> None:
@@ -719,6 +735,8 @@ def main() -> None:
     ap = argparse.ArgumentParser(description="Run the local-model evaluation for one size.")
     who = ap.add_mutually_exclusive_group(required=True)
     who.add_argument("--size", choices=sorted(SIZES))
+    who.add_argument("--model", help="any answering model the router serves, by its preset section (a trained "
+                                     "checkpoint's GGUF, say), run as a size; --name names its results")
     who.add_argument("--ref", help="a reference the stack is already configured for (a cloud model, by env); "
                                    "results/ref-<REF>, no model switching and no llama-server")
     ap.add_argument("--corpus", required=True, help="the mirobody-gen build the cases and plan came from")
@@ -734,7 +752,7 @@ def main() -> None:
                     help="with --ref: the refs/<overlay>.llm.yaml the stack runs, when the results' name differs "
                          "(ref-gpt-6-luna-rules runs the gpt-6-luna overlay)")
     ap.add_argument("--name", default="",
-                    help="with --size: the results' name, e.g. small-v2, so a rerun on new code keeps the old run")
+                    help="with --size or --model: the results' name, e.g. small-v2, so a rerun on new code keeps the old run")
     ap.add_argument("--merge", action="store_true",
                     help="with --cases: keep the saved answers to the other cases in qa.json")
     ap.add_argument("--retries", type=int, default=0,
@@ -743,6 +761,10 @@ def main() -> None:
     ap.add_argument("--rescore", action="store_true",
                     help="score the saved results again with the current score.py; asks no model")
     args = ap.parse_args()
+    if args.model:
+        # A size by any other name: switch, load and describe read SIZES.
+        SIZES[args.model] = args.model
+        args.size = args.model
 
     corpus = Corpus(args.corpus)
     parts = set(args.parts.split(","))
@@ -797,6 +819,10 @@ def main() -> None:
         "mirobody_commit": git_head(ROOT), "mirobody_dirty": git_dirty(ROOT),
         "loaded": [] if args.ref else sorted(m for m, s in router_status().items() if s == "loaded"),
         "memory": meta["memory_idle"]})
+    busy = meta["passes"][-1]["resources"]
+    if busy["load_1m"] > (busy["cpus"] or 1):
+        log(f"WARNING: load {busy['load_1m']} on {busy['cpus']} CPUs: other jobs share this machine, "
+            "so timings and timeouts here are not the model's")
     if meta["memory_idle"]:
         log(f"memory, both loaded: RSS {meta['memory_idle']['children_rss_mb']} MB, "
             f"footprint {meta['memory_idle']['children_footprint_mb']} MB")

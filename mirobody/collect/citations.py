@@ -22,7 +22,7 @@ from typing import Any
 
 from mirobody.utils import execute_query
 
-from .query import _FILE_JOIN, _FILE_KEY, _FILE_NAME, _LOCAL_TS
+from .query import _FILE_JOIN, _FILE_KEY, _FILE_NAME, _LOCAL_TS, _shown
 
 #: How many of an aggregate's readings `resolve_rids` lists, newest first.
 MEMBERS_SHOWN = 50
@@ -197,6 +197,7 @@ def aggregate_definition(method: str, view: str, row: Mapping[str, Any], start: 
 
 def _public(row: Mapping[str, Any]) -> dict[str, Any]:
     out = {k: ("" if v is None else v) for k, v in row.items() if k != "id"}
+    out["value"] = _shown(out.get("value"), out.get("unit"))
     out["file"] = out.pop("file_name", "") or ""
     return out
 

@@ -61,7 +61,10 @@ _NOT_VALUES = re.compile(
     r"|\b10\s*[\^*]\s*\d+"                     # 10^9/L, 10*9/L
     r"|\b(?:19|20)\d{2}\b"                      # a bare year
 )
-_NUMBER = re.compile(r"(?<![\w.])[-+−]?\d+(?:[.,]\d+)?(?![\w])")
+#: Bounded by ASCII letters and digits only: CJK is `\w` to Python, so with `\w`
+#: bounds "体重65.2kg" read nothing and "65.2kg" read 65. Ids stay out ("r3",
+#: "CYP2C19", "HbA1c"), and so do English ordinals ("3rd").
+_NUMBER = re.compile(r"(?<![A-Za-z0-9_.])[-+−]?\d+(?:[.,]\d+)?(?!\d|(?:st|nd|rd|th)\b)")
 #: Typographic hyphens a model writes in dates ("2025‑11"), read as "-".
 _HYPHENS = str.maketrans({"\u2010": "-", "\u2011": "-", "\u2012": "-"})
 #: A range printed with two hyphens ("18.5--23.9"): its upper bound is not negative.
@@ -195,7 +198,7 @@ def numbers(text: str) -> list[float]:
 
 def check(answer: str, support: Mapping[str, Collection[float]], *,
           known: Collection[str] | None = None) -> list[Problem]:
-    """Every untraced number and unknown row cite in `answer`.
+    """Every untraced number, unknown row cite and unclosed statement in `answer`.
 
     `support` maps a row cite to the values that row showed (value, range
     bounds, count, min, max, mean...). `known` adds cites that resolve but
@@ -203,8 +206,9 @@ def check(answer: str, support: Mapping[str, Collection[float]], *,
     cite not in it is unknown only when `known` is given. Fenced blocks (a
     chart's data) are not read.
     """
-    problems: list[Problem] = []
-    for segment in parse(_FENCE.sub("\n", answer or "")):
+    text = _FENCE.sub("\n", answer or "")
+    problems = [Problem("unclosed_statement", text[start:start + 60].strip()) for start in _unclosed(text)]
+    for segment in parse(text):
         values = numbers(segment.text)
         if not segment.statement:
             problems.extend(Problem("uncited_number", segment.text.strip(), _fmt(v)) for v in values)
@@ -232,6 +236,18 @@ def check(answer: str, support: Mapping[str, Collection[float]], *,
             if not _traced(value, cited):
                 problems.append(Problem("unsupported_number", segment.text.strip(), _fmt(value)))
     return problems
+
+
+def _unclosed(text: str) -> list[int]:
+    """Where a `<statement>` opens that no `</statement>` closes. `parse` reads
+    one to the next statement, so the numbers after it would pass as cited."""
+    out, at = [], text.find(STATEMENT_OPEN)
+    while at != -1:
+        end = _statement_end(text, at + len(STATEMENT_OPEN))
+        if not text.startswith(STATEMENT_CLOSE, end):
+            out.append(at)
+        at = text.find(STATEMENT_OPEN, at + 1)
+    return out
 
 
 def _traced(value: float, cited: Iterable[float]) -> bool:

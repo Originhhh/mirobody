@@ -21,11 +21,47 @@ _SAFE_SUMMARY = "Earlier conversation context was omitted because it may include
 _SAFE_MARKER = "genotype_rows_redacted"
 
 
+#: A model with at most this input window is a local one (the `local` entry
+#: declares 48000; on a 32k server the agent narrows it to 24576).
+_LOCAL_WINDOW = 65536
+
+
+def _is_local(model: Any) -> bool:
+    window = (getattr(model, "profile", None) or {}).get("max_input_tokens")
+    return isinstance(window, int) and window <= _LOCAL_WINDOW
+
+
+def history_path_for(model: Any, file_path: str | None) -> str | None:
+    """The history file a compaction summary names: none for a local model.
+    Told the path, MiniCPM5-2B read it page by page, each read compacting the
+    context again and lengthening the file (270 to 1,653 lines) until the turn
+    ran out. No cloud model read it in the 570 answers of 2026-10-10."""
+    return None if _is_local(model) else file_path
+
+
+#: A local window at least this wide keeps a quarter of itself after compaction.
+_WIDE_WINDOW = 40000
+
+
+def _defaults(model: Any) -> dict:
+    """deepagents' thresholds, but a wide local window (the GPU preset's 48k)
+    keeps a quarter of itself, 12k, not a tenth: at a tenth the report pages
+    the turn had just read were gone, and the model read them again. A narrow
+    one keeps the tenth. On the CPU preset's 24576 the input budget, 0.95 of
+    the window less the 6144-token reply, is about 17k beside a 9k prompt; a
+    quarter left no room for a report page and deepagents raised
+    ContextOverflowError (2026-10-12)."""
+    defaults = compute_summarization_defaults(model)
+    if _is_local(model) and model.profile["max_input_tokens"] >= _WIDE_WINDOW:
+        defaults = {**defaults, "keep": ("tokens", model.profile["max_input_tokens"] // 4)}
+    return defaults
+
+
 class GenotypeSafeSummarizationMiddleware(DeepSummarizationMiddleware):
     """Replace the DeepAgents core slot while preserving its normal thresholds."""
 
     def __init__(self, model: Any, backend: Any, guard: GenotypeRowGuardMiddleware) -> None:
-        super().__init__(model=model, backend=backend, **compute_summarization_defaults(model))
+        super().__init__(model=model, backend=backend, **_defaults(model))
         self._genotype_guard = guard
 
     @property
@@ -61,7 +97,7 @@ class GenotypeSafeSummarizationMiddleware(DeepSummarizationMiddleware):
                                        SUMMARIZATION_SESSION_ID_KEY: None})
 
     def _build_new_messages_with_path(self, summary: str, file_path: str | None) -> list[Any]:
-        messages = super()._build_new_messages_with_path(summary, file_path)
+        messages = super()._build_new_messages_with_path(summary, history_path_for(self.model, file_path))
         return [message.model_copy(update={"additional_kwargs": {
             **message.additional_kwargs, _SAFE_MARKER: True,
         }}) for message in messages]
