@@ -20,6 +20,12 @@
     "memory": "8gb"
   },
   "postCreateCommand": "bash scripts/codespace_provision.sh",
+  // Both, and both are idempotent. `postStartCommand` is what brings the stack
+  // back when a stopped codespace resumes: `postAttachCommand` alone left the
+  // forwarded URL dead until an editor connected, measured the morning after
+  // an overnight idle stop. The attach hook then covers an app that died while
+  // the container stayed up.
+  "postStartCommand": "bash scripts/codespace_start.sh",
   "postAttachCommand": "bash scripts/codespace_start.sh",
   "forwardPorts": [18060],
   "portsAttributes": {
