@@ -1,0 +1,47 @@
+{
+  "name": "Mirobody — try the full app",
+  "image": "mcr.microsoft.com/devcontainers/base:ubuntu-24.04",
+  // No docker-in-docker: PostgreSQL is installed in the container the way
+  // Zulip's codespaces do it, and the same script serves a machine with no
+  // Docker at all. `scripts/install_native.sh` explains the tradeoff.
+  "features": {
+    "ghcr.io/devcontainers/features/python:1": {
+      "version": "3.12"
+    },
+    "ghcr.io/devcontainers/features/git-lfs:1": {},
+    // Without this `gh codespace ssh` cannot reach the container and only the
+    // browser terminal works. Zulip omits it and loses scripted access.
+    "ghcr.io/devcontainers/features/sshd:1": {}
+  },
+  "remoteUser": "vscode",
+  // 2 cores is the Codespaces default and it is not enough: Zulip's stack
+  // answered in 18s or timed out there and recovered only at 4.
+  "hostRequirements": {
+    "cpus": 4,
+    "memory": "8gb"
+  },
+  "postCreateCommand": "bash scripts/install_native.sh",
+  // Both, and both are idempotent. `postStartCommand` is what brings the stack
+  // back when a stopped codespace resumes: `postAttachCommand` alone left the
+  // forwarded URL dead until an editor connected, measured the morning after
+  // an overnight idle stop. The attach hook then covers an app that died while
+  // the container stayed up.
+  "postStartCommand": "bash scripts/start_native.sh",
+  "postAttachCommand": "bash scripts/start_native.sh",
+  "forwardPorts": [18060],
+  "portsAttributes": {
+    "18060": {
+      "label": "Mirobody",
+      "protocol": "http",
+      "onAutoForward": "notify"
+    }
+  },
+  "otherPortsAttributes": {
+    "onAutoForward": "ignore"
+  },
+  "customizations": {
+    "codespaces": {
+      "openFiles": ["README.md"]
+    }
+  }
+}

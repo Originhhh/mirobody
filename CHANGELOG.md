@@ -1,3 +1,63 @@
+## Unreleased
+
+### Added
+
+- **Try Mirobody before setting up a local server.** The README led with
+  Docker and buried the offline engine command. Both editions now start with
+  four choices: standardize names with `uvx` and no model key, run the full app
+  in GitHub Codespaces with your own key, keep the app, records and models 100%
+  local with Docker and llama.cpp, or run the app and records with no container
+  at all. The Codespaces configuration no longer needs Docker either: PostgreSQL
+  and pgvector install inside the container and the server runs from the
+  checkout, so the first page arrives without a multi-gigabyte image pull. It
+  forwards only the app, prints the browser-accessible setup link, and asks for
+  four cores, because two left a comparable multi-service stack answering in 18
+  seconds or not at all. The local-model command and its hardware requirements
+  are visible alongside that path.
+- **The no-container path is a first-class one.** `codespace_provision.sh` and
+  `codespace_start.sh` read as Codespaces-only, so a Debian or Ubuntu machine
+  whose network cannot reach a registry had nothing to run; they are
+  `scripts/install_native.sh` and `scripts/start_native.sh` now, one pair for
+  both callers, and the READMEs list them as the fourth way in. Measured end to
+  end on Ubuntu 24.04: `postgresql-16-pgvector` satisfies the schema's
+  `CREATE EXTENSION vector`, the demo record seeds 2 accounts and 2019 readings,
+  the web client is served from `frontend/`, a PDF upload extracts into three
+  new indicators, and the agent answers with `rid` citations. No image is pulled
+  at any point. The Chinese edition adds `PIP_INDEX_URL` one step further out:
+  pip reads it (verified, `Looking in indexes:` follows it), so a network that
+  cannot reach PyPI either can name a mirror.
+
+### Fixed
+
+- **The registry fallback tries Google's Docker Hub cache first.** `mirror.gcr.io`
+  is operated by Google Cloud and documented as such, and it is one of the two
+  mirrors measured serving both images this stack pulls. The list was one entry
+  long, `docker.1ms.run`; it is now those two, in that order. Candidates were
+  measured rather than collected: `docker.m.daocloud.io` serves `hello-world`
+  and then 404s `thetahealth4mirobody/mirobody`, so a probe on the smallest
+  image is not evidence a mirror can serve the app, and the mirrors that headed
+  every published list (USTC, NetEase) are closed.
+- **Turkish all-caps names resolve.** `TRİGLİSERİT` answered nothing and
+  `GLUKOZ (AÇLIK)` answered plain glucose with the fasting qualifier dropped:
+  Unicode casefolding turns `İ` into `i` plus a combining dot above, and `I`
+  into `i` where Turkish reads `ı`, so an all-caps report folded to a key no
+  Turkish row ever produced (Discussion #137). Reading the i's the other way is
+  now a last-resort spelling in `lexical.turkish_i_variants`, tried after the
+  term as written. Coverage 321/321 -> 325/325, the four all-caps cases pinned.
+- **`docs/quickstart.md` said `mirobody dev` does not serve the web client.**
+  It does, whenever it runs from a repository root: `utils/config/http.py`
+  mounts `frontend/` as soon as that directory exists in the working directory.
+  Measured in a Codespace, `GET /` returns the built page over `dev`; only a
+  `pip install` outside a checkout gets the API alone. The old text sent a
+  reader to Docker for a UI they already had.
+- **The registry fallback was undocumented.** `deploy.sh` has tested the
+  daemon's access to Docker Hub since 1.5.3 and written `DOCKER_MIRROR` into
+  `.env` when the test fails, but nothing said so, and neither README named the
+  key. Both editions now do, the troubleshooting table has the row, and the
+  checkout path records that PostgreSQL can come from the distribution's
+  packages instead: `postgresql-16-pgvector` on Ubuntu 24.04 satisfies the
+  schema's `CREATE EXTENSION vector`, measured.
+
 ## 1.5.6
 
 ### Changed

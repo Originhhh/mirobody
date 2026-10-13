@@ -478,12 +478,18 @@ CASES: list[tuple[str, str, str]] = [
     ("Витамин D (25-OH)",           r"25.hydroxyvitamin",            r""),
     ("Витамин В12",                 r"cobalamin|vitamin b12",        r""),
     ("Фолиевая кислота",            r"folate",                       r""),
-    # ── Turkish: as a Turkish lab report prints it. All-caps İ and I (for ı) spellings
-    #    are left out until the engine's casefolding handles them (discussion #137).
+    # ── Turkish: as a Turkish lab report prints it. Both cases, because the
+    #    all-caps half was the bug (discussion #137): `İ` casefolds to `i` plus a
+    #    combining dot above and `I` to `i` where Turkish reads `ı`, so neither
+    #    matched a Turkish row until `lexical.turkish_i_variants` was tried.
     ("Total Kolesterol",            r"cholesterol",                  r"LDL|HDL|VLDL|non.?HDL"),
     ("HDL Kolesterol",              r"cholesterol.*HDL|HDL.*cholesterol", r"LDL"),
     ("Trigliserit",                 r"triglyceride",                 r""),
     ("Glukoz (açlık)",              r"fasting glucose",              r"tolerance|urine|post"),
+    ("TOTAL KOLESTEROL",            r"cholesterol",                  r"LDL|HDL|VLDL|non.?HDL"),
+    ("HDL KOLESTEROL",              r"cholesterol.*HDL|HDL.*cholesterol", r"LDL"),
+    ("TRİGLİSERİT",                 r"triglyceride",                 r""),
+    ("GLUKOZ (AÇLIK)",              r"fasting glucose",              r"tolerance|urine|post"),
     # Estonian (Synlab Eesti): the three vitamin spellings a real report
     # prints that the release variants miss.
     ("Vitamiin D (25-OH)",         r"25.hydroxyvitamin",            r""),

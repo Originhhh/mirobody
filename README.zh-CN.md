@@ -10,7 +10,7 @@
 **把分散的健康数据，变成有据可查的答案。**
 
 开源、自部署的 AI 健康数据引擎，把体检报告、可穿戴设备和基因数据汇成一份标准化的记录。<br>
-Docker 启动后配置一个模型 Key 即可使用，也可以让所有模型在本机运行。
+一条命令体验健康数据标准化；在 Codespaces 填入自己的模型 Key，直接用浏览器体验完整应用；或让应用、数据和模型 100% 在本机运行。
 
 **[English](README.md)** · **中文**
 
@@ -18,7 +18,7 @@ Docker 启动后配置一个模型 Key 即可使用，也可以让所有模型�
 [![License: Apache-2.0](https://badgen.net/badge/license/Apache-2.0/blue)](LICENSE)
 [![GitHub stars](https://badgen.net/github/stars/thetahealth/mirobody?icon=github&label=stars)](https://github.com/thetahealth/mirobody/stargazers)
 
-**[▶ 在线体验](https://chat.mirobody.ai/demo)** · **[🐳 Docker 启动](#docker-启动直接体验)** · **[📚 使用文档](https://docs.mirobody.ai/zh/self-host)**
+**[▶ 在线体验](https://chat.mirobody.ai/demo)** · **[一条命令体验](#一条命令体验标准化引擎)** · **[在 Codespaces 中打开](#在-codespaces-体验完整应用)** · **[100% 本地部署](#100-本地部署应用数据和模型)**
 
 </div>
 
@@ -27,43 +27,86 @@ Docker 启动后配置一个模型 Key 即可使用，也可以让所有模型�
 </p>
 <p align="center"><em>不同医院，不同写法。放进同一条趋势，回看每个数值的来源。</em></p>
 
-## Docker 启动，直接体验
+## 选一个适合你的入口
 
-只需要带 Compose 的 Docker，不需要 Python、Node.js 或显卡。Windows 请在 WSL 2 终端里执行。
+| 你想要 | 从这里开始 | 需要什么 |
+| --- | --- | --- |
+| 统一健康指标名称和单位 | [一条命令](#一条命令体验标准化引擎) | uv；不需要模型或 API Key |
+| 在浏览器里体验完整应用 | [GitHub Codespaces](#在-codespaces-体验完整应用) | GitHub 账号和你自己的模型 API Key |
+| 应用、模型和记录都留在自己机器上 | [Docker 100% 本地部署](#100-本地部署应用数据和模型) | 带 Compose 的 Docker；16 GB 内存；无需 API Key |
+| 应用和记录留在自己机器上，且不用 Docker | [不用 Docker 运行](#不用-docker-运行) | Debian 或 Ubuntu；PostgreSQL 16；Python 3.12；你自己的模型 API Key |
+
+## 一条命令体验标准化引擎
+
+[安装 uv](https://docs.astral.sh/uv/getting-started/installation/) 后，把这条命令粘贴到终端：
+
+```bash
+uvx --python 3.12 mirobody resolve "LDL cholesterol" 血红蛋白 ヘモグロビン "Total Kolesterol" 血脂
+```
+
+不用克隆仓库，也不需要 Docker、模型或 API Key。uv 会自动准备 Python 和依赖包，首次运行需要联网下载；之后解析器使用随包词表，离线即可工作。
+
+`血红蛋白` 和 `ヘモグロビン` 都得到 `718-7`。`血脂` 保持未解析，因为它是一个类别，不是一项具体检查。完整应用也使用同一个引擎统一名称和单位。
+
+<p align="center">
+  <img src="docs/images/resolve-demo.zh-CN.gif" alt="mirobody resolve：血红蛋白与ヘモグロビン得到同一个 LOINC 编码，宽泛的类别保持未解析" width="880">
+</p>
+
+→ [在 Python 或 MCP 中使用引擎](docs/quickstart.zh-CN.md#a--the-library)
+
+## 在 Codespaces 体验完整应用
+
+带上你自己的模型 API Key，在浏览器里运行网页应用。GitHub 自动准备环境，你的电脑不需要安装 Docker 或 Python。
+
+[![在 GitHub Codespaces 中打开](https://github.com/codespaces/badge.svg)](https://codespaces.new/thetahealth/mirobody?quickstart=1)
+
+1. **创建 Codespace，** 等待终端中的自动设置完成。应用、Postgres、后台任务和合成示例数据会一起启动。
+2. **打开终端打印的设置链接，** 填入你自己的模型 API Key：[OpenRouter](https://openrouter.ai/keys)、[OpenAI](https://platform.openai.com/api-keys)、[Gemini](https://aistudio.google.com/apikey)、[Anthropic](https://platform.claude.com/settings/keys)、DeepSeek、DashScope，或任何 OpenAI 兼容网关均可。Key 经一次真实请求验证通过后才会保存。应用的转发端口默认仅自己可访问。
+3. **登录并提问。** 在「邮箱验证码」标签使用 `you@mirobody.ai`，验证码 `111111`，问**「我的胆固醇有什么变化？」**示例包含 **2,019 条读数**：你自己的档案，以及 `mom@mirobody.ai` 以只读方式共享给你的档案。
+4. **上传合成样例。** 在「数据」页上传 [`demo/upload/`](demo/) 里的一份样例，看新报告如何汇入记录；也可以切换到妈妈的档案再问一次。
+
+应用和记录运行在 GitHub 云端，需要模型处理的文档和问题会发送给模型服务商。体验时可使用随仓库提供的合成数据。Codespaces 有[使用额度和计费规则](https://docs.github.com/en/billing/concepts/product-billing/github-codespaces)，模型调用由你选择的服务商计费；体验结束后请停止 Codespace。希望所有内容都留在自己机器上，可以选择下面的本地部署。
+
+## 100% 本地部署：应用、数据和模型
+
+**应用、记录和模型都在自己的机器上运行，无需模型 API Key。** 带 Compose 的 Docker 会启动整套服务和 [llama.cpp](https://github.com/ggml-org/llama.cpp)，由它运行一个小型回答模型和一个文档识别模型：
 
 ```bash
 git clone --depth 1 https://github.com/thetahealth/mirobody.git && cd mirobody
-./deploy.sh
-```
-
-打开终端打印的设置链接，填写一个模型 API Key：[OpenRouter](https://openrouter.ai/keys)、[OpenAI](https://platform.openai.com/api-keys)、[Gemini](https://aistudio.google.com/apikey)、[Anthropic](https://platform.claude.com/settings/keys)、DeepSeek、DashScope，或任何 OpenAI 兼容网关均可。Key 经一次真实请求验证通过后才会保存。Postgres、服务端、后台任务和一份合成示例数据随部署一起启动。
-
-1. **登录。** 在「邮箱验证码」标签使用 `you@mirobody.ai`，验证码 `111111`。示例含两份档案、**2,019 条读数**：你自己的，以及 `mom@mirobody.ai` 以只读方式共享给你的。
-2. **提问。** 问「我的胆固醇有什么变化？」，回答会画出趋势，并标出每个数字来自哪份文件。
-3. **上传。** 在「数据」页上传 [`demo/upload/`](demo/) 里的一份样例，或切换到妈妈的档案再问一次。
-
-<details>
-<summary><strong>模型也留在本机：无需模型 API Key</strong></summary>
-
-<br>
-
-在克隆下来的目录里，改用下面这条命令，让 llama.cpp 的 CPU 镜像随服务一起启动：
-
-```bash
 COMPOSE_PROFILES=local-cpu ./deploy.sh
 ```
 
-脚本会把 Mirobody 指向 [llama.cpp](https://github.com/ggml-org/llama.cpp)，由它运行一个小型回答模型和一个文档识别模型，设置页无需再做选择。建议主机有 16 GB 内存，至少分配 8 GB 给 Docker；首次需下载约 4.8 GB。没有显卡时，第一个回答需要几分钟：Apple 芯片笔记本的 CPU 上约 2–3 分钟，4 vCPU 的 x86 服务器上最长约 15 分钟。在 Mac 上直接运行 `llama-server` 可以用上 GPU，16 GB 的 Apple 芯片笔记本每个回答约 30 秒。
+建议主机有 16 GB 内存，至少分配 8 GB 给 Docker。不需要显卡；Windows 请在 WSL 2 终端里执行。首次启动需要联网下载容器镜像和模型权重；如果镜像仓库在你的网络里不可达，`deploy.sh` 会说明情况并改用镜像站，`.env` 里的 `DOCKER_MIRROR` 可以指定你自己的站点。下载完成后，文档识别、标准化和回答都在本机完成。CPU 回答可能需要几分钟；[Mac、NVIDIA 与 Windows 的配置方法](docs/local-models.zh-CN.md) 介绍了如何使用 GPU。
+
+打开脚本打印的应用链接，本地模型已自动选好。使用上面的示例账号登录、提问，或上传一份样例。[如何选择模型](docs/model-choice.zh-CN.md) 对比了本地模型的不同选项。
 
 <p align="center">
   <img src="docs/images/setup-demo.zh-CN.gif" alt="首次设置页：在 OpenRouter 的 Key 旁边修改模型名；再选择 100% 在本机运行：页面找到 llama.cpp 服务，列出它提供的模型，两个模型都已就绪" width="880">
 </p>
 
-[Mac、NVIDIA 与 Windows 的配置方法](docs/local-models.zh-CN.md) · [如何选择模型](docs/model-choice.zh-CN.md)
-
-</details>
+**也可以在 Docker 中使用云端模型。** 不启用本地模型 profile，直接运行 `./deploy.sh`，再在打印的设置链接中填写自己的模型 Key。应用和记录保存在你自己的主机上，文档和问题交给模型服务商处理。
 
 → [自部署指南](https://docs.mirobody.ai/zh/self-host) · [完整演示](docs/walkthrough.zh-CN.md) · [部署到服务器](https://docs.mirobody.ai/zh/deployment/production)
+
+## 不用 Docker 运行
+
+**不起容器，也不从镜像仓库拉取任何东西。** 在 Debian 或 Ubuntu 上，PostgreSQL 16 加 pgvector 直接来自发行版自己的仓库，应用从检出目录运行。这和 Codespaces 那条路用的是同一套安装：
+
+```bash
+git clone --depth 1 https://github.com/thetahealth/mirobody.git && cd mirobody
+scripts/install_native.sh   # PostgreSQL、pgvector、Python 包、一份 .env
+scripts/start_native.sh     # worker 和应用，端口 18060
+```
+
+打开脚本打印的链接，用 `you@mirobody.ai`、验证码 `111111` 登录：示例记录已经备好。在打印的设置链接里填一个模型 Key，就能做文档抽取和问答。`install_native.sh` 会用 `sudo` 安装系统包，并为 `postgres` 账号写一条 sudoers 规则，过程中会说明。
+
+`install_native.sh` 里的 `pip install` 走 PyPI。如果 PyPI 在你的网络里也不可达，把镜像地址交给它就行，pip 自己会读这个环境变量：
+
+```bash
+PIP_INDEX_URL=https://<镜像站>/simple scripts/install_native.sh
+```
+
+本地模型属于 Docker 那条路，所以这条路通过模型服务来回答。其余部分与上一节在 [什么留在你的机器上](#什么留在你的机器上) 里是同一行：记录存在你刚装好的 PostgreSQL 里，名称到代码的转换从不离开本机。
 
 ## 你可以做什么
 
@@ -106,13 +149,16 @@ COMPOSE_PROFILES=local-cpu ./deploy.sh
 
 ## 什么留在你的机器上
 
-你的记录存放在你自己运行的 Postgres 里，这里不会向任何地方上报使用情况。什么会离开，取决于由谁来读：
+应用运行在哪里、模型运行在哪里，可以分别选择。Mirobody 不会上报使用情况。
 
-| | 使用模型 Key | 100% 在本机运行 |
-| --- | --- | --- |
-| 你的文档和提问 | 发给该模型服务商，受其条款约束 | 留在本机 |
-| 名称到编码、单位到 UCUM（**② 转译**） | 在本机，查随包词表，不联网 | 同左 |
-| 模型权重 | 无 | 从 Hugging Face 下载一次 |
+| | Codespaces + 模型 Key | 本地 Docker + 模型 Key | 100% 在本机运行 |
+| --- | --- | --- | --- |
+| 应用和存储的记录 | GitHub 云端的 Codespace 中 | 自己的机器上 | 自己的机器上 |
+| 需要模型处理的文档和提问 | 发给模型服务商，受其条款约束 | 发给模型服务商，受其条款约束 | 留在本机 |
+| 名称到编码、单位到 UCUM（**② 转译**） | Codespace 内，查随包词表 | 本机，不联网 | 本机，不联网 |
+| 模型权重 | 由模型服务商管理 | 由模型服务商管理 | 从 Hugging Face 下载一次 |
+
+命令行解析器也在自己的机器上运行，首次下载完成后不需要模型或网络连接。
 
 只有在你连接设备厂商之后，厂商才会收到相应数据。部署到你无法控制的网络之前，请先阅读 [SECURITY.md](SECURITY.md)，其中列出了服务端会访问的所有地址。
 
@@ -128,11 +174,7 @@ COMPOSE_PROFILES=local-cpu ./deploy.sh
 
 通过 MCP，整套服务提供七个工具，都限定在当前登录者的范围内：四个读取你的记录（读数、用药、基因型、药物基因组），三个解析名称和单位。
 
-不需要 Key、不联网，用 `uvx` 连安装都省了，先试试词表：
-
-```bash
-uvx --python 3.12 mirobody resolve "LDL cholesterol" 血红蛋白 ヘモグロビン "Total Kolesterol" 血脂
-```
+运行 `pip install mirobody` 后，在 Python 中调用同一个引擎：
 
 ```python
 from mirobody.engine import resolve, resolve_reading
@@ -148,7 +190,7 @@ resolve("血脂").resolved                                     # False    一个
 
 | 说法 | 怎么验证 |
 | --- | --- |
-| **321/321**：常规体检会打印的项目，覆盖英文、中文、日文、俄文、爱沙尼亚文和土耳其文 | 运行 [`test_engine_coverage.py`](mirobody/tests/test_engine_coverage.py) 会打印分数 |
+| **325/325**：常规体检会打印的项目，覆盖英文、中文、日文、俄文、爱沙尼亚文和土耳其文 | 运行 [`test_engine_coverage.py`](mirobody/tests/test_engine_coverage.py) 会打印分数 |
 | **330 个 UCUM 单位**，带量纲分析；**316 项标准设备指标** | [标准化详解](docs/standardization.zh-CN.md) · [设备对照表](docs/device-crosswalk.md) |
 | 包会说明是哪份词表在回答：`mirobody.BUNDLE_VERSION` 是 `loinc-2.83+2026.09.17-aacb2c715b56` | `python -c "import mirobody; print(mirobody.BUNDLE_VERSION)"` |
 | 公开的健康 agent 评测集：[ESL-Bench](https://huggingface.co/datasets/mirobody/ESL-Bench)、[MedHall-Bench](https://huggingface.co/datasets/mirobody/MedHall-Bench)、[MedHarm-Bench](https://huggingface.co/datasets/mirobody/MedHarm-Bench) | [`mirobody-eval`](https://github.com/thetahealth/mirobody-eval) · [`benchmarks/`](benchmarks/README.md) |
