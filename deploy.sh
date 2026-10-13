@@ -299,11 +299,22 @@ case "${bind:-127.0.0.1}" in
     *) host="$bind" ;;
 esac
 url="http://${host}:$(host_port MIROBODY_HOST_PORT 18060)"
-# Browser links in Codespaces use GitHub's proxy; readiness probes still
-# reach the local port without GitHub authentication.
+# Browser links in Codespaces use GitHub's proxy; readiness probes still reach
+# the local port without GitHub authentication.
+#
+# `CODESPACE_NAME` is not in the environment of every process in a codespace:
+# measured, an SSH session and PID 1 both carry `CODESPACES` alone, so a test on
+# it alone never fired and the localhost URL was printed instead. Codespaces
+# writes both values to the file below, and only those two keys are read from it
+# because the same file holds GITHUB_TOKEN.
+codespace_env=/workspaces/.codespaces/shared/.env
+if [[ -z "${CODESPACE_NAME:-}" && -r "${codespace_env}" ]]; then
+    CODESPACE_NAME="$(sed -n 's/^CODESPACE_NAME=//p' "${codespace_env}" | head -1)"
+    GITHUB_CODESPACES_PORT_FORWARDING_DOMAIN="$(
+        sed -n 's/^GITHUB_CODESPACES_PORT_FORWARDING_DOMAIN=//p' "${codespace_env}" | head -1)"
+fi
 browser_url="$url"
-if [[ "${CODESPACES:-}" == true && -n "${CODESPACE_NAME:-}" \
-    && -n "${GITHUB_CODESPACES_PORT_FORWARDING_DOMAIN:-}" ]]; then
+if [[ -n "${CODESPACE_NAME:-}" && -n "${GITHUB_CODESPACES_PORT_FORWARDING_DOMAIN:-}" ]]; then
     browser_url="https://${CODESPACE_NAME}-$(host_port MIROBODY_HOST_PORT 18060).${GITHUB_CODESPACES_PORT_FORWARDING_DOMAIN}"
 fi
 # A key or server in .env, or a choice saved from the setup page earlier: only
