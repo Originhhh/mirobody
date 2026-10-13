@@ -23,7 +23,9 @@
   `CREATE EXTENSION vector`, the demo record seeds 2 accounts and 2019 readings,
   the web client is served from `frontend/`, a PDF upload extracts into three
   new indicators, and the agent answers with `rid` citations. No image is pulled
-  at any point.
+  at any point. The Chinese edition adds `PIP_INDEX_URL` one step further out:
+  pip reads it (verified, `Looking in indexes:` follows it), so a network that
+  cannot reach PyPI either can name a mirror.
 
 ### Fixed
 

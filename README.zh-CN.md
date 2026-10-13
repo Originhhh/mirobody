@@ -100,6 +100,12 @@ scripts/start_native.sh     # worker 和应用，端口 18060
 
 打开脚本打印的链接，用 `you@mirobody.ai`、验证码 `111111` 登录：示例记录已经备好。在打印的设置链接里填一个模型 Key，就能做文档抽取和问答。`install_native.sh` 会用 `sudo` 安装系统包，并为 `postgres` 账号写一条 sudoers 规则，过程中会说明。
 
+`install_native.sh` 里的 `pip install` 走 PyPI。如果 PyPI 在你的网络里也不可达，把镜像地址交给它就行，pip 自己会读这个环境变量：
+
+```bash
+PIP_INDEX_URL=https://<镜像站>/simple scripts/install_native.sh
+```
+
 本地模型属于 Docker 那条路，所以这条路通过模型服务来回答。其余部分与上一节在 [什么留在你的机器上](#什么留在你的机器上) 里是同一行：记录存在你刚装好的 PostgreSQL 里，名称到代码的转换从不离开本机。
 
 ## 你可以做什么
