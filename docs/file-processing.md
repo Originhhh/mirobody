@@ -579,6 +579,26 @@ after a delete writes them fresh:
 | note_text | The extractor's note, encrypted at rest |
 | (th_coding_current) code / series_id / outcome / reason | The LOINC code and series, or why there is none (`needs-input`, `refused`) |
 
+A `needs-input` reading waits for a person. `FPG 4.76` on a slip that prints no
+unit is fasting glucose in mg/dL (1558-6) or in mmol/L (14771-0), and only
+someone who knows the lab can say which:
+
+```http
+POST /api/v1/health-indicators/confirm-code
+Content-Type: application/json
+Authorization: Bearer <token>
+
+{"id": 4182, "code": "14771-0"}
+```
+
+`id` is the reading's row id from the readings payload. The answer is kept for
+the printed name (`th_coding_alias`, scoped to that record), so every reading
+printed with it is recoded at once and later uploads are coded the same way.
+A printed unit still picks the mass or moles sibling of the confirmed code.
+Omit `code` to say the name is not a standard test. It needs the same
+care-circle write grant as the file date; otherwise the reading is reported as
+not found. The answer is `{"id", "code", "recoded", "outcomes"}`.
+
 ---
 
 ## File Deletion
