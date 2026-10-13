@@ -186,6 +186,13 @@ docker run -d -p 5432:5432 -e POSTGRES_USER=user -e POSTGRES_PASSWORD=pw \
     pgvector/pgvector:pg17
 ```
 
+**`docker` is not required for that part.** On Debian or Ubuntu, `postgresql`
+and `postgresql-16-pgvector` from the distribution's own repositories give a
+Postgres this schema accepts: measured on Ubuntu 24.04, where pgvector is 0.6.0
+and `CREATE EXTENSION vector` above is satisfied. `scripts/codespace_provision.sh`
+is that install written out, role and database included, for a machine you can
+throw away.
+
 Then start the API, replacing the connection URL if you use an existing
 database. Check its health endpoint from another terminal:
 
@@ -200,10 +207,14 @@ curl -fsS http://127.0.0.1:18090/api/health
 The response includes a `version` field. Use pgvector rather than plain
 Postgres: the schema creates a vector column on first start.
 
-**`dev` serves the API, not the web client.** The built client lives at
-repo-root `frontend/` and is outside the package, so it is there in a checkout
-and absent from a `pip install`. What `dev` is for is the API, the MCP surface
-and the agent; for the UI, use B.
+**Run `dev` from the repository root and it serves the web client as well.**
+The built client lives at repo-root `frontend/`, outside the package, so it is
+there in a checkout and absent from a `pip install`. `utils/config/http.py`
+mounts `frontend/` whenever that directory exists in the working directory, so
+one address then answers for the API, the MCP surface, the agent and the UI.
+This page said the opposite until it was measured: from the repository root,
+`GET /` returns the built page, and only a `pip install` outside a checkout
+gets the API alone.
 
 The secrets `dev` generates are per-run: sessions and encrypted config values
 do not survive a restart. Set `JWT_KEY` and `CONFIG_ENCRYPTION_KEY` in the
@@ -218,6 +229,7 @@ environment to keep them.
 | `mirobody dev` exits asking for a Postgres | `--pg-url`, or `PG_URL` / `DATABASE_URL` in the environment. |
 | The server starts but device sync never runs | Check the worker logs and Postgres connection; device pulls and task state both use Postgres. |
 | `mirobody serve` cannot connect to Postgres | Set `PG_HOST`, `PG_PORT`, `PG_USER`, `PG_PASSWORD` and `PG_DBNAME` for that database. |
+| Image pulls hang, or `deploy.sh` reports Docker Hub unreachable | `deploy.sh` tests the daemon's access to the registry and, when it fails, writes `DOCKER_MIRROR=<registry>/` into `.env` so the retry goes through a mirror, saying so as it does. Set the same key by hand to name your own; it prefixes every image, the base image of a local build included. |
 
 ## Next
 

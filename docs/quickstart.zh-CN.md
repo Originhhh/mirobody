@@ -137,6 +137,8 @@ docker run -d -p 5432:5432 -e POSTGRES_USER=user -e POSTGRES_PASSWORD=pw \
     pgvector/pgvector:pg17
 ```
 
+**这一步并不需要 `docker`。** 在 Debian 或 Ubuntu 上，用发行版自己的仓库装 `postgresql` 和 `postgresql-16-pgvector`，就能得到一个本 schema 接受的 Postgres：在 Ubuntu 24.04 上实测，那里的 pgvector 是 0.6.0，上面的 `CREATE EXTENSION vector` 可以满足。`scripts/codespace_provision.sh` 就是把这次安装写了出来，连角色和数据库一起，面向一台可以随时丢弃的机器。
+
 然后启动 API；如果用的是已有的数据库，替换掉连接地址。再开一个终端检查它的健康检查端点：
 
 ```bash
@@ -149,7 +151,7 @@ curl -fsS http://127.0.0.1:18090/api/health
 
 返回内容里带一个 `version` 字段。请用 pgvector 而不是普通 Postgres：schema 首次启动时会建一个 vector 列。
 
-**`dev` 提供的是 API，不是网页客户端。** 构建好的客户端放在仓库根目录的 `frontend/`，在包之外，所以一份检出里有它，`pip install` 里没有。`dev` 是用来运行 API、MCP 接口和 agent 的；要用界面，请用 B。
+**在仓库根目录运行 `dev`，它同时提供网页客户端。** 构建好的客户端放在仓库根目录的 `frontend/`，在包之外，所以一份检出里有它、`pip install` 里没有。`utils/config/http.py` 只要发现工作目录下存在 `frontend/` 就挂载它，因此在仓库根目录下，同一个地址同时提供 API、MCP 接口、agent 和界面。本页此前写的是相反的结论，实测后改正：从仓库根目录访问 `GET /` 返回的是构建好的页面，只有在检出目录之外做 `pip install` 时才只剩 API。
 
 `dev` 生成的密钥是每次运行各不相同的：会话和加密过的配置值在重启后不会保留。要保留它们，请在环境变量里设置 `JWT_KEY` 和 `CONFIG_ENCRYPTION_KEY`。
 
@@ -164,6 +166,7 @@ curl -fsS http://127.0.0.1:18090/api/health
 | `mirobody dev` 退出并要求提供 Postgres | 给出 `--pg-url`，或者在环境变量里设 `PG_URL` / `DATABASE_URL`。 |
 | 服务端启动了，但设备同步一直没有运行 | 检查后台任务的日志和 Postgres 连接；设备拉取和任务状态都用 Postgres。 |
 | `mirobody serve` 连不上 Postgres | 为那个数据库设置 `PG_HOST`、`PG_PORT`、`PG_USER`、`PG_PASSWORD` 和 `PG_DBNAME`。 |
+| 拉镜像卡住，或 `deploy.sh` 报 Docker Hub 不可达 | `deploy.sh` 会测试守护进程到镜像仓库的连通性，不通时把 `DOCKER_MIRROR=<registry>/` 写进 `.env`，重试就走镜像站，并会说明这件事。手动设置同一个键可以指定你自己的站点；它会作为前缀加到每个镜像上，本地构建用的基础镜像也算在内。 |
 
 <a id="next"></a>
 

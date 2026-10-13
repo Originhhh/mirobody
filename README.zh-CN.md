@@ -75,7 +75,7 @@ git clone --depth 1 https://github.com/thetahealth/mirobody.git && cd mirobody
 COMPOSE_PROFILES=local-cpu ./deploy.sh
 ```
 
-建议主机有 16 GB 内存，至少分配 8 GB 给 Docker。不需要显卡；Windows 请在 WSL 2 终端里执行。首次启动需要联网下载容器镜像和模型权重，下载完成后，文档识别、标准化和回答都在本机完成。CPU 回答可能需要几分钟；[Mac、NVIDIA 与 Windows 的配置方法](docs/local-models.zh-CN.md) 介绍了如何使用 GPU。
+建议主机有 16 GB 内存，至少分配 8 GB 给 Docker。不需要显卡；Windows 请在 WSL 2 终端里执行。首次启动需要联网下载容器镜像和模型权重；如果镜像仓库在你的网络里不可达，`deploy.sh` 会说明情况并改用镜像站，`.env` 里的 `DOCKER_MIRROR` 可以指定你自己的站点。下载完成后，文档识别、标准化和回答都在本机完成。CPU 回答可能需要几分钟；[Mac、NVIDIA 与 Windows 的配置方法](docs/local-models.zh-CN.md) 介绍了如何使用 GPU。
 
 打开脚本打印的应用链接，本地模型已自动选好。使用上面的示例账号登录、提问，或上传一份样例。[如何选择模型](docs/model-choice.zh-CN.md) 对比了本地模型的不同选项。
 

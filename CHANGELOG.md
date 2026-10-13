@@ -15,6 +15,22 @@
   local-model command and its hardware requirements are visible alongside that
   path.
 
+### Fixed
+
+- **`docs/quickstart.md` said `mirobody dev` does not serve the web client.**
+  It does, whenever it runs from a repository root: `utils/config/http.py`
+  mounts `frontend/` as soon as that directory exists in the working directory.
+  Measured in a Codespace, `GET /` returns the built page over `dev`; only a
+  `pip install` outside a checkout gets the API alone. The old text sent a
+  reader to Docker for a UI they already had.
+- **The registry fallback was undocumented.** `deploy.sh` has tested the
+  daemon's access to Docker Hub since 1.5.3 and written `DOCKER_MIRROR` into
+  `.env` when the test fails, but nothing said so, and neither README named the
+  key. Both editions now do, the troubleshooting table has the row, and the
+  checkout path records that PostgreSQL can come from the distribution's
+  packages instead: `postgresql-16-pgvector` on Ubuntu 24.04 satisfies the
+  schema's `CREATE EXTENSION vector`, measured.
+
 ## 1.5.6
 
 ### Changed
