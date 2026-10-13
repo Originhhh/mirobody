@@ -70,11 +70,11 @@ cd \\wsl.localhost\Ubuntu\home\<you>\mirobody
 llama-server --models-preset docker\local-models.ini --port 8080 --models-max 2
 ```
 
-设置页会通过 Docker Desktop 的 `host.docker.internal` 去找它，这个地址在 Mac 上能连到主机 `127.0.0.1` 上的服务（用 colima 测过）。**这条路线我们还没有在 Windows 上运行过**；如果页面找不到服务，请改用上面那条 Docker 命令，它不需要任何主机网络配置。
+设置页会通过 Docker Desktop 的 `host.docker.internal` 去找它，这个地址能连到主机 `127.0.0.1` 上的服务：在 Mac（colima）和 Windows 11 + Docker Desktop 4.95 上都测过（2026-10-12），不需要 `--host`，也不需要配防火墙规则。如果不用 Vulkan 版、改用 CUDA 构建，要按显卡选：RTX 50 系（计算能力 12.0，用 `nvidia-smi --query-gpu=compute_cap --format=csv` 查看）需要 CUDA 13 的构建，因为 CUDA 12.4 没有它的内核。
 
 **用别的显卡（AMD、Intel）的 Linux**，或者模型不想用 Docker：找一个对应的 [llama.cpp 发行版](https://github.com/ggml-org/llama.cpp/releases)构建，用同一行 `llama-server` 命令；没有显卡时用 `docker/local-models-cpu.ini`。
 
-**Mirobody 本身在 Windows 上**运行在 Docker Desktop 里（WSL 2 后端）：打开一个 WSL 终端（Ubuntu），在里面克隆仓库并运行 `./deploy.sh`，和在 Linux 上一样。脚本在每一份检出里都保持 LF 换行。
+**Mirobody 本身在 Windows 上**运行在 Docker Desktop 里（WSL 2 后端）。先在 Docker Desktop 里为你的发行版打开 WSL 集成（设置 > Resources > WSL integration），再打开一个 WSL 终端（Ubuntu），在里面克隆仓库并运行 `./deploy.sh`，和在 Linux 上一样。如果在那里 `docker` 报 `permission denied`，运行 `sudo usermod -aG docker $USER`，然后在 Windows 上执行 `wsl --shutdown`。脚本在每一份检出里都保持 LF 换行。
 
 选好大小之后，第一个问题要等它下载完；之后再启动就读缓存了。如果连不上 huggingface.co，把下载指向一个镜像站：给 compose 服务用的话在 `.env` 里写 `HF_ENDPOINT=https://<mirror>`，给 `llama-server` 用的话在启动它之前的 shell 里写。被下载的只有模型本身；关于你的任何信息都不会被发出去。
 
@@ -117,6 +117,7 @@ docker compose exec mirobody mirobody doctor --probe
 | 模型服务的日志里出现 `failed to initialize router models: ... Is a directory` | Docker 看不到这份检出，在预设该在的位置挂载了一个空目录。Colima 默认只共享你的主目录：把检出放在它下面，或者把这个路径加进 colima 的 `mounts`。 |
 | Docker 内存不够时模型服务会停 | 给 Docker 的虚拟机至少 8 GB：在 Docker Desktop 的设置里，或者用 `colima start --memory 8`。 |
 | 改了 `.env` 没有效果 | 运行 `docker compose up -d`；`docker compose restart` 不会重新读取 `.env`。 |
+| `curl localhost:18060/api/health` 返回 503 并带 `Proxy-Connection` 头，或者脚本里耗时长的请求几分钟后断开 | 系统代理在转发本机流量（WSL 会继承 Windows 的代理）：在那个 shell 里 `export NO_PROXY=localhost,127.0.0.1`。 |
 
 **Linux 上的网络配置。** `compose.yaml` 给 Linux 上的 Docker Engine 映射了 `host.docker.internal`，并把它排除在 `HTTP_PROXY` 之外。在 Mac 上（Docker Desktop 或 colima），这个名字连到的是主机的回环地址，所以 `llama-server` 保持默认的 `127.0.0.1` 就行。在 Linux 上它指向的是 Docker 的网桥，所以主机上的服务要监听在那个地址上：给它网桥地址（`--host 172.17.0.1`，从 `ip -4 addr show docker0` 获取），不要用 `0.0.0.0`：那会把这个不需要 Key 的服务开放给你网络上的每一台机器。`local` 和 `local-cpu` 这两个服务都不需要这么做：应用在 compose 自己的网络上就能连到它们，并且它们不发布端口。应用本身只发布在 `127.0.0.1` 上；`MIROBODY_BIND=0.0.0.0` 会把它开放给你的网络，而演示账号的验证码 `111111` 在那种情况下是公开的（先看 [SECURITY.md](../SECURITY.md)（英文），了解要先改什么）。
 
