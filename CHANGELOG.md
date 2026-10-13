@@ -17,6 +17,14 @@
 
 ### Fixed
 
+- **The registry fallback tries Google's Docker Hub cache first.** `mirror.gcr.io`
+  is operated by Google Cloud and documented as such, and it is one of the two
+  mirrors measured serving both images this stack pulls. The list was one entry
+  long, `docker.1ms.run`; it is now those two, in that order. Candidates were
+  measured rather than collected: `docker.m.daocloud.io` serves `hello-world`
+  and then 404s `thetahealth4mirobody/mirobody`, so a probe on the smallest
+  image is not evidence a mirror can serve the app, and the mirrors that headed
+  every published list (USTC, NetEase) are closed.
 - **Turkish all-caps names resolve.** `TRİGLİSERİT` answered nothing and
   `GLUKOZ (AÇLIK)` answered plain glucose with the fasting qualifier dropped:
   Unicode casefolding turns `İ` into `i` plus a combining dot above, and `I`

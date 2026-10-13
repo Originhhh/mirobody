@@ -240,10 +240,15 @@ fi
 # database image is the first the stack pulls, so it is the probe: a cloud
 # host's daemon mirror served library/hello-world and not pgvector, and
 # `compose up` failed after the probe had passed (2026-10-13).
+#
+# Each mirror below was measured serving BOTH images this stack pulls.
+# `docker.m.daocloud.io` serves the database image the probe uses and then 404s
+# the app image, so it is deliberately absent. The mirrors that headed every
+# published list are gone: USTC closed its Docker Hub cache in 2024-06.
 registry_answers() { docker pull --quiet "${1}${2}" >/dev/null 2>&1; }
 if ! has_setting DOCKER_MIRROR && [[ -z "${DOCKER_MIRROR:-}" ]] \
     && ! registry_answers "" "$(docker compose config --images pg)"; then
-    for mirror in docker.1ms.run/; do
+    for mirror in mirror.gcr.io/ docker.1ms.run/; do
         if registry_answers "$mirror" "$(docker compose config --images pg)"; then
             printf 'Docker Hub is unreachable from the daemon; using the mirror %s\n' "$mirror"
             add_setting DOCKER_MIRROR "$mirror"
