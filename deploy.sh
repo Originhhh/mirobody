@@ -237,11 +237,14 @@ fi
 
 # Ask the daemon, which is what pulls: the shell's proxy settings are not the
 # daemon's, and hub.docker.com (the website) is not registry-1.docker.io. The
-# smallest real image answers in one round trip.
-registry_answers() { docker pull --quiet "${1}library/hello-world:latest" >/dev/null 2>&1; }
-if ! has_setting DOCKER_MIRROR && [[ -z "${DOCKER_MIRROR:-}" ]] && ! registry_answers ""; then
+# database image is the first the stack pulls, so it is the probe: a cloud
+# host's daemon mirror served library/hello-world and not pgvector, and
+# `compose up` failed after the probe had passed (2026-10-13).
+registry_answers() { docker pull --quiet "${1}${2}" >/dev/null 2>&1; }
+if ! has_setting DOCKER_MIRROR && [[ -z "${DOCKER_MIRROR:-}" ]] \
+    && ! registry_answers "" "$(docker compose config --images pg)"; then
     for mirror in docker.1ms.run/; do
-        if registry_answers "$mirror"; then
+        if registry_answers "$mirror" "$(docker compose config --images pg)"; then
             printf 'Docker Hub is unreachable from the daemon; using the mirror %s\n' "$mirror"
             add_setting DOCKER_MIRROR "$mirror"
             break

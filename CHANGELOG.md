@@ -39,6 +39,10 @@
 - **Numbers written against Chinese text or a unit are traced.**
   `kernel.citations.check` did not read `体重65.2kg`. It now does, and it
   reports a `<statement>` left open.
+- **`deploy.sh` finds the Docker Hub mirror behind a partial daemon mirror.**
+  A cloud host's daemon mirror served `hello-world`, the probe, and not the
+  database image, so no mirror was set and `docker compose up` failed. The
+  probe is now the database image itself.
 - **A photo sent in chat reaches a text-only local model as its text.** A
   stale "not known" answer about whether the server sees images sent the
   photo itself, and the turn failed with a 500. Chat now asks the server
