@@ -54,9 +54,16 @@ fi
 # defaults only while `config.llm.yaml` sits beside it, and the web client at
 # `frontend/` is mounted only when it exists in the working directory: a
 # `pip install` outside a checkout gets neither.
-nohup mirobody worker config.yaml >"${LOG_DIR}/mirobody-worker.log" 2>&1 &
-nohup mirobody dev config.yaml --host 0.0.0.0 --port "${HTTP_PORT}" \
-    >"${LOG_DIR}/mirobody-server.log" 2>&1 &
+#
+# `setsid` is load-bearing where a lifecycle hook runs this: the devcontainer
+# runner cleans up the command's process group when the hook returns, and
+# `nohup ... &` alone does not leave that group. Measured in a codespace, both
+# logs were created and held zero bytes: postStartCommand reported success and
+# nothing was left listening. A new session survives it, and `< /dev/null`
+# takes the hook's stdin away from the servers.
+setsid nohup mirobody worker config.yaml >"${LOG_DIR}/mirobody-worker.log" 2>&1 </dev/null &
+setsid nohup mirobody dev config.yaml --host 0.0.0.0 --port "${HTTP_PORT}" \
+    >"${LOG_DIR}/mirobody-server.log" 2>&1 </dev/null &
 
 # Each forwarded port is served on its own domain, and the server's own hint can
 # only name localhost (`server._print_setup_link`, which says so). Printed here
