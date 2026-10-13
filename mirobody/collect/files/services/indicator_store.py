@@ -29,6 +29,10 @@ logger = logging.getLogger(__name__)
 STORED_FLAGS = ("high", "low")
 
 
+#: The extraction's `detection_method` values whose rows are findings, not measurements.
+FINDING_METHODS = ("Imaging", "Pathological")
+
+
 def row_time(printed: Any, report_time: datetime) -> datetime:
     """The time a row's reading was taken: the date the row itself prints
     (a home log, a table by day), else the document's.
@@ -46,13 +50,18 @@ def value_and_flag(indicator: dict[str, Any]) -> tuple[str, str]:
     """`(value, flag)` of a read row. A flag the report printed after the
     number (`6.49↑`, `5.6 H`) is moved out of the value the way the table
     rules move it (`split_flag`, the same `L`-is-litres guard); else the
-    row's `status`. Either is kept only as `high` or `low`: a `normal` is a
-    judgement against the range, not a flag the report printed. Left in,
-    `6.49↑` was stored as a narrative with no number: all 16 value errors of
-    GLM-OCR's end-to-end run on the OCR benchmark (benchmarks/local_ocr,
-    2026-10-06)."""
-    value, printed = split_flag(str(indicator.get("value") or ""), str(indicator.get("reference_range") or ""))
-    flag = printed_flag(printed or str(indicator.get("status") or ""))
+    row's `status`, and for a measurement only when the row prints a range
+    to judge it by. Either is kept only as `high` or `low`: a `normal` is a
+    judgement, not a flag. Left in, `6.49↑` was stored as a narrative with
+    no number: all 16 value errors of GLM-OCR's end-to-end run
+    (benchmarks/local_ocr, 2026-10-06). A measurement's `status` with no
+    range was the model's own opinion: an outpatient note's 4.76 mmol/L
+    glucose was stored `high` (2026-10-10). An imaging or pathology finding
+    has no range, and its `high` means abnormal."""
+    ref = str(indicator.get("reference_range") or "")
+    value, printed = split_flag(str(indicator.get("value") or ""), ref)
+    judged = ref.strip() or str(indicator.get("detection_method") or "") in FINDING_METHODS
+    flag = printed_flag(printed or (str(indicator.get("status") or "") if judged else ""))
     return value, flag if flag in STORED_FLAGS else ""
 
 
@@ -81,7 +90,7 @@ async def save_indicators_to_db(
         if not original_indicator:
             continue
         method = str(indicator.get("detection_method") or "")
-        kind = observations.KIND_FINDING if method in ("Imaging", "Pathological") else observations.KIND_MEASUREMENT
+        kind = observations.KIND_FINDING if method in FINDING_METHODS else observations.KIND_MEASUREMENT
         value, flag = value_and_flag(indicator)
         drafts.append(observations.Draft(
             name_text=str(original_indicator),
