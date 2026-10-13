@@ -243,6 +243,17 @@ def join_series_suffix(term: str) -> str:
     return _SERIES_SUFFIX.sub(r"\1\2", term or "")
 
 
+# "TotalCholesterol", "HemoglobinA1c": a LIS export or an OCR pass drops the
+# spaces, and the folded key `totalcholesterol` matches nothing. Split only
+# after two lowercase letters, so `eGFR`, `HbA1c`, `IgG` and `pH` stay whole.
+_CAMEL_BOUNDARY = re.compile(r"(?<=[a-z]{2})(?=[A-Z])")
+
+
+def split_camel(term: str) -> str:
+    """``"TotalCholesterol"`` to ``"Total Cholesterol"``; unchanged otherwise."""
+    return _CAMEL_BOUNDARY.sub(" ", term or "")
+
+
 #: Turkish writes two i's that Unicode casefolding does not round-trip: `İ`
 #: casefolds to `i` plus a combining dot above, and `I` casefolds to `i` where
 #: Turkish reads `ı`. An all-caps report therefore folds to a key no Turkish row
@@ -271,7 +282,7 @@ def turkish_i_variants(term: str) -> list[str]:
 def surface_variants(term: str) -> list[str]:
     """The spellings of ``term`` worth trying, most faithful first.
 
-    Never more than eight, and the first is always the term as written, so a
+    Never more than ten, and the first is always the term as written, so a
     caller that stops at the first hit keeps today's answer for today's inputs.
     Every entry after the first can only turn a miss into a hit.
 
@@ -293,6 +304,8 @@ def surface_variants(term: str) -> list[str]:
         strip_trailing_abbreviation(term),
         join_series_suffix(term),
         fold_to_hans(term or ""),
+        split_camel(term),
+        strip_trailing_abbreviation(split_camel(term)),
         *turkish_i_variants(term or ""),
     )
     for candidate in candidates:

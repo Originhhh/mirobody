@@ -144,6 +144,12 @@ CASES: list[tuple[str, str, str]] = [
     # hyphen rule used to strip it and answer the parent: total CK for the
     # MB isoenzyme, total LDH for LDH1, total ALP for bone ALP.
     ("Creatine Kinase-MB",          r"creatine kinase\.MB",          r"Creatine kinase \["),
+    # Glued CamelCase from a LIS export resolved to nothing; `eGFR` and
+    # `HbA1c` must not be split by the same rule.
+    ("TotalCholesterol",            r"^cholesterol \[",              r"LDL|HDL|VLDL"),
+    ("HemoglobinA1c",               r"hemoglobin a1c",               r""),
+    ("AlanineAminotransferase-ALT", r"alanine aminotransferase",     r""),
+    ("CreatineKinase-MB",           r"creatine kinase\.MB",          r"Creatine kinase \["),
     ("Creatine Kinase MB",          r"creatine kinase\.MB",          r"Creatine kinase \["),
     ("肌酸激酶同工酶",                 r"creatine kinase\.MB",          r"interpretation"),
     ("Lactate Dehydrogenase-LDH1",  r"lactate dehydrogenase 1",      r""),
