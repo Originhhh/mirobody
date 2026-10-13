@@ -32,7 +32,8 @@ Commands:
 * ``mirobody fetch cpic --version vX.Y.Z`` downloads and validates a CPIC data
   extract without executing the upstream SQL or requiring a database.
 * ``mirobody import apple <export.zip>`` decodes an Apple Health export into
-  facts, offline, with no key, database or extra.
+  facts, offline, with no key, database or extra. ``--into <user id>`` also
+  stores them in that person's record (``[app]`` and the server's config).
 * ``mirobody mcp``                      the stdio MCP server over the offline
   vocabularies: no key, no database.
 * ``mirobody migrate-observations``, ``mirobody migrate-genotypes`` and
@@ -556,6 +557,12 @@ def _cmd_import(args: argparse.Namespace) -> None:
 
     if not os.path.exists(args.file):
         sys.exit(f"mirobody import: no such file: {args.file}")
+    if args.into:
+        _require_extra("import --into", "app", "sqlalchemy", "the database layer")
+        stored = asyncio.run(_store_export(args))
+        print(f"Read {stored['records']} records, {stored['facts']} decoded; record {args.into} gained "
+              f"{stored['added']} readings, daily values included. A re-import adds nothing.")
+        return
 
     counts = apple_export.Counts()
     seen: dict[str, list[float]] = {}
@@ -601,6 +608,68 @@ def _cmd_import(args: argparse.Namespace) -> None:
         print(f"{counts.clinical_files} clinical records are in this export; this release does not read them.")
     if args.out:
         print(f"Facts written to {args.out}")
+
+
+#: Readings per write when an export is stored: one batch, one transaction.
+IMPORT_BATCH = 2_000
+
+
+async def _store_export(args: argparse.Namespace) -> dict[str, int]:
+    """Write an export's facts into a record through the path a phone's push
+    takes, under the source `apple_health_export`: a person who also pushes
+    from the phone gets two streams a day's election chooses between, never
+    one stream whose step counts add up twice. A re-import of the same file
+    writes nothing new (both stores are keyed on the reading), so it never
+    double counts. The export's days are then aggregated, as the worker would."""
+    from datetime import UTC, datetime
+
+    from mirobody.collect import StandardPulseData, StandardPulseMetaInfo, records_from_facts
+    from mirobody.collect.ingest import StandardHealthService
+    from mirobody.kernel import decoders
+    from mirobody.kernel.decoders import apple_export
+    from mirobody.translate import AggregateIndicatorService
+    from mirobody.utils import execute_query
+    from mirobody.utils.config import Config
+
+    await Config.init(yaml_filenames=args.config)
+    user = str(args.into)
+
+    async def readings() -> int:
+        rows = await execute_query("SELECT count(*) AS n FROM th_observation WHERE user_id = :u", {"u": user},
+                                   log_sql=False)
+        return int(rows[0]["n"])
+
+    before = await readings()
+    service, counts = StandardHealthService(), apple_export.Counts()
+    source = "apple_health_export"
+    batch, facts, span = [], 0, []
+
+    async def flush() -> None:
+        if not batch:
+            return
+        data = StandardPulseData(
+            metaInfo=StandardPulseMetaInfo(userId=user, source=source, timezone=args.tz), healthData=list(batch),
+        )
+        if not await service.process_standard_data(data, user):
+            sys.exit("mirobody import: a batch failed to store; see the log. Rerunning is safe.")
+        batch.clear()
+
+    for kind, item in apple_export.iter_items(args.file, counts):
+        found = decoders.decode("apple", kind, item, args.tz)
+        facts += len(found)
+        span.extend(f.effective_start_ms for f in found)
+        batch.extend(records_from_facts(found, slug="apple_health", tz=args.tz,
+                                        source_id=item.get("sourceName") or "export", source=source))
+        if len(batch) >= IMPORT_BATCH:
+            await flush()
+    await flush()
+    if span:
+        first, last = (datetime.fromtimestamp(ms / 1000, UTC).replace(tzinfo=None) for ms in (min(span), max(span)))
+        result = await AggregateIndicatorService().recalculate_date_range(first, last, user_id=user)
+        if result.get("status") != "success":
+            sys.exit(f"mirobody import: the readings are stored, the daily values are not ({result.get('error')}); "
+                     "the worker will build them, or rerun.")
+    return {"records": counts.records, "facts": facts, "added": await readings() - before}
 
 
 def main(argv: list[str] | None = None) -> None:
@@ -658,6 +727,10 @@ def main(argv: list[str] | None = None) -> None:
     p_import.add_argument("file", help="path to export.zip, export.xml, or the unpacked directory")
     p_import.add_argument("--tz", default="UTC", help="fallback timezone; Apple records carry their own offset")
     p_import.add_argument("--out", default="", help="write decoded facts to this file as JSON lines")
+    p_import.add_argument("--into", default="", metavar="USER_ID",
+                          help="also store the readings in this person's record (requires the [app] extra)")
+    p_import.add_argument("--config", action="append", default=[], metavar="YAML",
+                          help="extra config YAML layered over config.yaml, with --into; repeatable")
     p_import.set_defaults(func=_cmd_import)
 
     p_resolve = sub.add_parser("resolve", help="resolve indicator names to standard codes — fully offline, no key needed")

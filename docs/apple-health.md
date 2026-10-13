@@ -7,7 +7,14 @@ type name means the same thing whichever way the data arrives.
 | | What it reads | Needs |
 | --- | --- | --- |
 | `mirobody import apple export.zip` | the archive the iOS Health app writes (Summary → your picture → Export All Health Data) | nothing: no key, no database, no extra |
+| `mirobody import apple export.zip --into <user id>` | the same archive, stored in that person's record | the `[app]` extra and the server's config |
 | `POST /apple/health` | JSON pushed by a client app | a running server and a token |
+
+`--into` writes through the same path as `POST /apple/health`, under the
+source `apple_health_export`, then builds the daily values for the export's
+days. Importing the same file again adds nothing. A person whose phone also
+pushes gets two streams, and each day takes one of them, so a day's steps are
+never counted twice.
 
 ## The vocabulary is HealthKit's own
 
