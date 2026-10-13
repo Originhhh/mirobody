@@ -134,6 +134,12 @@ CASES: list[tuple[str, str, str]] = [
     # ── liver enzymes ────────────────────────────────────────────────────────
     ("ALT",                         r"alanine aminotransferase",     r""),
     ("AST",                         r"aspartate aminotransferase",   r""),
+    # Report spellings that resolved to nothing: a doubled `氨基转氨酶`, and
+    # the GGT Greek letter printed as `r`.
+    ("丙氨酸氨基转氨酶",                r"alanine aminotransferase",     r""),
+    ("天门冬氨酸氨基转氨酶",              r"aspartate aminotransferase",   r""),
+    ("γ-谷氨酰基转肽酶",               r"gamma glutamyl transferase",   r""),
+    ("r-GT",                        r"gamma glutamyl transferase",   r""),
     # A hyphenated tail that names a COMPONENT of the parent analyte. The
     # hyphen rule used to strip it and answer the parent: total CK for the
     # MB isoenzyme, total LDH for LDH1, total ALP for bone ALP.

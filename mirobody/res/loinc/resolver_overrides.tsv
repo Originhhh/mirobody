@@ -1009,6 +1009,17 @@ eGFR	Glomerular filtration rate
 脂蛋白a	Lipoprotein (a)
 餐后2小时血糖	Glucose^2H post meal
 γ-谷氨酰基转移酶	Gamma glutamyl transferase
+# `氨基转氨酶` doubles the word a report means as `氨基转移酶`, and the GGT
+# Greek letter is printed or read as `r`. All of these resolved to nothing.
+丙氨酸氨基转氨酶	Alanine aminotransferase
+天门冬氨酸氨基转氨酶	Aspartate aminotransferase
+天冬氨酸氨基转氨酶	Aspartate aminotransferase
+门冬氨酸氨基转氨酶	Aspartate aminotransferase
+γ-谷氨酰基转肽酶	Gamma glutamyl transferase
+r-谷氨酰转肽酶	Gamma glutamyl transferase
+r-谷氨酰基转移酶	Gamma glutamyl transferase
+γ-GT	Gamma glutamyl transferase
+r-GT	Gamma glutamyl transferase
 碱性磷酸酶ALP	Alkaline phosphatase
 尿素氮BUN	Urea nitrogen
 总胆固醇TC	Cholesterol
