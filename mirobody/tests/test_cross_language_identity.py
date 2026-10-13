@@ -212,6 +212,7 @@ SAME_ANALYTE = {
     "total protein": ["total protein", "总蛋白", "Общий белок"],
     "urate": ["uric acid", "尿酸", "Мочевая кислота"],
     "urea nitrogen": ["BUN", "blood urea nitrogen", "尿素氮"],
+    "urea": ["urea", "尿素", "Мочевина", "Harnstoff"],
     "creatine kinase": ["CK", "肌酸激酶", "Креатинкиназа"],
     "alkaline phosphatase": ["ALP", "alkaline phosphatase", "碱性磷酸酶", "Щелочная фосфатаза"],
     "total cholesterol": ["total cholesterol", "总胆固醇", "Холестерин общий", "Total Kolesterol"],
@@ -231,8 +232,6 @@ SAME_ANALYTE = {
 #: convention itself is still open. A fix turns its row into a strict XPASS,
 #: which fails on purpose: move the row up into SAME_ANALYTE.
 KNOWN_SPLITS = [
-    ("urea", ["urea", "尿素", "Мочевина", "Harnstoff"], "3091-6",
-     "`urea` lands on 3094-0 Urea nitrogen, a different component"),
     ("direct bilirubin", ["Direct Bilirubin", "DBIL", "直接胆红素", "Билирубин прямой"], "1968-7",
      "the `direct bilirubin` row targets 15152-2 Bilirubin.conjugated"),
     ("vitamin D", ["vitamin D", "维生素D", "Витамин D", "Витамин D (25-OH)", "Vitamiin D (25-OH)"], None,

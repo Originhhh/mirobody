@@ -467,16 +467,22 @@ class OfflineResolver:
         keys.append(norm)
         return keys
 
-    def _pick(self, rows: np.ndarray) -> int:
-        """Best corpus row: commonness prior, nudged toward plain specimens.
+    def _pick(self, rows: np.ndarray, key: str) -> int:
+        """Best corpus row: the analyte the key names, then commonness and specimen.
 
-        Matches the two specimen patterns against raw blob slices. A hit like
-        `血红蛋白` has hundreds of candidate rows, and decoding all of them to
-        run a regex that only ever looks at ASCII would be as many throwaway
-        strings per call: the loser rows are never needed as text.
+        A row whose COMPONENT is the key itself outranks one that only contains
+        it. `globulin` posts 15 rows, and without this the specimen nudge let
+        `Thyroxine.thyroxine binding globulin bound ... in Serum or Plasma`
+        (14016-0) beat `Globulin ... in Serum` (2336-6). On the 7,354-case set
+        it turned 142 wrong answers right and 2 right ones wrong.
+
+        Everything is compared as raw blob slices: a hit like `血红蛋白` has
+        hundreds of candidate rows, and the losers are never needed as text.
         """
         names = self._names
         rank = self._rank
+        axis = self._axis
+        exact = key.encode("utf-8")
         # Seeded from the first row rather than left at -1: a comparison
         # against -inf fails only on a NaN score, and a NaN rank must not turn
         # a hit into a miss. No shipped rank is NaN; the answer should not
@@ -492,6 +498,8 @@ class OfflineResolver:
                 score += 0.25
             if _SPECIAL_SPECIMEN.search(name):
                 score -= 0.25
+            if axis.field_raw(r, _COMPONENT) == exact:
+                score += 0.5
             if score > best_score:
                 best_row, best_score = r, score
         return best_row
@@ -790,7 +798,7 @@ class OfflineResolver:
             rows = self._posting(key)
             if rows is None or not len(rows):
                 continue
-            code, _component, prop, scale, system, _method, lcn = self._axis_row(self._pick(rows))
+            code, _component, prop, scale, system, _method, lcn = self._axis_row(self._pick(rows, key))
             return Resolution(
                 term=term,
                 canonical=lcn,

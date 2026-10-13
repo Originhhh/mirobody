@@ -123,6 +123,11 @@ CASES: list[tuple[str, str, str]] = [
     ("sodium",                      r"sodium",                       r""),
     ("potassium",                   r"potassium",                    r""),
     ("albumin",                     r"albumin",                      r"urine|globulin ratio"),
+    # Each answered a binding protein: 14016-0 (thyroxine bound to TBG) or,
+    # for `GLB`, 13967-5 (SHBG). A liver panel's globulin joined a thyroid series.
+    ("球蛋白",                        r"^globulin \[",                 r"binding|albumin"),
+    ("Globulin",                    r"^globulin \[",                 r"binding|albumin"),
+    ("GLB",                         r"^globulin \[",                 r"binding|albumin"),
     ("total bilirubin",             r"bilirubin",                    r"direct|conjugated"),
     ("Serum Total Bilirubin",       r"bilirubin",                    r"direct|conjugated|end-stage"),
     ("uric acid",                   r"urate|uric acid",              r""),

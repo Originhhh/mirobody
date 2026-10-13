@@ -602,6 +602,7 @@ Cr	Creatinine
 CREA	Creatinine
 UA	Urate
 TP	Protein
+GLB	Globulin
 CK	Creatine kinase
 # `FER` is ferritin on a lab slip, and the index answered 2498-4 Iron
 # [Mass/volume]. No English designation holds the letters: LOINC's French
@@ -1151,6 +1152,12 @@ osmolality urine	Osmolality of Urine
 serum osmolality	Osmolality of Serum or Plasma
 plasma osmolality	Osmolality of Serum or Plasma
 osmolality serum	Osmolality of Serum or Plasma
+# A bare `渗透压` / `osmolality` is the serum test. LOINC names the serum and
+# urine codes' COMPONENT `Observation`, so only 24-hour urine (114502-8)
+# matches the word itself and the exact-component rank would pick it.
+渗透压	Osmolality of Serum or Plasma
+滲透壓	Osmolality of Serum or Plasma
+osmolality	Osmolality of Serum or Plasma
 
 # ── body composition and HRV, the same test ────────────────────────────
 # `Bone percentage` reached 15013-6, the bone share of alkaline phosphatase.
@@ -1179,7 +1186,7 @@ heart rate variability (RMSSD)	!unresolved
 Тромбоциты	platelet count
 Количество тромбоцитов	platelet count
 Количество лейкоцитов	leukocytes
-Количество эритроцитов	erythrocyte
+Количество эритроцитов	RBC # Bld
 Гемоглобин общий	hemoglobin
 Распределение эритроцитов по объему	RDW
 Ширина распределения эритроцитов	RDW
