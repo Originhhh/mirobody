@@ -1,3 +1,55 @@
+## 1.5.6
+
+### Changed
+
+- **The small local model gets 64k of context on a GPU; a CPU keeps 32k.**
+  At 24,000 input tokens a turn compacted after a few report pages and read
+  them again. `docker/local-models.ini` now serves MiniCPM5-2B at 64k with an
+  8-bit KV cache, in the memory 32k took at 16 bits. The new
+  `docker/local-models-cpu.ini`, which `llama_cpu` mounts, keeps 32k at 16 bits:
+  on four x86 cores an 8-bit cache read a prompt at 13 tokens/s against 48. The
+  agent reads the model server's context and fits its input window to it. On
+  the 24-question evaluation the small size passed 23 in each of three runs on
+  a Mac and 22 in each of three on Linux, at a peak of 7.1–7.5 GB against 7.7.
+- **The time and the answer language reach the model just before the
+  question, in the question's language.** They were in the system prompt,
+  which changed every hour and with every language: llama.cpp read 5.2k tokens
+  again where it now reads 47. Tools also load in name order on every machine.
+- **The agent no longer offers `write_file` or `edit_file`.** Every mount is
+  read-only, and no model used them in 570 evaluated answers.
+- **Windows is documented as measured** (`docs/local-models.md`): a
+  `llama-server` on Windows is reached through `host.docker.internal` with no
+  `--host` and no firewall rule, and an RTX 50 card needs a CUDA 13 build.
+
+### Fixed
+
+- **MiniCPM5-2B saw its earlier tool calls in a form it never writes.**
+  llama.cpp's template wrote a list argument as `blood pressure血压`.
+  `docker/minicpm5-2b.jinja`, which both presets serve, writes
+  `['blood pressure', '血压']`, as the model and its training do.
+- **A small local model stuck in a loop now answers.** Five failed tool
+  results in a row end the tools for the turn. A top-level `return` in `eval`,
+  a SyntaxError in QuickJS, is retried inside a function. A local model is no
+  longer told where compacted history went: it read that file page by page
+  until the turn ran out.
+- **The setup page chooses small or large when `.env` names the model
+  server.** `deploy.sh` writes `LOCAL_BASE_URL` for the compose model
+  services, and every local choice answered 409. Only another address is
+  refused now.
+- **Numbers written against Chinese text or a unit are traced.**
+  `kernel.citations.check` did not read `体重65.2kg`. It now does, and it
+  reports a `<statement>` left open.
+- **A photo sent in chat reaches a text-only local model as its text.** A
+  stale "not known" answer about whether the server sees images sent the
+  photo itself, and the turn failed with a 500. Chat now asks the server
+  again, and sends the OCR text unless the server says it sees.
+- **A unit printed in the value cell is shown once.** An ECG report's
+  "170 ms" sat beside its unit column and read "170 ms ms" on the Data page,
+  in the agent's tools and over MCP.
+- **A chart whose closing fence sits on the JSON's last line draws.**
+  MiniCPM5-2B wrote `…]}```` there; markdown did not close the block, so the
+  chart was empty and the text after it was lost.
+
 ## 1.5.5
 
 ### Added
