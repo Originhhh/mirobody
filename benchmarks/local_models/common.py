@@ -18,6 +18,7 @@ from dataclasses import dataclass, field
 from datetime import datetime
 from pathlib import Path
 from typing import Any
+from urllib.parse import urlsplit
 
 import requests
 
@@ -32,6 +33,20 @@ ROUTER = os.environ.get("LLAMA_ROUTER", "http://127.0.0.1:8080").rstrip("/")
 ROUTER_FROM_APP = os.environ.get("LLAMA_ROUTER_FROM_APP", "http://host.docker.internal:8080/v1")
 #: Where `docker compose` finds the stack (the checkout with compose.yaml and .env).
 COMPOSE_DIR = Path(os.environ.get("MIROBODY_COMPOSE_DIR", str(ROOT)))
+
+
+def _local_without_proxy(*urls: str) -> None:
+    """Keep requests to this machine off a system proxy. WSL 2 inherits Windows'
+    proxy variables, and `requests` and `urllib` then send localhost through it:
+    a CPU turn was cut at about 268 s while llama-server ran on, and /api/health
+    answered 503 (Windows 11, 2026-10-12). Calls to other hosts still use it."""
+    hosts = {"localhost", "127.0.0.1", "host.docker.internal"} | {urlsplit(u).hostname or "" for u in urls}
+    for name in ("NO_PROXY", "no_proxy"):
+        have = [h.strip() for h in os.environ.get(name, "").split(",") if h.strip()]
+        os.environ[name] = ",".join(have + sorted(h for h in hosts - set(have) if h))
+
+
+_local_without_proxy(APP, ROUTER)
 
 #: Every benchmark account signs in with this. A local test stack only.
 PASSWORD = os.environ.get("BENCH_PASSWORD", "local-models-bench")
