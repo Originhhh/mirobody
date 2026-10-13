@@ -26,9 +26,44 @@
   at any point. The Chinese edition adds `PIP_INDEX_URL` one step further out:
   pip reads it (verified, `Looking in indexes:` follows it), so a network that
   cannot reach PyPI either can name a mirror.
+- **A reading waiting for input can be answered.** `POST
+  /api/v1/health-indicators/confirm-code` takes a reading id and a LOINC code
+  (or none, for "not a standard test"), keeps it for the printed name and
+  recodes every reading that carries it. A slip printing `FPG 4.76` with no unit
+  waited forever, because mg/dL and mmol/L are two codes and the coder rightly
+  will not pick.
+- **`mirobody import apple export.zip --into <user id>` stores the export.**
+  The command only printed a summary before. It now writes through the phone
+  push's path and builds the daily values; a re-import adds nothing, and a day
+  also pushed from the phone publishes one of the two, so steps are not doubled.
+- **A cited genotype has a citation id.** `query_genetic_data` rows carry a
+  `rid` that resolves to the gene, rsID, call and upload file; a model given
+  none wrote `r1` anyway.
 
 ### Fixed
 
+- **Globulin answered a binding protein.** `球蛋白`, `Globulin` and `GLB`
+  resolved to 14016-0 (thyroxine bound to TBG) or 13967-5 (SHBG): a row whose
+  component only contains the word outranked the one whose component is the
+  word. It no longer does. On the 7,354-case set the wrong-rate falls from
+  0.030 to 0.009 at the same coverage (checkup 0.025 to 0.006), and `urea`
+  now answers 3091-6 in all four languages instead of urea nitrogen.
+- **An enzyme printed in `IU/L` was refused.** LOINC files enzyme activity
+  as catalytic concentration and `IU/L` admitted only the arbitrary kind, so a
+  chemistry panel in `IU/L` lost ALT, AST, ALP, GGT, LDH and CK.
+- **Report spellings that resolved to nothing.** `丙氨酸氨基转氨酶`,
+  `天门冬氨酸氨基转氨酶`, `γ-谷氨酰基转肽酶`, `r-GT`, and glued CamelCase names
+  such as `TotalCholesterol`, `HemoglobinA1c` and `AlanineAminotransferase-ALT`.
+  The CamelCase split never touches `eGFR`, `HbA1c` or `IgG`.
+- **A flag the report did not print.** An outpatient note's 4.76 mmol/L
+  glucose, with no range, was stored `high` on the model's say-so. A
+  measurement's flag now needs a printed range or a printed marker
+  (`6.49↑`, `5.6 H`).
+- **`mirobody doctor --probe` misread Ollama twice.** It failed a server
+  listing `minicpm5-2b:latest` and passed a GLM-OCR that never stopped. The
+  local-models page also said a 4k Ollama context truncates silently (it
+  returns HTTP 400) and called Ollama fastest (it runs llama-server: 88.5
+  against 88.7 tokens a second).
 - **The registry fallback tries Google's Docker Hub cache first.** `mirror.gcr.io`
   is operated by Google Cloud and documented as such, and it is one of the two
   mirrors measured serving both images this stack pulls. The list was one entry
