@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import logging
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from typing import Any
@@ -9,9 +10,11 @@ from typing import Any
 from mirobody.kernel import query, tools
 
 from ._authz import refused
-from ._base import RecordTool
+from ._base import CITATION_SESSION, RecordTool
 from ._genotype import active_set, fetch_rows, in_clause, source_note, zygosity
-from ._render import envelope_meta, render_compact
+from ._render import RID_NOTE, envelope_meta, render_compact
+
+logger = logging.getLogger(__name__)
 
 TOOL_NAME = "query_genetic_data"
 MAX_RSIDS = 50
@@ -152,7 +155,10 @@ class GeneticService(RecordTool):
         upload's source and build in answers.
         """
         envelope = await self.envelope(user_info, **args)
-        return {"result": render_compact(envelope, self.columns(args)), **envelope_meta(envelope)}
+        columns = self.columns(args)
+        if any(row.get("rid") for row in envelope.data or ()):
+            columns = ("rid", *columns)
+        return {"result": render_compact(envelope, columns), **envelope_meta(envelope)}
 
     def columns(self, args: Mapping[str, Any]) -> tuple[str, ...]:
         """The columns an answer to `args` renders. A call the validator
@@ -183,6 +189,8 @@ class GeneticService(RecordTool):
                                   assumptions=(source, "a consumer array is incomplete; absent and no-call sites are not normal calls"))
         fetched = await self._variants(int(genotype_set["id"]), request, str(genotype_set["build_detected"]))
         hits, truncated = fetched[:ROW_CAP], len(fetched) > ROW_CAP
+        if CITATION_SESSION.get():
+            hits = await _with_rids(CITATION_SESSION.get(), caller_id, hits)
         return _envelope_for(
             request, hits, source=source, truncated=truncated,
             is_vcf="vcf" in str(genotype_set["format_id"]),
@@ -216,6 +224,25 @@ class GeneticService(RecordTool):
                 for row in await fetch_rows(self._execute, sql, params)]
 
 
+async def _with_rids(session_id: str, subject_id: str, hits: Sequence[Mapping[str, Any]]) -> list[dict[str, Any]]:
+    """The calls with the rid each is cited by. Without one a model citing a
+    genotype made one up (`r1`, DeepSeek, 2026-10-10)."""
+    from mirobody.collect import genotype_key, mint_rids
+
+    rows = [dict(hit) for hit in hits]
+    try:
+        rids = await mint_rids(session_id, subject_id, [(genotype_key(r["set_id"], r["rsid"]), None) for r in rows])
+    except Exception as e:
+        # Uncitable calls are still the answer; a failed mint must not cost it.
+        logger.error("citation ids not minted: error_type=%s", type(e).__name__)
+        return rows
+    for row in rows:
+        rid = rids.get(genotype_key(row["set_id"], row["rsid"]))
+        if rid:
+            row["rid"] = rid
+    return rows
+
+
 def _envelope_for(request: GeneticRequest, hits: Sequence[Mapping[str, Any]], *,
                   source: str, truncated: bool, is_vcf: bool = False) -> tools.Envelope:
     rows = list(hits)
@@ -235,6 +262,8 @@ def _envelope_for(request: GeneticRequest, hits: Sequence[Mapping[str, Any]], *,
             notes.append(f"{label} (not a normal call): " + ", ".join(affected))
     if truncated:
         notes.append(f"cut at {ROW_CAP} rows; narrow the region")
+    if any(row.get("rid") for row in rows):
+        notes.append(RID_NOTE)
     return tools.Envelope(
         tools.STATUS_PARTIAL if truncated else tools.STATUS_OK,
         data=rows,

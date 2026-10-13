@@ -25,6 +25,9 @@ from mirobody.kernel import query, tools
 #: window is not an answer.
 MAX_RENDER_CHARS = 40_000
 
+#: Repeated with every citable answer: a small model drops standing rules.
+RID_NOTE = "cite the rows a number comes from: <statement>…<cite>[r3][r9]</cite></statement>"
+
 #: Columns each method renders, in order. Anything not listed never reaches the
 #: model: `row_id` is for the web client's edit button, `file_key` is the handle
 #: it opens the document with, `total` and `day_known` are bookkeeping, and

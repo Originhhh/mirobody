@@ -5,8 +5,9 @@ session's owner and id (`agent.checkpointer.thread_for`).
 A model cites a row by its rid (`kernel.citations`). The number is minted the
 first time a session is shown that row and stored, so it names the same row
 after a restart, on any worker, and when the conversation is opened again. A
-reading's identity is its observation id; an aggregate's (a stats line, a day
-or month bucket) is its definition: series, window, view and period.
+reading's identity is its observation id; a genotype call's is its upload and
+rsID; an aggregate's (a stats line, a day or month bucket) is its definition:
+series, window, view and period.
 
 Only identities are stored, never a value: `resolve_rids` reads the rows live, so a
 reading the person has erased resolves to "gone", not to its old value.
@@ -65,6 +66,10 @@ def reading_key(observation_id: Any) -> str:
     return f"o:{observation_id}"
 
 
+def genotype_key(set_id: Any, rsid: str) -> str:
+    return f"g:{set_id}:{rsid}"
+
+
 def aggregate_key(definition: Mapping[str, Any]) -> str:
     text = json.dumps(dict(definition), sort_keys=True, ensure_ascii=False)
     return "a:" + hashlib.sha1(text.encode()).hexdigest()[:16]
@@ -105,14 +110,16 @@ async def resolve_rids(session_id: str, subject_id: str, rids: Sequence[str]) ->
         {"sid": session_id, "rids": wanted}, log_sql=False) or []
     by_rid = {r["rid"]: r for r in stored if str(r["subject_id"]) == str(subject_id)}
     readings = await _readings(subject_id, [r["row_key"][2:] for r in by_rid.values() if r["row_key"].startswith("o:")])
+    calls = await _genotypes(subject_id, [r["row_key"] for r in by_rid.values() if r["row_key"].startswith("g:")])
     out = []
     for rid in wanted:
         row = by_rid.get(rid)
         if row is None:
             out.append({"rid": rid, "status": "unknown"})
-        elif row["row_key"].startswith("o:"):
-            reading = readings.get(row["row_key"][2:])
-            out.append({"rid": rid, "status": "ok", "kind": "reading", **reading} if reading
+        elif row["row_key"].startswith(("o:", "g:")):
+            found = readings.get(row["row_key"][2:]) if row["row_key"].startswith("o:") else calls.get(row["row_key"])
+            kind = "reading" if row["row_key"].startswith("o:") else "genotype"
+            out.append({"rid": rid, "status": "ok", "kind": kind, **found} if found
                        else {"rid": rid, "status": "gone"})
         else:
             detail = row["detail"] if isinstance(row["detail"], dict) else json.loads(row["detail"] or "{}")
@@ -134,6 +141,34 @@ async def _readings(subject_id: str, ids: Sequence[str]) -> dict[str, dict[str, 
         f"SELECT {_READING_COLUMNS} FROM v_observation o {_FILE_JOIN} WHERE o.user_id = :uid AND o.id = ANY(:ids)",
         {"uid": str(subject_id), "ids": numeric}, log_sql=False) or []
     return {str(r["id"]): _public(r) for r in rows}
+
+
+async def _genotypes(subject_id: str, keys: Sequence[str]) -> dict[str, dict[str, Any]]:
+    """Genotype calls by citation key, read live: a call in an upload since
+    replaced or deleted is gone. Shaped like a reading, so a client shows it
+    with the reading's view (name, value, day, source file)."""
+    wanted = [key.split(":", 2) for key in keys if key.count(":") == 2 and key.split(":")[1].isdigit()]
+    if not wanted:
+        return {}
+    rows = await execute_query(
+        """SELECT s.id AS set_id, g.rsid, g.gene, g.genotype_raw, s.file_key, decrypt_content(f.file_name) AS file_name,
+                  to_char(COALESCE(s.activated_at, s.created_at), 'YYYY-MM-DD HH24:MI:SS') AS time
+             FROM th_genotype g
+             JOIN th_genotype_set s ON s.id = g.set_id
+             LEFT JOIN th_files f ON f.file_key = s.file_key
+            WHERE s.user_id = :uid AND s.status = 'active'
+              AND (g.set_id, g.rsid) IN (SELECT * FROM unnest(CAST(:sets AS bigint[]), CAST(:rsids AS text[])))""",
+        {"uid": str(subject_id), "sets": [int(s) for _, s, _ in wanted], "rsids": [r for _, _, r in wanted]},
+        log_sql=False) or []
+    return {
+        genotype_key(r["set_id"], r["rsid"]): {
+            "name": f"{r['gene']} {r['rsid']}" if r["gene"] else r["rsid"], "indicator": r["rsid"],
+            "value": r["genotype_raw"], "unit": "", "time": r["time"] or "",
+            "source_kind": "file" if r["file_key"] else "", "file_key": r["file_key"] or "",
+            "file": r["file_name"] or "", "record_kind": "measurement",
+        }
+        for r in rows
+    }
 
 
 async def _members(subject_id: str, detail: Mapping[str, Any]) -> dict[str, Any]:
@@ -202,4 +237,5 @@ def _public(row: Mapping[str, Any]) -> dict[str, Any]:
     return out
 
 
-__all__ = ["MEMBERS_SHOWN", "aggregate_definition", "aggregate_key", "forget_rids", "mint_rids", "reading_key", "resolve_rids"]
+__all__ = ["MEMBERS_SHOWN", "aggregate_definition", "aggregate_key", "forget_rids", "genotype_key", "mint_rids",
+           "reading_key", "resolve_rids"]
