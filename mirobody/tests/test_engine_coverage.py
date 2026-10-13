@@ -652,6 +652,9 @@ READING_CASES: list[tuple[str, str, str, str, str]] = [
     # body-surface term; the eGFR spelling with a multiplication sign parses.
     ("CA19-9",          "15.3", "U/mL",  "24108-3", "arbitrary units, not catalytic"),
     ("ALT",             "25",  "U/L",    "1742-6",  "catalytic, unchanged"),
+    ("谷丙转氨酶",          "30",  "IU/L",   "1742-6",  "an enzyme printed in IU/L"),
+    ("γ-谷氨酰转肽酶",      "28",  "IU/L",   "2324-2",  "an enzyme printed in IU/L"),
+    ("促卵泡激素",          "6.2", "IU/L",   "15067-2", "a hormone in IU/L stays ACnc"),
     ("MCV",             "87.4", "fL",    "30428-7", "entitic mean volume"),
     ("eGFR",            "88",  "mL/(min×1.73 m^2)", "48642-3", "areic volume rate"),
     ("eGFR",            "30",  "mL/min", "48642-3", "eGFR without the area term"),

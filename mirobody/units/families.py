@@ -526,6 +526,10 @@ AMBIGUOUS_UNITS: dict[str, frozenset[str]] = {
     "mU/L":  frozenset({"CCnc", "ACnc"}),
     "mU/mL": frozenset({"CCnc", "ACnc"}),
     "kU/L":  frozenset({"CCnc", "ACnc"}),
+    # The reverse case: a report prints enzyme activity as `IU/L`, the old name
+    # for the same µmol/min unit, and LOINC files every enzyme under CCnc. A
+    # chemistry panel's ALT, AST, ALP, GGT, LDH and CK were all refused.
+    "[IU]/L": frozenset({"ACnc", "CCnc"}),
     # MCV and MPV are `EntMeanVol` since LOINC 2.7x; RDW-SD stays `EntVol`.
     "fL":    frozenset({"EntVol", "EntMeanVol"}),
     # MCHC is a mass concentration that LOINC files under `EntMCnc`, per red
