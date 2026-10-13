@@ -306,11 +306,14 @@ it serves (`curl <address>/v1/models`), on the setup page or as `LOCAL_MODEL`
 and `LOCAL_OCR_MODEL`.
 
 **Ollama.** `ollama pull qwen3.8:27b` (17 GB) answered the large size's earlier
-set (8 questions, asked twice) correctly, and fastest. Two things to know:
+set (8 questions, asked twice) correctly. Ollama 0.40 runs a GGUF model on
+llama-server itself, so it is no faster: 88.5 against 88.7 tokens a second on
+the same small-size file (2026-10-08). Two things to know:
 
 - Ollama sets the context from the GPU's memory, and below 24 GB it is 4,096
-  tokens, which cuts Mirobody's prompt short without an error. Set
-  `OLLAMA_CONTEXT_LENGTH=65536` before `ollama serve`.
+  tokens. Mirobody's prompt is longer, and every request fails with HTTP 400
+  (`exceed_context_size_error`). Set `OLLAMA_CONTEXT_LENGTH=65536` before
+  `ollama serve`.
 - Its `glm-ocr` does not stop after reading a page in 0.34.1 and later
   ([ollama/ollama#18609](https://github.com/ollama/ollama/issues/18609)). Keep
   the documents on llama.cpp until that is fixed.

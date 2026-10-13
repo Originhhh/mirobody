@@ -50,6 +50,10 @@ _SCHEMA = {
 }
 
 
+#: An OCR answer this many times longer than the line it read did not stop.
+_RUNAWAY = 20
+
+
 @dataclass(frozen=True)
 class ProbeResult:
     surface: str
@@ -110,7 +114,12 @@ async def _ocr() -> tuple[bool, str]:
     from mirobody.utils.config.llm import resolve_route
 
     spec = resolve_route("ocr")
-    text = await vision_ocr(text_image("Glucose 5.4 mmol/L"), "image/png")
+    printed = "Glucose 5.4 mmol/L"
+    text = await vision_ocr(text_image(printed), "image/png")
+    if len(text) > _RUNAWAY * len(printed):
+        # Ollama's GLM-OCR read this line and then wrote 8,279 tokens of
+        # fences: the value was in there, and the probe passed it.
+        return False, f"{spec.alias}: {len(text):,} characters for a {len(printed)}-character line, it did not stop"
     return "5.4" in text, f"{spec.alias}: {text.strip()[:80]!r}"
 
 
@@ -146,7 +155,9 @@ async def _served() -> tuple[bool, str]:
     for base, model in sorted(_local_models()):
         served = await asyncio.to_thread(ids, base)
         seen.append(f"{base} {'/'.join(served)}")
-        if model not in served:
+        # Ollama lists a pulled model with its tag, `minicpm5-2b:latest`, and
+        # answers to the bare name as well.
+        if model not in served and model not in {s.removesuffix(":latest") for s in served}:
             wrong.append(f"{base} serves {', '.join(served) or 'nothing'}, the entry names {model}")
     return not wrong, "; ".join(wrong) if wrong else "; ".join(seen)
 
