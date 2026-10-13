@@ -43,6 +43,10 @@
   stale "not known" answer about whether the server sees images sent the
   photo itself, and the turn failed with a 500. Chat now asks the server
   again, and sends the OCR text unless the server says it sees.
+- **An imaging report gives its findings on the small local model.**
+  MiniCPM5-2B read an ultrasound report as 0 to 2 of its 6 findings. With an
+  imaging example in the extraction prompt it reads all 6, and a check-up
+  book gains 49 exam and ultrasound findings.
 - **A unit printed in the value cell is shown once.** An ECG report's
   "170 ms" sat beside its unit column and read "170 ms ms" on the Data page,
   in the agent's tools and over MCP.
