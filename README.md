@@ -201,6 +201,14 @@ Built on [HL7 FHIR](https://hl7.org/fhir/), [LOINC](https://loinc.org/) from the
 
 **If Mirobody helped you make sense of a report, a star helps the next person find it.**
 
+<a href="https://www.star-history.com/#thetahealth/mirobody&Date">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/svg?repos=thetahealth/mirobody&type=Date&theme=dark" />
+    <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/svg?repos=thetahealth/mirobody&type=Date" />
+    <img alt="Star History Chart" src="https://api.star-history.com/svg?repos=thetahealth/mirobody&type=Date" />
+  </picture>
+</a>
+
 [Documentation](docs/README.md) · [Roadmap](docs/roadmap.md) · [Changelog](CHANGELOG.md) · [Security](SECURITY.md) · [AGENTS.md](AGENTS.md)
 
 Apache 2.0 · © 2026 [Theta Health](https://thetahealth.ai)
