@@ -39,6 +39,11 @@
 - **A cited genotype has a citation id.** `query_genetic_data` rows carry a
   `rid` that resolves to the gene, rsID, call and upload file; a model given
   none wrote `r1` anyway.
+- **A value the report does not print is marked.** Each extracted
+  measurement is checked against the document's text; one the text lacks is
+  stored `llm-unverified`, stays in the record, and the agent is told to check
+  the file before relying on it. No correct value was flagged across 953 rows
+  of the OCR benchmark's stored extractions.
 
 ### Fixed
 
@@ -59,6 +64,12 @@
   glucose, with no range, was stored `high` on the model's say-so. A
   measurement's flag now needs a printed range or a printed marker
   (`6.49↑`, `5.6 H`).
+- **A self-hosted server named hosts outside it.** The built-in device
+  providers answered with logo URLs on Theta's CDN, and CDA with hl7.org; the
+  web client ships those logos, so `logo` is now empty for them.
+- **Physical-exam sites answered unrelated assays.** `胸廓` resolved to a breast
+  aspirate's microscopy and `口腔` to a 1-hour glucose challenge; 21 body-site and
+  department words now refuse. Found by the end-to-end run on a real checkup.
 - **`mirobody doctor --probe` misread Ollama twice.** It failed a server
   listing `minicpm5-2b:latest` and passed a GLM-OCR that never stopped. The
   local-models page also said a 4k Ollama context truncates silently (it
