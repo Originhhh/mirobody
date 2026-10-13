@@ -803,7 +803,7 @@ def _catalog_row(r: dict) -> dict:
         "kind": r.get("kind") or "",
         "count": int(r.get("count") or 0),
         "unit": r.get("unit") or "",
-        "latest_value": _text(r.get("latest_value")),
+        "latest_value": _shown(r.get("latest_value"), r.get("unit")),
         "first_date": r.get("first_date") or "",
         "last_date": r.get("last_date") or "",
         "total": int(r.get("total") or 0),
@@ -819,7 +819,7 @@ def _reading_row(r: dict) -> dict:
         "name": r.get("name_text") or "",
         "time": _text(r.get("local_time")),
         "date": _text(r.get("local_date")),
-        "value": _text(r.get("value_text")),
+        "value": _shown(r.get("value_text"), r.get("unit_text")),
         "unit": r.get("unit_text") or "",
         # The range as printed, empty when the report printed none: without
         # it a model judged against a range it remembered (1.5.4 local runs).
@@ -867,9 +867,9 @@ def _stats_row(r: dict) -> dict:
         "min": _number(r.get("min")),
         "max": _number(r.get("max")),
         "avg": _number(r.get("avg")),
-        "first": _text(r.get("first")),
+        "first": _shown(r.get("first"), r.get("unit")),
         "first_date": r.get("first_date") or "",
-        "last": _text(r.get("last")),
+        "last": _shown(r.get("last"), r.get("unit")),
         "last_date": r.get("last_date") or "",
         "unit": r.get("unit") or "",
         "mixed_units": bool(r.get("mixed_units")),
@@ -895,6 +895,18 @@ def _latest_row(r: dict) -> dict:
 
 def _text(value: object) -> str:
     return "" if value is None else str(value)
+
+
+def _shown(value: object, unit: object) -> str:
+    """The value without a copy of its unit. A value cell that printed its
+    unit ("170 ms") is stored as printed beside the unit column ("ms"), and a
+    page that sets the two side by side showed "170 ms ms"."""
+    text, unit = _text(value).strip(), _text(unit).strip()
+    if unit and text.casefold().endswith(unit.casefold()):
+        head = text[: -len(unit)].rstrip()
+        if head[-1:].isdigit():
+            return head
+    return _text(value)
 
 
 def _number(value: object) -> float | None:
