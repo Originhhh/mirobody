@@ -302,6 +302,72 @@ async def patch_reading(patch: ReadingPatch, user_id: str = Depends(verify_token
     return StandardResponse(data={"id": patch.id, "deleted": patch.delete})
 
 
+class CodeConfirmation(BaseModel):
+    """What a printed name means, said by a person about one reading.
+
+    A reading the vocabulary could not settle waits for input: `FPG 4.76`
+    with no unit printed is fasting glucose in mg/dL (1558-6) or mmol/L
+    (14771-0). Confirming the code does not establish the unit: provide `unit`
+    explicitly for this reading. The name's answer is kept, but a later
+    quantity with no unit still needs input before it can join the series.
+    """
+
+    id: int = Field(gt=0, description="observation row id, from the readings payload")
+    code: str | None = Field(None, max_length=20,
+                             description="LOINC code the name means; omit for \"not a standard test\"")
+    unit: str | None = Field(None, min_length=1, max_length=80,
+                            description="Unit explicitly confirmed for this reading when the report omitted it")
+
+
+@router.post("/health-indicators/confirm-code")
+async def confirm_code(body: CodeConfirmation, user_id: str = Depends(verify_token)):
+    """Confirm the code of a reading's printed name and recode its readings.
+
+    Rewrites how a record is coded, so it needs the same write grant as the
+    file-date route; an id the caller may not write reads as not found.
+    """
+    from mirobody.collect import observations
+    from mirobody.engine import get_resolver
+    from mirobody.units import normalize_unit
+    from mirobody.utils import execute_query
+
+    rows = await execute_query(
+        "SELECT user_id, name_key, unit_ucum, kind, value_kind, value_text FROM v_observation WHERE id = :id",
+        {"id": body.id}, log_sql=False) or []
+    owner = await subject_for(user_id, str(rows[0]["user_id"]), write=True) if rows else None
+    if owner is None:
+        return ErrorResponse(code=404, msg="No such reading.")
+    row = rows[0]
+    if row["kind"] not in (observations.KIND_MEASUREMENT, observations.KIND_FINDING):
+        return ErrorResponse(code=400, msg="Only a measured reading takes a LOINC code.")
+    code = (body.code or "").strip() or None
+    if code is not None and get_resolver().axes_of(code) is None:
+        return ErrorResponse(code=400, msg=f"{code} is not a LOINC code this release carries.")
+    unit = (body.unit or "").strip()
+    if unit and normalize_unit(unit) is None:
+        return ErrorResponse(code=400, msg="Provide a recognized measurement unit.")
+    if unit and row["unit_ucum"] and normalize_unit(unit) != row["unit_ucum"]:
+        return ErrorResponse(code=400, msg="Confirmation may only supply a missing or unrecognized unit.")
+    if code and row["value_kind"] == "quantity" and not (unit or row["unit_ucum"]) and get_resolver().unit_variants(code):
+        return ErrorResponse(code=400, msg="Provide the measurement unit; a LOINC code alone does not establish it.")
+    if unit and code and not get_resolver().variant_for_reading(code, row["value_text"], unit).code:
+        return ErrorResponse(code=400, msg="This unit does not match the confirmed measurement.")
+    confirmed_id = body.id
+    try:
+        if unit:
+            confirmed_id = await observations.amend(owner, body.id, unit_text=unit)
+            if confirmed_id is None:
+                return ErrorResponse(code=404, msg="No such reading.")
+        report = await observations.confirm_alias(
+            owner, str(row["name_key"]), str(row["unit_ucum"] or ""), code, confirmed_by=f"user:{user_id}")
+    except Exception as e:
+        logger.error("code confirmation failed: error_type=%s", type(e).__name__,
+                     exc_info=not is_driver_exception(e))
+        return ErrorResponse(code=500, msg="This update could not complete.")
+    return StandardResponse(data={"id": confirmed_id, "code": code, "recoded": report.changed,
+                                  "outcomes": report.outcomes})
+
+
 class FileDatePatch(BaseModel):
     """Re-file every reading extracted from one uploaded file under a date.
 

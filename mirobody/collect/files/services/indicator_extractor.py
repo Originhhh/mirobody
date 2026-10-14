@@ -162,7 +162,9 @@ def _as_printed(row: dict[str, Any]) -> dict[str, Any]:
     value = split_flag(str(row.get("value") or ""), str(row.get("reference_range") or ""))[0]
     judged = status_of(value, str(row.get("reference_range") or ""))
     keep = status in ("high", "low") and judged in ("", status)
-    return {**row, "status": status if keep else ""}
+    # `_printed_flag` is rule-parser evidence, not a field a model may
+    # assert about its own output when a provider ignores the closed schema.
+    return {**{k: v for k, v in row.items() if k != "_printed_flag"}, "status": status if keep else ""}
 
 
 class NothingStored(UploadError):

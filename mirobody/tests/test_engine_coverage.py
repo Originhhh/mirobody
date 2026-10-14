@@ -123,16 +123,34 @@ CASES: list[tuple[str, str, str]] = [
     ("sodium",                      r"sodium",                       r""),
     ("potassium",                   r"potassium",                    r""),
     ("albumin",                     r"albumin",                      r"urine|globulin ratio"),
+    ("transthyretin",                r"prealbumin",                   r"binding|mass\]"),
+    # Each answered a binding protein: 14016-0 (thyroxine bound to TBG) or,
+    # for `GLB`, 13967-5 (SHBG). A liver panel's globulin joined a thyroid series.
+    ("球蛋白",                        r"^globulin \[",                 r"binding|albumin"),
+    ("Globulin",                    r"^globulin \[",                 r"binding|albumin"),
+    ("GLB",                         r"^globulin \[",                 r"binding|albumin"),
     ("total bilirubin",             r"bilirubin",                    r"direct|conjugated"),
     ("Serum Total Bilirubin",       r"bilirubin",                    r"direct|conjugated|end-stage"),
     ("uric acid",                   r"urate|uric acid",              r""),
     # ── liver enzymes ────────────────────────────────────────────────────────
     ("ALT",                         r"alanine aminotransferase",     r""),
     ("AST",                         r"aspartate aminotransferase",   r""),
+    # Report spellings that resolved to nothing: a doubled `氨基转氨酶`, and
+    # the GGT Greek letter printed as `r`.
+    ("丙氨酸氨基转氨酶",                r"alanine aminotransferase",     r""),
+    ("天门冬氨酸氨基转氨酶",              r"aspartate aminotransferase",   r""),
+    ("γ-谷氨酰基转肽酶",               r"gamma glutamyl transferase",   r""),
+    ("r-GT",                        r"gamma glutamyl transferase",   r""),
     # A hyphenated tail that names a COMPONENT of the parent analyte. The
     # hyphen rule used to strip it and answer the parent: total CK for the
     # MB isoenzyme, total LDH for LDH1, total ALP for bone ALP.
     ("Creatine Kinase-MB",          r"creatine kinase\.MB",          r"Creatine kinase \["),
+    # Glued CamelCase from a LIS export resolved to nothing; `eGFR` and
+    # `HbA1c` must not be split by the same rule.
+    ("TotalCholesterol",            r"^cholesterol \[",              r"LDL|HDL|VLDL"),
+    ("HemoglobinA1c",               r"hemoglobin a1c",               r""),
+    ("AlanineAminotransferase-ALT", r"alanine aminotransferase",     r""),
+    ("CreatineKinase-MB",           r"creatine kinase\.MB",          r"Creatine kinase \["),
     ("Creatine Kinase MB",          r"creatine kinase\.MB",          r"Creatine kinase \["),
     ("肌酸激酶同工酶",                 r"creatine kinase\.MB",          r"interpretation"),
     ("Lactate Dehydrogenase-LDH1",  r"lactate dehydrogenase 1",      r""),
@@ -647,6 +665,9 @@ READING_CASES: list[tuple[str, str, str, str, str]] = [
     # body-surface term; the eGFR spelling with a multiplication sign parses.
     ("CA19-9",          "15.3", "U/mL",  "24108-3", "arbitrary units, not catalytic"),
     ("ALT",             "25",  "U/L",    "1742-6",  "catalytic, unchanged"),
+    ("谷丙转氨酶",          "30",  "IU/L",   "1742-6",  "an enzyme printed in IU/L"),
+    ("γ-谷氨酰转肽酶",      "28",  "IU/L",   "2324-2",  "an enzyme printed in IU/L"),
+    ("促卵泡激素",          "6.2", "IU/L",   "15067-2", "a hormone in IU/L stays ACnc"),
     ("MCV",             "87.4", "fL",    "30428-7", "entitic mean volume"),
     ("eGFR",            "88",  "mL/(min×1.73 m^2)", "48642-3", "areic volume rate"),
     ("eGFR",            "30",  "mL/min", "48642-3", "eGFR without the area term"),
@@ -1297,7 +1318,8 @@ def test_a_catalogue_alias_lets_the_unit_pick_the_variant():
     """The catalogue says `bloodGlucoses` is 2339-0, glucose as a mass
     concentration in blood; a Honor watch prints mmol/L. The alias names the
     analyte and the unit picks the sibling. A unit that fits no sibling
-    leaves the alias's code: the alias is a decision, not a guess."""
+    leaves the alias's code: the alias is a decision, not a guess. Missing
+    units still need input; an alias cannot create a canonical quantity."""
     from mirobody import translate
     from mirobody.translate.parse import KIND_QUANTITY
 
@@ -1312,7 +1334,8 @@ def test_a_catalogue_alias_lets_the_unit_pick_the_variant():
 
     assert run("5.6", "mmol/L").code == "15074-8"
     assert run("101", "mg/dL").code == "2339-0"
-    assert run("5.6", "").code == "2339-0"
+    assert run("5.6", "").outcome == "needs-input"
+    assert run("5.6", "").reason == "unit:missing"
     odd = run("5.6", "%")
     assert odd.coded and odd.code == "2339-0"
 

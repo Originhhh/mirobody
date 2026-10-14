@@ -11,6 +11,7 @@ from datetime import datetime
 from typing import Any
 
 from mirobody.kernel.ops import is_driver_exception
+from mirobody.translate import build_apple_priority_case
 from mirobody.utils import execute_query
 
 logger = logging.getLogger(__name__)
@@ -18,7 +19,13 @@ logger = logging.getLogger(__name__)
 # Rows per executemany.
 _BATCH_SIZE = 10000
 
-_UPSERT_POINTS = """
+_CURRENT_PRIORITY = build_apple_priority_case("series_data.source", "series_data.source_id")
+_INCOMING_PRIORITY = build_apple_priority_case("EXCLUDED.source", "EXCLUDED.source_id")
+
+# The buffer's key does not include source_id. For an export's same-instant
+# device collision, keep the same valid winner the daily aggregator would
+# elect; a repeated reading from that device still applies its correction.
+_UPSERT_POINTS = f"""
     INSERT INTO series_data (user_id, indicator, source, time, value, timezone, task_id, source_id, create_time, update_time)
     VALUES (:user_id, :indicator, :source, :time, :value, :timezone, :task_id, :source_id, now(), now())
     ON CONFLICT (user_id, indicator, source, time)
@@ -29,8 +36,21 @@ _UPSERT_POINTS = """
       task_id = EXCLUDED.task_id,
       source_id = EXCLUDED.source_id,
       update_time = now()
-    WHERE series_data.value IS DISTINCT FROM EXCLUDED.value
-       OR series_data.task_id IS DISTINCT FROM EXCLUDED.task_id
+    WHERE (
+      series_data.value IS DISTINCT FROM EXCLUDED.value
+      OR series_data.task_id IS DISTINCT FROM EXCLUDED.task_id
+      OR (series_data.source = 'apple_health_export' AND series_data.source_id IS DISTINCT FROM EXCLUDED.source_id)
+    ) AND (
+      series_data.source IS DISTINCT FROM 'apple_health_export'
+      OR series_data.source_id IS NOT DISTINCT FROM EXCLUDED.source_id
+      OR (
+        EXCLUDED.task_id IS NOT DISTINCT FROM 'filtered_out_of_range',
+        ({_INCOMING_PRIORITY}), EXCLUDED.source_id IS NULL, COALESCE(EXCLUDED.source_id, '')
+      ) <= (
+        series_data.task_id IS NOT DISTINCT FROM 'filtered_out_of_range',
+        ({_CURRENT_PRIORITY}), series_data.source_id IS NULL, COALESCE(series_data.source_id, '')
+      )
+    )
 """
 
 
@@ -46,7 +66,8 @@ class HealthDataRepository:
         Each record carries `user_id`, `indicator`, `value`, `start_time` (the
         point's naive UTC instant), `source`, `timezone`, and optionally
         `task_id` and `source_id`. A point already stored with the same value
-        and task id is left as it is. Returns whether every batch was written.
+        and task id is left as it is, unless an export elects a better device
+        under the same key. Returns whether every batch was written.
         """
         if not records:
             return True

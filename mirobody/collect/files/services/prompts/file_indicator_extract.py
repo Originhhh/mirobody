@@ -102,7 +102,7 @@ ECG, EEG, pulmonary function, audiometry, visual acuity, etc.
 | unit | The unit EXACTLY as printed beside the value (e.g., "g/L", "mmol/L", "×10⁹/L"), or empty string if none |
 | reference_range | The reference range EXACTLY as printed (e.g., "4.0-10.0", "<5.2"), empty string if none |
 | detection_method | "laboratory" / "Imaging" / "Physiological" / "Pathological" / "wearable" |
-| status | "normal" / "high" / "low" as the report flags it, or by comparing with the reference range |
+| status | "high" / "low" as the report flags it (an arrow, H/L, 偏高/偏低), or by comparing with the reference range printed on this row; "normal" when neither says otherwise. Never judge a value from general knowledge |
 | notes | Clinical significance or abnormality explanation in user's language |
 | date_time | The date (and time) printed on THIS row, YYYY-MM-DD HH:MM:SS, when rows carry their own dates (a log, a table by day); empty string when the row has the document's date |
 
@@ -119,7 +119,7 @@ ECG, EEG, pulmonary function, audiometry, visual acuity, etc.
 
 ## General Rules:
 1. **Completeness**: Extract ALL indicators from the report - do NOT omit any test results
-2. **Status**: Always one of: "normal", "high", "low" (compare with reference range)
+2. **Status**: Always one of: "normal", "high", "low", from the report's own flag or its printed range only
 3. **Detection Method**: Always one of: "laboratory", "Imaging", "Physiological", "Pathological", "wearable"
 4. **Units**: `unit` holds the unit; `value` never repeats it
 5. **Language**: Only `notes` is written in the user's language ({language}). `original_indicator`, `value`, `unit` and `reference_range` are copied from the report verbatim, whatever its language, abbreviations and `#` / `%` suffixes included. The printed name is the key the standardization stage looks up — a translated one resolves to no code, or to a different measurement, and `中性粒细胞#` and `中性粒细胞%` are two different measurements

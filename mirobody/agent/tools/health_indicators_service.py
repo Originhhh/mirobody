@@ -54,7 +54,7 @@ from mirobody.kernel import query, series, tools
 from mirobody.kernel.ops import is_driver_exception
 from ._authz import refused
 from ._base import CITATION_SESSION, RecordTool
-from ._render import awaited, envelope_meta, render_compact
+from ._render import RID_NOTE, awaited, envelope_meta, render_compact
 
 logger = logging.getLogger(__name__)
 
@@ -77,8 +77,6 @@ _WORDS_NOTE = (
 )
 _SELF_DIAGNOSED_NOTE = "a condition entry is what the person reports being diagnosed with, not a clinical record"
 
-#: Repeated with every citable answer: a small model drops standing rules.
-_RID_NOTE = "cite the rows a number comes from: <statement>…<cite>[r3][r9]</cite></statement>"
 
 #: Said on a day, week or month view: each of those reads one value per day
 #: (`collect/query.py::_DAY_AUTHORITY_CTE`), while `stats` counts every
@@ -321,7 +319,7 @@ def _envelope_for(
         assumptions.append("some rows predate the stored local day; their window is padded a day each way")
     assumptions.append(_ABSENCE_NOTE)
     if any(r.get("rid") for r in rows):
-        assumptions.append(_RID_NOTE)
+        assumptions.append(RID_NOTE)
     reported = [r for r in rows if r.get("provenance") == tools.PROVENANCE_REPORTED]
     if reported:
         assumptions.append(_WORDS_NOTE)

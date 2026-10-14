@@ -17,7 +17,6 @@ on:
   push:
     branches: [ main ]
   pull_request:
-    branches: [ main, master, develop ]
 
 jobs:
   test-build:
@@ -25,6 +24,20 @@ jobs:
     strategy:
       matrix:
         python-version: ['3.12', '3.13']
+
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_DB: mirobody_regression
+          POSTGRES_HOST_AUTH_METHOD: trust
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d mirobody_regression"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
 
     steps:
     # lfs: true is load-bearing here for the same reason it is in
@@ -73,6 +86,11 @@ jobs:
         # Must run against the repo source. In a venv holding an installed
         # older wheel it passes vacuously.
         lint-imports
+
+    - name: PostgreSQL regression gate
+      env:
+        MIROBODY_TEST_POSTGRES_DSN: postgresql://postgres@127.0.0.1:5432/mirobody_regression
+      run: pytest -q mirobody/tests/test_postgres_regressions.py
 
     # The lint gate. The rule set lives in pyproject.toml ([tool.ruff]) and is
     # narrow by design: undefined names, unused imports, duplicate definitions,

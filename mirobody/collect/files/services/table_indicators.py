@@ -836,6 +836,9 @@ def _reading(row: list[str], columns: dict[str, int], *, borrowed: bool) -> list
         "reference_range": ref,
         "detection_method": "laboratory",
         "status": printed_flag(flag),
+        # The store must distinguish this copied flag from a model's judgement
+        # when a report prints H/L or an arrow without a reference range.
+        "_printed_flag": flag,
         "notes": "",
         "_date": _cell(row, columns, "date"),
     }

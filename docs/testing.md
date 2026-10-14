@@ -72,14 +72,35 @@ a clone can re-run it.
 
 | Module | Covers | Notes |
 | --- | --- | --- |
-| `test_engine_coverage.py` | **the published accuracy number** | 325 cases: the panels an ordinary checkup prints, in English, 简体中文, 繁體中文, 日本語, Russian, Estonian and Turkish, plus device vocabulary, report shapes (`名称(缩写)`, `Name-ABBREV`, snake_case, full-width), unit-dependent codes and non-numeric readings. Run with `-s` to print the score; `COVERAGE_FLOOR = 1.0` |
+| `test_engine_coverage.py` | **the published accuracy number** | 337 cases: the panels an ordinary checkup prints, in English, 简体中文, 繁體中文, 日本語, Russian, Estonian and Turkish, plus device vocabulary, report shapes (`名称(缩写)`, `Name-ABBREV`, snake_case, full-width), unit-dependent codes and non-numeric readings. Run with `-s` to print the score; `COVERAGE_FLOOR = 1.0` |
 | `test_cross_language_identity.py` | one analyte, one code, in every language | `SAME_ANALYTE` rows must agree; `KNOWN_SPLITS` are the rows that do not yet, each a strict xfail that fails once fixed, so the row moves up |
 | `test_skills.py` | agent skill commands, frontmatter, Compose names and resolver examples | ships in the wheel and sdist as public evidence; it skips the repository-only skill files when run from `site-packages` |
 | `test_security_gates.py` | the server's security decisions: the OAuth return URL, the second factor for a token in the query string, upload ownership, the placeholder `JWT_KEY`, the response headers | needs `[app]` and skips without it. Each case was reproduced on a running server before its fix |
+| `test_resolver_regressions.py` | patient/object identity, singular/plural ranking and meaningful CamelCase qualifiers | library-only; failures name the input and the clinical axes |
+| `test_collect_regressions.py` | Apple hub priority, report-printed H/L markers and VCF `loc:` citation identities | application cases skip safely on a minimal install |
+| `test_confirmation_regressions.py` | confirmed aliases still need units; explicit units use observation amendments | pure coding checks run without `[app]`; route checks need it |
+| `test_postgres_regressions.py` | actual schema, writer, confirmation, statistics, Apple import/re-import and citation lifecycle | needs `[app,test]` and `MIROBODY_TEST_POSTGRES_DSN`; CI supplies PostgreSQL 17 |
 
 ```bash
 pytest mirobody/tests/test_engine_coverage.py -s
 ```
+
+To run the database gate against a disposable PostgreSQL database:
+
+```bash
+MIROBODY_TEST_POSTGRES_DSN=postgresql://localhost/mirobody_regression \
+  pytest -q mirobody/tests/test_postgres_regressions.py
+```
+
+The database user must be able to create schemas. Each case creates a unique
+schema, loads the checked-in DDL, writes synthetic data and drops the schema
+in `finally`. The fixtures' encryption functions are identity functions for
+synthetic SQL round trips; encryption itself is covered by the security gates.
+The connection searches only that schema, and background profile refresh is
+disabled, so the fixture cannot fall through to another schema's application
+tables or enqueue model work.
+Without the DSN these database cases skip explicitly. With a DSN, missing
+application dependencies or an unreachable database fail the run.
 
 The daily-rollup aggregator has a maintainer script there too; it needs a
 live database and a real user id, and the day-boundary rule it checks (a

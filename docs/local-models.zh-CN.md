@@ -179,9 +179,9 @@ LOCAL_OCR_MODEL=glm-ocr        # 读报告照片和扫描页
 
 任何 OpenAI 兼容的服务都能用：设置那两个地址，以及它提供的模型名（用 `curl <address>/v1/models` 查），可以在设置页上设置，也可以写成 `LOCAL_MODEL` 和 `LOCAL_OCR_MODEL`。
 
-**Ollama。** `ollama pull qwen3.8:27b`（17 GB）在大号早先那组题（8 道题各问两遍）上全部答对，而且最快。有两件事要知道：
+**Ollama。** `ollama pull qwen3.8:27b`（17 GB）在大号早先那组题（8 道题各问两遍）上全部答对。Ollama 0.40 跑 GGUF 模型时底层就是 llama-server，所以并不更快：同一个小号文件每秒 88.5 对 88.7 个 token（2026-10-08）。有两件事要知道：
 
-- Ollama 会按 GPU 内存设置上下文长度，显存低于 24 GB 时是 4,096 个 token，会把 Mirobody 的提示词截断却不报错。请在 `ollama serve` 之前设置 `OLLAMA_CONTEXT_LENGTH=65536`。
+- Ollama 会按 GPU 内存设置上下文长度，显存低于 24 GB 时是 4,096 个 token。Mirobody 的提示词比这长，每个请求都会返回 HTTP 400（`exceed_context_size_error`）。请在 `ollama serve` 之前设置 `OLLAMA_CONTEXT_LENGTH=65536`。
 - 在 0.34.1 及之后的版本里，它的 `glm-ocr` 读完一页之后不会停下来（[ollama/ollama#18609](https://github.com/ollama/ollama/issues/18609)）。在这个问题修好之前，文档部分请继续用 llama.cpp。
 
 **Ternary Bonsai 2 27B** 是同一个 Qwen3.8-27B 压缩到 6.6 GB 的版本，答得一样好，但目前只有 PrismML 的 [llama.cpp 分支](https://github.com/PrismML-Eng/llama.cpp)能运行它。一旦上游 llama.cpp 支持它，它就是大号的候选，下载量减半。

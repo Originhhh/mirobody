@@ -137,6 +137,7 @@ _EXPORTS = {
     "start_derived_scheduler": "derive.task",
     "AggregateIndicatorService": "aggregate.service",
     "AggregateDatabaseService": "aggregate.database_service",
+    "build_apple_priority_case": "aggregate.aggregators.source_id_priority",
     "build_indicator_name": "aggregate.naming",
     "get_all_aggregation_rules": "aggregate.rule_generator",
 }
@@ -156,6 +157,7 @@ if TYPE_CHECKING:  # static analyzers resolve the real symbols
         normalize_indicator_name,
     )
     from .aggregate.database_service import AggregateDatabaseService
+    from .aggregate.aggregators.source_id_priority import build_apple_priority_case
     from .aggregate.naming import build_indicator_name
     from .aggregate.rule_generator import get_all_aggregation_rules
     from .aggregate.service import AggregateIndicatorService

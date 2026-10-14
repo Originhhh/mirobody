@@ -80,6 +80,9 @@ class PharmacogenomicsService(RecordTool):
             source_note(active),
             "CPIC A/B marks a gene-drug guideline, not a patient-specific phenotype or prescribing advice",
             "array calls alone cannot establish phase, copy number or exclusion of untyped alleles",
+            # Computed now, so there is no stored row to cite; a model given
+            # no rid cited a genotype as `r1` all the same (2026-10-10).
+            "these rows carry no rid: cite a genotype from query_genetic_data",
         ]
         if not drugs and not genes:
             medication_service = self._medication_service

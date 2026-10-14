@@ -95,6 +95,9 @@ blood sugar	Glucose
 # A post-meal reading is its own code, not plain glucose: 16915-1 when the
 # report does not say how long after, 1521-4 when it says two hours.
 postprandial blood glucose	Glucose^post meal
+# PBG alone also names porphobilinogen synthase; the full label disambiguates
+# it without weakening the guard for HDL, OGTT or specimen qualifiers.
+Postprandial Blood Glucose-PBG	Glucose^post meal
 postprandial glucose	Glucose^post meal
 post prandial blood sugar	Glucose^post meal
 PPBS	Glucose^post meal
@@ -104,6 +107,9 @@ PPG	Glucose^post meal
 BUN	Urea nitrogen
 total bilirubin	Bilirubin
 bilirubin total	Bilirubin
+# The clinical synonym is a concentration assay; its exact COMPONENT match
+# is the uncommon total-mass reading 94860-4, which cannot accept mg/dL.
+transthyretin	Prealbumin
 
 # ── liver enzymes ────────────────────────────────────────────────────────
 # Bare acronyms are how every report actually prints these.
@@ -602,6 +608,7 @@ Cr	Creatinine
 CREA	Creatinine
 UA	Urate
 TP	Protein
+GLB	Globulin
 CK	Creatine kinase
 # `FER` is ferritin on a lab slip, and the index answered 2498-4 Iron
 # [Mass/volume]. No English designation holds the letters: LOINC's French
@@ -1008,6 +1015,17 @@ eGFR	Glomerular filtration rate
 脂蛋白a	Lipoprotein (a)
 餐后2小时血糖	Glucose^2H post meal
 γ-谷氨酰基转移酶	Gamma glutamyl transferase
+# `氨基转氨酶` doubles the word a report means as `氨基转移酶`, and the GGT
+# Greek letter is printed or read as `r`. All of these resolved to nothing.
+丙氨酸氨基转氨酶	Alanine aminotransferase
+天门冬氨酸氨基转氨酶	Aspartate aminotransferase
+天冬氨酸氨基转氨酶	Aspartate aminotransferase
+门冬氨酸氨基转氨酶	Aspartate aminotransferase
+γ-谷氨酰基转肽酶	Gamma glutamyl transferase
+r-谷氨酰转肽酶	Gamma glutamyl transferase
+r-谷氨酰基转移酶	Gamma glutamyl transferase
+γ-GT	Gamma glutamyl transferase
+r-GT	Gamma glutamyl transferase
 碱性磷酸酶ALP	Alkaline phosphatase
 尿素氮BUN	Urea nitrogen
 总胆固醇TC	Cholesterol
@@ -1151,6 +1169,12 @@ osmolality urine	Osmolality of Urine
 serum osmolality	Osmolality of Serum or Plasma
 plasma osmolality	Osmolality of Serum or Plasma
 osmolality serum	Osmolality of Serum or Plasma
+# A bare `渗透压` / `osmolality` is the serum test. LOINC names the serum and
+# urine codes' COMPONENT `Observation`, so only 24-hour urine (114502-8)
+# matches the word itself and the exact-component rank would pick it.
+渗透压	Osmolality of Serum or Plasma
+滲透壓	Osmolality of Serum or Plasma
+osmolality	Osmolality of Serum or Plasma
 
 # ── body composition and HRV, the same test ────────────────────────────
 # `Bone percentage` reached 15013-6, the bone share of alkaline phosphatase.
@@ -1179,7 +1203,7 @@ heart rate variability (RMSSD)	!unresolved
 Тромбоциты	platelet count
 Количество тромбоцитов	platelet count
 Количество лейкоцитов	leukocytes
-Количество эритроцитов	erythrocyte
+Количество эритроцитов	RBC # Bld
 Гемоглобин общий	hemoglobin
 Распределение эритроцитов по объему	RDW
 Ширина распределения эритроцитов	RDW
