@@ -26,10 +26,15 @@ swollen ankles	KS04
 pain all over	AS01
 aching all over	LS17
 cold hands and feet	AS99.00
+sweating a lot	AS10
+sweaty	AS10
+chest hurts	AS12
 # ── digestive ─────────────────────────────────────────────────────────────
 tummy ache	DS01	ICPC-3 files the literal "stomach ache" under DS02, epigastric
 belly ache	DS01
 stomach cramps	DS01
+stomach ache	DS02	the literal phrasing; see the DS01 note above
+stomach pain	DS02
 indigestion	DS07
 acid reflux	DS03
 throwing up	DS10
@@ -49,41 +54,57 @@ bad breath	DS20.02
 mouth ulcer	DS20
 trouble swallowing	DS21
 food gets stuck	DS21
+mouth feels dry	DS20.00
 # ── eye, ear ──────────────────────────────────────────────────────────────
 blurry vision	FS05
 can't see properly	FS05
 gritty eyes	FS07
+dry eyes	FS07
 watery eyes	FS03.00
 ringing in my ears	HS03
 ears ringing	HS03
+tinnitus	HS03
+buzzing in my ears	HS03
 earache	HS01
 can't hear properly	HS02
 # ── heart, circulation ────────────────────────────────────────────────────
 heart racing	KS02
 heart pounding	KS02
+palpitations	KS02
 skipped beats	KS03
 tight chest	RS99
 high blood pressure reading	KS51
 low blood pressure reading	KS50
 # ── musculoskeletal ───────────────────────────────────────────────────────
 stiff neck	LS01
+neck pain	LS01
+sore neck	LS01
 sore back	LS02
 bad back	LS02
+back pain	LS02
 lower back pain	LS03
 sore shoulder	LS07
+shoulder pain	LS07
 sore knee	LS14
 swollen knee	LS14
+knee pain	LS14
 sore feet	LS16
 achy joints	LS20
+aching joints	LS20
 stiff joints	LS20
+joint pain	LS20
 cramps	!ambiguous	leg cramps (LS13) or period pain (GS05)
 # ── neurological ──────────────────────────────────────────────────────────
+headaches	NS01	plural of the preferred term, which already matches singular
 pins and needles	NS04
 numb fingers	NS04
+tingling fingers	NS04
 dizzy	NS09
 light-headed	NS09.00
 room spinning	NS09.01
 shaky hands	NS07
+shaky	NS07
+trembling hands	NS07
 slurring my words	NS11
 # ── psychological ─────────────────────────────────────────────────────────
 feeling low	PS03
@@ -91,11 +112,16 @@ feeling down	PS03
 on edge	PS01
 wound up	PS01
 panicky	PS01
+anxious	PS01
+nervous	PS01
 stressed	PS02
+stressed out	PS02
 short fuse	PS04
+irritable	PS04
 can't sleep	PS06
 trouble sleeping	PS06
 waking up at night	PS06
+sleeping badly	PS06
 forgetful	PS17
 can't concentrate	PS17
 brain fog	PS17
@@ -106,35 +132,49 @@ out of breath	RS02
 winded	RS02
 chesty cough	RS07
 tickly cough	RS07
+coughing	RS07
 stuffy nose	RS09
 blocked up nose	RS09
 runny nose	RS09
+sneezing	RS09
 sore throat	RS12.00
 scratchy throat	RS12
 lost my voice	RS13
 croaky voice	RS13
 coughing up blood	RS14
+coughing up phlegm	RS15
+phlegm	RS15
 hiccups	RS99.00
 # ── skin ──────────────────────────────────────────────────────────────────
 itchy	SS02
 itchy skin	SS02
+itching	SS02
 rash	SS05
 spots	SS05
 flaky skin	SS08
 losing my hair	SS10
 thinning hair	SS10
+hair loss	SS10
+hair falling out	SS10
 pale	SS07
 dark circles	SS07
 # ── appetite, weight, urinary ─────────────────────────────────────────────
 off my food	TS03
 no appetite	TS03
+not hungry	TS03
+lost my appetite	TS03
 losing weight	TS07
+dropping weight	TS07
 putting on weight	TS06
+gaining weight	TS06
 always thirsty	TS01
 drinking a lot	TS01
+really thirsty	TS01
 burning when I pee	US01
 peeing a lot	US02
 up all night to pee	US02
+weeing a lot	US02
+needing to pee all the time	US02
 blood in my pee	US06
 can't hold it	US03
 can't pass urine	US04
