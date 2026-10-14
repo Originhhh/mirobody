@@ -111,13 +111,15 @@ COMPOSE_PROFILES=local ./deploy.sh         # the stack, plus the `llama` service
 
 **Windows**, to use any GPU (Intel, AMD or NVIDIA, through Vulkan; with no GPU,
 start it with `docker\local-models-cpu.ini` instead). winget's `ggml.llamacpp` is llama.cpp's own Vulkan release
-build, for x64 and arm64. In PowerShell, from the checkout in WSL (`Ubuntu` is
-the distribution's name in `wsl -l`), so that the preset's relative path
-resolves:
+build, for x64 and arm64. In PowerShell, use a checkout on a Windows drive so
+that the preset's relative path resolves. The tested native launcher refused
+the UNC working directory `\\wsl.localhost\...`; keep the app's WSL checkout
+and this Windows checkout on the same release:
 
 ```powershell
 winget install --id ggml.llamacpp
-cd \\wsl.localhost\Ubuntu\home\<you>\mirobody
+git clone https://github.com/thetahealth/mirobody.git C:\src\mirobody
+cd C:\src\mirobody
 llama-server --models-preset docker\local-models.ini --port 8080 --models-max 2
 ```
 
@@ -126,8 +128,14 @@ which reaches a server on the host's `127.0.0.1`: measured on a Mac (colima)
 and on Windows 11 with Docker Desktop 4.95 (2026-10-12), with no `--host` and
 no firewall rule. For a CUDA build instead of the Vulkan one, pick it by the
 card: an RTX 50 card (compute capability 12.0, `nvidia-smi
---query-gpu=compute_cap --format=csv`) needs a CUDA 13 build, since CUDA 12.4
-has no kernels for it.
+--query-gpu=compute_cap --format=csv`) cannot use the recorded b11429 release's
+CUDA 12.4 Windows build; select its CUDA 13.4 build and matching DLLs. Other
+releases must likewise include kernels for the card.
+
+The [Windows benchmark](../benchmarks/windows/README.md) records the tested
+hardware, speed matrix, CPU thread sweep and reproduction commands. Its Q8_0
+is the **weight** quantization; the GPU preset separately uses an 8-bit KV
+cache at 64k context, while the CPU preset keeps 32k with a 16-bit KV cache.
 
 **Linux with another GPU** (AMD, Intel) or no Docker for the models: a
 [llama.cpp release](https://github.com/ggml-org/llama.cpp/releases) build for

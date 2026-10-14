@@ -62,15 +62,18 @@ llama-server --models-preset docker/local-models.ini --port 8080 --models-max 2
 COMPOSE_PROFILES=local ./deploy.sh         # 服务加上运行在 CUDA 镜像上的 `llama` 服务
 ```
 
-**Windows**，要用任何显卡（Intel、AMD 或 NVIDIA，经 Vulkan；没有显卡时改用 `docker\local-models-cpu.ini` 启动）。winget 的 `ggml.llamacpp` 是 llama.cpp 官方的 Vulkan 发行版，有 x64 和 arm64 两种。在 PowerShell 里，从 WSL 里的检出目录进入（`Ubuntu` 是 `wsl -l` 里那个发行版的名字），这样预设里的相对路径才能解析：
+**Windows**，要用任何显卡（Intel、AMD 或 NVIDIA，经 Vulkan；没有显卡时改用 `docker\local-models-cpu.ini` 启动）。winget 的 `ggml.llamacpp` 是 llama.cpp 官方的 Vulkan 发行版，有 x64 和 arm64 两种。在 PowerShell 里使用 Windows 本地磁盘上的检出目录，让预设中的相对路径可以解析。实测的原生启动方式拒绝了 `\\wsl.localhost\...` 这个 UNC 工作目录；应用在 WSL 中的检出目录和这份 Windows 检出目录应使用同一发布版本：
 
 ```powershell
 winget install --id ggml.llamacpp
-cd \\wsl.localhost\Ubuntu\home\<you>\mirobody
+git clone https://github.com/thetahealth/mirobody.git C:\src\mirobody
+cd C:\src\mirobody
 llama-server --models-preset docker\local-models.ini --port 8080 --models-max 2
 ```
 
-设置页会通过 Docker Desktop 的 `host.docker.internal` 去找它，这个地址能连到主机 `127.0.0.1` 上的服务：在 Mac（colima）和 Windows 11 + Docker Desktop 4.95 上都测过（2026-10-12），不需要 `--host`，也不需要配防火墙规则。如果不用 Vulkan 版、改用 CUDA 构建，要按显卡选：RTX 50 系（计算能力 12.0，用 `nvidia-smi --query-gpu=compute_cap --format=csv` 查看）需要 CUDA 13 的构建，因为 CUDA 12.4 没有它的内核。
+设置页会通过 Docker Desktop 的 `host.docker.internal` 去找它，这个地址能连到主机 `127.0.0.1` 上的服务：在 Mac（colima）和 Windows 11 + Docker Desktop 4.95 上都测过（2026-10-12），不需要 `--host`，也不需要配防火墙规则。如果不用 Vulkan 版、改用 CUDA 构建，要按显卡选：RTX 50 系（计算能力 12.0，用 `nvidia-smi --query-gpu=compute_cap --format=csv` 查看）不能使用实测 b11429 发行版里的 CUDA 12.4 Windows 构建；应选择它的 CUDA 13.4 构建和匹配的 DLL。使用其他发行版时，也要确认构建包含该显卡的内核。
+
+[Windows 测试记录](../benchmarks/windows/README.md) 列出了实测硬件、速度矩阵、CPU 线程测试和复现命令。这里的 Q8_0 指**模型权重量化**；GPU 预设另用 64k 上下文和 8 位 KV 缓存，CPU 预设则保留 32k 上下文和 16 位 KV 缓存。
 
 **用别的显卡（AMD、Intel）的 Linux**，或者模型不想用 Docker：找一个对应的 [llama.cpp 发行版](https://github.com/ggml-org/llama.cpp/releases)构建，用同一行 `llama-server` 命令；没有显卡时用 `docker/local-models-cpu.ini`。
 

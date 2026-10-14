@@ -1,0 +1,94 @@
+{
+ "size": "win-docker-cpu-1",
+ "agent": "minicpm5-2b",
+ "started": "2026-10-13T11:23:08+08:00",
+ "parts": [
+  "qa"
+ ],
+ "switch": {
+  "agent": "minicpm5-2b",
+  "ocr": "glm-ocr",
+  "switch_s": 52.3,
+  "load_s": 15.0,
+  "local_models": {
+   "agent": "minicpm5-2b",
+   "utils": "minicpm5-2b",
+   "ocr": "glm-ocr"
+  }
+ },
+ "models": [
+  {
+   "id": "minicpm5-2b",
+   "hf_repo": "openbmb/MiniCPM5-2B-GGUF:Q8_0",
+   "ctx_size": "32768",
+   "parallel": "2",
+   "files": []
+  },
+  {
+   "id": "glm-ocr",
+   "hf_repo": "ggml-org/GLM-OCR-GGUF:Q8_0",
+   "ctx_size": "16384",
+   "parallel": "2",
+   "files": []
+  }
+ ],
+ "memory_idle": {
+  "at": "2026-10-13T11:24:00+08:00",
+  "processes": [],
+  "children_rss_mb": 0,
+  "children_footprint_mb": null,
+  "swap_used_mb": null
+ },
+ "passes": [
+  {
+   "parts": [
+    "qa"
+   ],
+   "started": "2026-10-13T11:24:00+08:00",
+   "resources": {
+    "disk_free_gb": 953.4,
+    "memory_free_pct": null,
+    "swap_used_mb": null,
+    "load_1m": 3.7,
+    "cpus": 16
+   },
+   "mirobody_commit": "df5f62a830a4bf9e99d49daa7c513134fec5d88d",
+   "mirobody_dirty": true,
+   "loaded": [
+    "glm-ocr",
+    "minicpm5-2b"
+   ],
+   "memory": {
+    "at": "2026-10-13T11:24:00+08:00",
+    "processes": [],
+    "children_rss_mb": 0,
+    "children_footprint_mb": null,
+    "swap_used_mb": null
+   },
+   "memory_run": {
+    "samples": 314,
+    "peak_rss_mb": 0,
+    "peak_footprint_mb": null
+   },
+   "memory_after_qa": {
+    "at": "2026-10-13T13:08:38+08:00",
+    "processes": [],
+    "children_rss_mb": 0,
+    "children_footprint_mb": null,
+    "swap_used_mb": null,
+    "disk_free_gb": 953.4,
+    "memory_free_pct": null,
+    "load_1m": 16.2,
+    "cpus": 16
+   },
+   "finished": "2026-10-13T13:08:38+08:00"
+  }
+ ],
+ "memory_run": {
+  "samples": 314,
+  "peak_rss_mb": 0,
+  "peak_footprint_mb": null
+ },
+ "background_tasks_drained_s": 0.2,
+ "finished": "2026-10-13T13:08:38+08:00"
+}

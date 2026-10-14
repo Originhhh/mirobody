@@ -86,7 +86,7 @@ jobs:
         # `tests/test_examples.py` executes them. The local battery has always
         # linted both; CI checking only `mirobody` meant an examples-only
         # regression was invisible here.
-        ruff check mirobody examples
+        ruff check mirobody examples benchmarks/windows
 
     # Comment style, which ruff cannot see: block length and em-dashes in
     # prose. The thresholds and what they were measured against are in the
@@ -157,6 +157,24 @@ jobs:
         path: dist/
         retention-days: 7
 
+  windows-benchmark:
+    runs-on: windows-latest
+    steps:
+    - uses: actions/checkout@v4
+    - uses: actions/setup-python@v5
+      with:
+        python-version: '3.12'
+    - name: Source benchmark regressions without model downloads
+      run: |
+        python -m pip install numpy pytest pytest-asyncio
+        python -m pytest -q mirobody/tests/test_windows_probe_regressions.py mirobody/tests/test_local_model_contract.py
+    - name: Native runner checks (PowerShell)
+      shell: pwsh
+      run: ./benchmarks/windows/test-native.ps1
+    - name: Native runner checks (Windows PowerShell 5.1)
+      shell: powershell
+      run: ./benchmarks/windows/test-native.ps1
+
   test-import:
     needs: test-build
     runs-on: ${{ matrix.os }}
@@ -195,7 +213,7 @@ jobs:
         python -c "import mirobody; print(f'Mirobody {mirobody.__version__} works on ${{ matrix.os }}')"
 
   summary:
-    needs: [test-build, test-import]
+    needs: [test-build, test-import, windows-benchmark]
     runs-on: ubuntu-latest
     if: always()
 
@@ -216,5 +234,11 @@ jobs:
           echo "❌ Import tests failed"
         fi
 
+        if [ "${{ needs.windows-benchmark.result }}" == "success" ]; then
+          echo "✅ Windows benchmark tooling checks passed"
+        else
+          echo "❌ Windows benchmark tooling checks failed"
+        fi
+
         echo ""
-        echo "Ready for release: ${{ needs.test-build.result == 'success' && needs.test-import.result == 'success' }}"
+        echo "Ready for release: ${{ needs.test-build.result == 'success' && needs.test-import.result == 'success' && needs.windows-benchmark.result == 'success' }}"
