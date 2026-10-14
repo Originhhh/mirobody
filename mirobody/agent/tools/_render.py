@@ -114,9 +114,8 @@ def render_compact(envelope: tools.Envelope, columns: Sequence[str] | None = Non
         return _render_error(envelope)
     rows = list(envelope.data or [])
     if columns:
-        # The handle an answer cites, first, whoever chose the columns: the
-        # chat adapter renders genetics with its fixed set, and the model said
-        # "no citable row ids" over rows that had them (2026-10-13).
+        # Chat's fixed genetic columns omitted ids minted in the envelope;
+        # every rendering path must expose the handles the model can cite.
         if "rid" not in columns and any(r.get("rid") for r in rows):
             columns = ("rid", *columns)
         table = query.compact(rows, tuple(columns)) if rows else ""

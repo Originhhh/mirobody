@@ -1,13 +1,13 @@
-"""Source-id-level priority resolution for SQLAggregator.
+"""Source-id priority shared by Apple export collisions and SQL aggregation.
 
 When a single source (e.g. apple_health) acts as an aggregator hub for
 multiple devices/apps, the same physiological event can be recorded by
 multiple source_ids simultaneously. Naively SUM-ing produces N-fold
 inflation for cumulative metrics (sleep duration, steps, calories).
 
-This module emits a SQL CASE expression that the aggregator uses to rank
-source_ids per (user, indicator, source); only the highest-ranked
-source_id's data is kept for aggregation.
+The SQL CASE expression ranks source_ids per (user, indicator, source), so
+only the highest-ranked source_id's data is kept for aggregation. The export
+writer uses the same expression when device points share one buffer key.
 """
 
 
@@ -28,7 +28,12 @@ APPLE_SOURCE_ID_PRIORITY_RULES: list[tuple[str, int, str]] = [
 
 # Only apply source_id-level resolution to these sources.
 # Other sources (theta.*, vital.*) are not aggregator hubs.
-APPLE_SOURCES: tuple[str, ...] = ("apple_health", "apple_health_watch")
+APPLE_SOURCES: tuple[str, ...] = ("apple_health", "apple_health_watch", "apple_health_export")
+
+# Exports carry sourceName rather than the phone push's bundle identifier.
+# Prefer a named Watch to a named phone; unknown names keep the same fallback
+# as unknown bundle ids, and the hub still elects only one device.
+APPLE_EXPORT_SOURCE_NAMES: tuple[tuple[str, int], ...] = (("apple watch", 10), ("iphone", 20))
 
 # Default priority for unmapped source_ids. Falls between trusted apps and
 # known low-quality sources, so an unknown-but-active device still wins
@@ -77,6 +82,12 @@ def build_apple_priority_case(source_col: str, source_id_col: str) -> str:
             raise ValueError(
                 f"Unknown match_mode {mode!r} for pattern {pattern!r}"
             )
+    # A recognised bundle (com.whoop.iphone) must keep its device priority
+    # even though its spelling also contains one of the export device names.
+    when_clauses.extend(
+        f"WHEN {source_col} = 'apple_health_export' AND LOWER({source_id_col}) LIKE '%{name}%' THEN {prio}"
+        for name, prio in APPLE_EXPORT_SOURCE_NAMES
+    )
     when_str = " ".join(when_clauses)
     return (
         f"CASE "

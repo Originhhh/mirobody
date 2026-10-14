@@ -97,7 +97,8 @@ def row_time(printed: Any, report_time: datetime) -> datetime:
 def value_and_flag(indicator: dict[str, Any]) -> tuple[str, str]:
     """`(value, flag)` of a read row. A flag the report printed after the
     number (`6.49↑`, `5.6 H`) is moved out of the value the way the table
-    rules move it (`split_flag`, the same `L`-is-litres guard); else the
+    rules move it (`split_flag`, the same `L`-is-litres guard). The rules
+    retain a copied column or trailing flag in `_printed_flag`; else the
     row's `status`, and for a measurement only when the row prints a range
     to judge it by. Either is kept only as `high` or `low`: a `normal` is a
     judgement, not a flag. Left in, `6.49↑` was stored as a narrative with
@@ -109,7 +110,8 @@ def value_and_flag(indicator: dict[str, Any]) -> tuple[str, str]:
     ref = str(indicator.get("reference_range") or "")
     value, printed = split_flag(str(indicator.get("value") or ""), ref)
     judged = ref.strip() or str(indicator.get("detection_method") or "") in FINDING_METHODS
-    flag = printed_flag(printed or (str(indicator.get("status") or "") if judged else ""))
+    copied = str(indicator.get("_printed_flag") or "")
+    flag = printed_flag(printed or copied or (str(indicator.get("status") or "") if judged else ""))
     return value, flag if flag in STORED_FLAGS else ""
 
 

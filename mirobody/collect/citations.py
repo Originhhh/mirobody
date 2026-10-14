@@ -147,7 +147,8 @@ async def _genotypes(subject_id: str, keys: Sequence[str]) -> dict[str, dict[str
     """Genotype calls by citation key, read live: a call in an upload since
     replaced or deleted is gone. Shaped like a reading, so a client shows it
     with the reading's view (name, value, day, source file)."""
-    wanted = [key.split(":", 2) for key in keys if key.count(":") == 2 and key.split(":")[1].isdigit()]
+    parts = [key.split(":", 2) for key in keys]
+    wanted = [p for p in parts if len(p) == 3 and p[0] == "g" and p[1].isdigit() and p[2]]
     if not wanted:
         return {}
     rows = await execute_query(

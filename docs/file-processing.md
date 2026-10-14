@@ -588,13 +588,21 @@ POST /api/v1/health-indicators/confirm-code
 Content-Type: application/json
 Authorization: Bearer <token>
 
-{"id": 4182, "code": "14771-0"}
+{"id": 4182, "code": "14771-0", "unit": "mmol/L"}
 ```
 
 `id` is the reading's row id from the readings payload. The answer is kept for
 the printed name (`th_coding_alias`, scoped to that record), so every reading
 printed with it is recoded at once and later uploads are coded the same way.
 A printed unit still picks the mass or moles sibling of the confirmed code.
+For a quantity missing its required unit, supply `unit` explicitly; a code
+alone returns an error instead of filing an incomparable number. The unit
+is a correction of this reading, written as a new observation that amends
+the original. The response's `id` names that new row. Other readings and
+later uploads missing a unit still wait for input; no unit is guessed from
+the code or copied from another report. This field only fills a missing or
+unrecognized unit; it cannot replace a recognized one. The amendment keeps
+the original reading's report annotations.
 Omit `code` to say the name is not a standard test. It needs the same
 care-circle write grant as the file date; otherwise the reading is reported as
 not found. The answer is `{"id", "code", "recoded", "outcomes"}`.

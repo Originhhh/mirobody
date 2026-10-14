@@ -119,6 +119,9 @@ blood sugar	Glucose
 # A post-meal reading is its own code, not plain glucose: 16915-1 when the
 # report does not say how long after, 1521-4 when it says two hours.
 postprandial blood glucose	Glucose^post meal
+# PBG alone also names porphobilinogen synthase; the full label disambiguates
+# it without weakening the guard for HDL, OGTT or specimen qualifiers.
+Postprandial Blood Glucose-PBG	Glucose^post meal
 postprandial glucose	Glucose^post meal
 post prandial blood sugar	Glucose^post meal
 PPBS	Glucose^post meal
@@ -128,6 +131,9 @@ PPG	Glucose^post meal
 BUN	Urea nitrogen
 total bilirubin	Bilirubin
 bilirubin total	Bilirubin
+# The clinical synonym is a concentration assay; its exact COMPONENT match
+# is the uncommon total-mass reading 94860-4, which cannot accept mg/dL.
+transthyretin	Prealbumin
 
 # ── liver enzymes ────────────────────────────────────────────────────────
 # Bare acronyms are how every report actually prints these.
