@@ -12,9 +12,9 @@
 | Keep the app, models and records on your machine | [B · local Docker](#run-it-100-locally) | Docker with Compose; 16 GB memory | none with local models |
 | To change the code and see it | [C · a checkout](#c--a-checkout) | Python + a Postgres with pgvector | one, or a local model server |
 
-For a hosted API key and `/v1` requests, use the separate [Cloud
-quickstart](https://docs.mirobody.ai/en/api-reference/quickstart/). This page
-covers the open-source engine and its own commands.
+To explore the same synthetic record before deploying, open the
+[Mirobody Web demo](https://chat.mirobody.ai/demo?ref=github-quickstart&lang=en).
+This page covers the open-source engine and its own commands.
 
 ## A · the library
 

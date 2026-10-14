@@ -154,9 +154,8 @@ time.
 [release notes](https://loinc.org/kb/) · the download is free but requires an
 account, which is why the derived bundle ships and the source release does not.
 
-→ [Standardization](https://docs.mirobody.ai/en/api-reference/standardization/) ·
-[Architecture](https://docs.mirobody.ai/en/concepts/architecture/) ·
-[Data flow](https://docs.mirobody.ai/en/concepts/data-flow/)
+→ [Pipeline](pipeline.md) · [Walkthrough](walkthrough.md) ·
+[Demo data](../demo/README.md)
 
 ---
 

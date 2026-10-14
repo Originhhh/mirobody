@@ -18,7 +18,7 @@ Standardize health data with one command. Try the full app in Codespaces with yo
 [![License: Apache-2.0](https://badgen.net/badge/license/Apache-2.0/blue)](LICENSE)
 [![GitHub stars](https://badgen.net/github/stars/thetahealth/mirobody?icon=github&label=stars)](https://github.com/thetahealth/mirobody/stargazers)
 
-**[▶ Live demo](https://chat.mirobody.ai/demo)** · **[Try one command](#try-the-engine-with-one-command)** · **[Open in Codespaces](#try-the-full-app-in-codespaces)** · **[100% local](#run-everything-100-locally)**
+**[▶ Live demo](https://chat.mirobody.ai/demo?ref=github-readme&lang=en)** · **[China demo](https://chat.mirobody.cn/demo?ref=github-readme&lang=en)** · **[Try one command](#try-the-engine-with-one-command)** · **[Open in Codespaces](#try-the-full-app-in-codespaces)** · **[100% local](#run-everything-100-locally)**
 
 </div>
 
@@ -164,7 +164,7 @@ Device vendors see data only after you link one. Before this reaches a network y
 | Names and units resolved in your own code | `pip install mirobody`: offline, no key, numpy the only dependency ([library guide](docs/quickstart.md#a--the-library)) |
 | Your coding agent taught the workflow | `npx skills add thetahealth/mirobody --skill translate-health-data` ([skills](skills/README.md)) |
 | A new device provider or tool | Drop a file into `mirobody/collect/providers/` or `mirobody/agent/tools/` ([CONTRIBUTING](CONTRIBUTING.md)) |
-| A hosted API instead | [Mirobody Cloud](https://docs.mirobody.ai/en/api-reference/quickstart) |
+| Try the app without deploying | [Mirobody Web demo](https://chat.mirobody.ai/demo?ref=github-readme&lang=en), using the same [synthetic demo files](demo/README.md) |
 
 Over MCP the stack serves seven tools, each scoped to the signed-in person: four read your record (readings, medications, genotypes, pharmacogenomics) and three resolve names and units.
 

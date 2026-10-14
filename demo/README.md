@@ -76,6 +76,25 @@ Dates are literals, not offsets from today, so a replay upserts the same rows
 and the recorded walkthrough keeps matching what a reader sees. The device
 window ends 2026-09-14 (`_LAST_DAY`).
 
+## Exporting the walkthrough
+
+    python demo/export.py --output /tmp/mirobody-demo.json
+
+Exports the same two accounts, their 2,019 seeded readings, the view-only
+sharing grant and the six source files. The four upload files are marked
+`stage: "upload"`; they must stay outside a client's initial record. Each file
+carries its collection date, readings and SHA-256, and the fixture carries the
+source commit and a deterministic data digest. No database, model key or
+deployment configuration is read. A hosted walkthrough can translate labels
+and explanations while retaining the original names, dates, units and values.
+
+The public walkthroughs are [Global](https://chat.mirobody.ai/demo?ref=github-demo&lang=en)
+and [China](https://chat.mirobody.cn/demo?ref=github-demo&lang=en). Both links open
+in English; the language control at the top switches between English and
+Simplified Chinese without changing the hosting region. They replay synthetic
+data; their free-trial sign-in is separate from the local demo accounts and
+codes in this repository.
+
 ## Not in the wheel
 
 This directory sits beside `frontend/` and for the same reason: the application

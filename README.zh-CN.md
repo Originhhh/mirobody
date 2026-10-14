@@ -18,7 +18,7 @@
 [![License: Apache-2.0](https://badgen.net/badge/license/Apache-2.0/blue)](LICENSE)
 [![GitHub stars](https://badgen.net/github/stars/thetahealth/mirobody?icon=github&label=stars)](https://github.com/thetahealth/mirobody/stargazers)
 
-**[▶ 在线体验](https://chat.mirobody.ai/demo)** · **[一条命令体验](#一条命令体验标准化引擎)** · **[在 Codespaces 中打开](#在-codespaces-体验完整应用)** · **[100% 本地部署](#100-本地部署应用数据和模型)**
+**[▶ 国内在线体验](https://chat.mirobody.cn/demo?ref=github-readme&lang=zh-cn)** · **[海外在线体验](https://chat.mirobody.ai/demo?ref=github-readme&lang=zh-cn)** · **[一条命令体验](#一条命令体验标准化引擎)** · **[在 Codespaces 中打开](#在-codespaces-体验完整应用)** · **[100% 本地部署](#100-本地部署应用数据和模型)**
 
 </div>
 
@@ -170,7 +170,7 @@ PIP_INDEX_URL=https://<镜像站>/simple scripts/install_native.sh
 | 在自己的代码里解析名称和单位 | `pip install mirobody`：离线、无需 Key，只依赖 numpy（[库的用法](docs/quickstart.zh-CN.md#a--the-library)） |
 | 让你的编码 agent 学会这套流程 | `npx skills add thetahealth/mirobody --skill translate-health-data`（[skills](skills/README.md)） |
 | 新增设备 provider 或工具 | 把文件放进 `mirobody/collect/providers/` 或 `mirobody/agent/tools/`（[CONTRIBUTING](CONTRIBUTING.md)） |
-| 使用托管 API | [Mirobody Cloud](https://docs.mirobody.ai/zh/api-reference/quickstart) |
+| 不部署，先体验应用 | [Mirobody 网页演示](https://chat.mirobody.cn/demo?ref=github-readme&lang=zh-cn)，使用同一套[合成演示文件](demo/README.md) |
 
 通过 MCP，整套服务提供七个工具，都限定在当前登录者的范围内：四个读取你的记录（读数、用药、基因型、药物基因组），三个解析名称和单位。
 

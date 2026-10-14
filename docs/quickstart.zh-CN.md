@@ -11,7 +11,7 @@
 | 应用、模型和记录都留在自己机器上 | [B · 本地 Docker](#run-it-100-locally) | 带 Compose 的 Docker；16 GB 内存 | 使用本地模型时不需要 |
 | 改代码并看到效果 | [C · 一份检出](#c--a-checkout) | Python + 一个带 pgvector 的 Postgres | 一把，或者一个本地模型服务 |
 
-要用托管的 API Key 和 `/v1` 接口，请用另一份 [云端快速开始](https://docs.mirobody.ai/zh/api-reference/quickstart/)。这一页讲的是开源引擎和它自己的命令。
+部署前可以先用 [Mirobody 网页演示](https://chat.mirobody.cn/demo?ref=github-quickstart&lang=zh-cn) 查看同一份合成示例档案。这一页讲的是开源引擎和它自己的命令。
 
 <a id="a--the-library"></a>
 
