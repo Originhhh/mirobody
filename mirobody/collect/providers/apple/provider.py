@@ -28,7 +28,6 @@ class AppleHealthProvider(Provider):
             slug="apple_health",
             name="Apple Health",
             description="Import health data from Apple Health export files",
-            logo="https://static.thetahealth.ai/res/applehealth.png",
             supported=True,
             auth_type=LinkType.NONE,  # Apple Health does not require authentication
             status=ProviderStatus.CONNECTED,
@@ -221,7 +220,6 @@ class CDAProvider(Provider):
             slug="cda",
             name="CDA Documents",
             description="Import clinical data from CDA (Clinical Document Architecture) documents",
-            logo="https://www.hl7.org/assets/images/hl7-logo.png",
             supported=True,
             auth_type=LinkType.NONE,  # CDA does not require authentication
             status=ProviderStatus.CONNECTED,

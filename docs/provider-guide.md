@@ -214,11 +214,11 @@ push into the platform, the raw save and the format context.
 
 `slug` is unique across providers and is the string in every URL and stored
 link (`theta_<vendor>` for the shipped three). `auth_type` decides the link
-flow and which credentials the pull receives. `logo` is optional: the web
-client ships the built-in providers' logos itself
-(`src/pages/Drive/Vital/logos.js` in mirobody-web), so for your own provider
-give an https URL you host, or leave it `None` if that request should not
-happen. A `LinkType.CUSTOMIZED` provider lists the fields it asks for in
+flow and which credentials the pull receives. `logo` is optional and the
+built-in providers leave it `None`: the web client ships their logos itself
+(`src/pages/Drive/Vital/logos.js` in mirobody-web), so a self-hosted server
+names no host outside the deployment. For your own provider give an https URL
+you host, or leave it `None` if that request should not happen. A `LinkType.CUSTOMIZED` provider lists the fields it asks for in
 `connect_info_fields` (`ConnectInfoField`).
 
 ### Linking

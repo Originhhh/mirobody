@@ -284,3 +284,71 @@ async def test_same_export_device_can_correct_range_status_postgres(database,old
     assert await writer.save_health_records([{**record,'task_id':new_task}])
     rows=await database('SELECT source_id,value,task_id FROM series_data',log_sql=False)
     assert (rows[0]['source_id'],rows[0]['value'],rows[0]['task_id']) == ('Apple Watch','100',new_task)
+
+
+_EVIDENCE_CASES = {
+    "unverified": [("2026-01-01T09:00", "llm-unverified", False)],
+    "verified": [("2026-01-01T09:00", "lab-report", False)],
+    "unknown": [("2026-01-01T09:00", "", False)],
+    "mixed": [("2026-01-01T09:00", "llm-unverified", False), ("2026-01-02T09:00", "lab-report", False)],
+    "window": [("2026-01-01T09:00", "llm-unverified", False), ("2026-01-02T09:00", "lab-report", False)],
+    "elected-verified": [("2026-01-01T09:00", "lab-report", True), ("2026-01-01T10:00", "llm-unverified", False)],
+    "latest-verified": [("2026-01-01T09:00", "llm-unverified", False), ("2026-01-01T10:00", "lab-report", False)],
+}
+
+
+@pytest.mark.parametrize("case", list(_EVIDENCE_CASES))
+@pytest.mark.parametrize("view", ["catalog", "stats", "raw", "latest", "minute", "hour", "day", "week", "month"])
+async def test_evidence_survives_actual_writes_windows_and_elected_answers(database, case, view):
+    from mirobody.agent.tools.health_indicators_service import _envelope_for
+    from mirobody.collect import observations
+    from mirobody.collect.files.services.indicator_store import save_indicators_to_db
+    from mirobody.collect.query import PostgresHealthQuery
+    from mirobody.kernel import query
+
+    for index, (day, modality, elected) in enumerate(_EVIDENCE_CASES[case]):
+        at = datetime.fromisoformat(day).replace(tzinfo=UTC)
+        value = 33 + index
+        if modality:
+            text = f"ALT {value + 10 if modality == 'llm-unverified' else value} U/L"
+            report = await save_indicators_to_db("1", [{"original_indicator":"ALT", "value":str(value),
+                "unit":"U/L", "detection_method":"laboratory"}], at, "extracted", f"synthetic-evidence-{index}", text=text)
+        else:
+            report = await observations.ingest("1", [observations.Draft(name_text="ALT", value_text=str(value),
+                unit_text="U/L", observed_start=at)], observations.Provenance(modality="", source_kind="file",
+                source_ref=f"th_files:synthetic-evidence-{index}"), user_tz="UTC")
+        assert report.inserted == 1
+        stored = await database("SELECT modality, series_id, local_date FROM v_observation WHERE id=:id",
+                                {"id": report.ids[0]}, log_sql=False)
+        assert stored[0]["modality"] == modality
+        if elected:
+            await database("INSERT INTO th_day_authority(user_id,series_id,local_date,observation_id,rule,candidates) "
+                           "VALUES ('1',:series,:day,:id,'synthetic-election',2)",
+                           {"series":stored[0]["series_id"],"day":stored[0]["local_date"],"id":report.ids[0]}, log_sql=False)
+
+    reader = PostgresHealthQuery()
+    selection = query.Selection(indicators=("ALT",))
+    window = query.resolve_window("UTC", start="2026-01-02", end="2026-01-02", hours=24,
+        now=datetime(2026, 10, 14, tzinfo=UTC)) if case == "window" else query.Window(0, 0, "UTC")
+    if view == "catalog":
+        method, rows = "catalog", await reader.catalog("1", window)
+    elif view == "raw":
+        method, rows = "readings", await reader.readings("1", selection, window, limit=30)
+    elif view in ("stats", "latest"):
+        method, rows = view, await getattr(reader, view)("1", selection, window)
+    else:
+        method, rows = "buckets", await reader.buckets("1", selection, window, resolution=view, limit=30)
+    assert rows
+    expected = case not in ("verified", "unknown", "window")
+    if case == "mixed" and view == "latest":
+        expected = False
+    if case == "elected-verified" and view in ("stats", "latest", "day", "week", "month"):
+        expected = False
+    if case == "latest-verified" and view in ("latest", "day", "week", "month"):
+        expected = False
+    if view not in ("raw", "latest"):
+        assert any(r["unverified"] for r in rows) is expected
+    request = query.QueryRequest(selection=selection, view="raw" if view == "catalog" else view,
+                                 start=window.start if case == "window" else "", end=window.end if case == "window" else "")
+    envelope = _envelope_for(method, request, window, rows)
+    assert any("check the file" in note for note in envelope.assumptions) is expected

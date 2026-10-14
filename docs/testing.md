@@ -80,6 +80,7 @@ a clone can re-run it.
 | `test_collect_regressions.py` | Apple hub priority, report-printed H/L markers and VCF `loc:` citation identities | application cases skip safely on a minimal install |
 | `test_confirmation_regressions.py` | confirmed aliases still need units; explicit units use observation amendments | pure coding checks run without `[app]`; route checks need it |
 | `test_postgres_regressions.py` | actual schema, writer, confirmation, statistics, Apple import/re-import and citation lifecycle | needs `[app,test]` and `MIROBODY_TEST_POSTGRES_DSN`; CI supplies PostgreSQL 17 |
+| `test_extraction_regressions.py` | signed values, range endpoints, unreadable exponents and unverified answer provenance | application tests; the database gate additionally checks all nine views, windows and elected inputs |
 
 ```bash
 pytest mirobody/tests/test_engine_coverage.py -s
