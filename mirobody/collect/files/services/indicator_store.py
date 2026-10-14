@@ -24,6 +24,7 @@ from mirobody.collect import observations
 from mirobody.collect.files.services.report_date import document_date, file_source_ref
 from mirobody.collect.files.services.table_indicators import printed_flag, split_flag
 from mirobody.kernel.ops import is_driver_exception
+from mirobody.translate import RANGE_SEPARATOR
 
 logger = logging.getLogger(__name__)
 
@@ -36,7 +37,10 @@ STORED_FLAGS = ("high", "low")
 #: The extraction's `detection_method` values whose rows are findings, not measurements.
 FINDING_METHODS = ("Imaging", "Pathological")
 
-_NUMBER = re.compile(r"\d+(?:\.\d+)?")
+# A doubled dash is one range separator, as in `translate.parse_range`:
+# `125--350` ends at 350, while `-5---1` ends at -1.
+_NUMERIC_TOKEN = r"[+-]?(?:\d+(?:\.\d*)?|\.\d+)(?:[eE][+-]?\d+)?"
+_NUMBER = re.compile(rf"(?<![\d.])({_NUMERIC_TOKEN})(?:\s*(?:{RANGE_SEPARATOR}|to)\s*({_NUMERIC_TOKEN}))?")
 _THOUSANDS = re.compile(r"(?<=\d),(?=\d{3}(?!\d))")
 _SPACE = re.compile(r"\s+")
 #: A non-numeric value longer than this is prose a model may rephrase; it is
@@ -50,16 +54,22 @@ def text_bears_out(text: str) -> Callable[[str], bool | None]:
     Numbers compare by value (`5.6` is the printed `5.60`); a short word such
     as `阴性` or `++` by its letters. A model can write a value no line of the
     page holds, and the text is the only witness left after extraction."""
-    folded = _THOUSANDS.sub("", unicodedata.normalize("NFKC", text or ""))
-    printed = {Decimal(n) for n in _NUMBER.findall(folded)}
+    folded = _THOUSANDS.sub("", unicodedata.normalize("NFKC", text or "").replace("−", "-"))
+    try:
+        printed = {Decimal(n) for pair in _NUMBER.findall(folded) for n in pair if n}
+    except InvalidOperation:
+        # An unreadable exponent in one OCR token must not discard a report.
+        printed = None
     letters = _SPACE.sub("", folded).casefold()
 
     def check(value: str) -> bool | None:
-        v = _THOUSANDS.sub("", unicodedata.normalize("NFKC", value or "")).strip()
+        v = _THOUSANDS.sub("", unicodedata.normalize("NFKC", value or "").replace("−", "-")).strip()
         if not v or not letters:
             return None
-        numbers = _NUMBER.findall(v)
+        numbers = [n for pair in _NUMBER.findall(v) for n in pair if n]
         if numbers:
+            if printed is None:
+                return None
             try:
                 return all(Decimal(n) in printed for n in numbers)
             except InvalidOperation:

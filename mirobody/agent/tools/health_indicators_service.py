@@ -325,9 +325,10 @@ def _envelope_for(
     if any(r.get("rid") for r in rows):
         assumptions.append(RID_NOTE)
     unverified = sorted({str(r.get("indicator") or r.get("name") or "") for r in rows
-                         if r.get("modality") == _UNVERIFIED} - {""})
+                         if r.get("modality") == _UNVERIFIED or r.get("unverified")} - {""})
     if unverified:
-        assumptions.append("the document's text does not print these values; check the file before relying on them: "
+        assumptions.append("some source readings for these indicators are not verified against the document's text; "
+                           "check the file before relying on them: "
                            + ", ".join(unverified))
     reported = [r for r in rows if r.get("provenance") == tools.PROVENANCE_REPORTED]
     if reported:

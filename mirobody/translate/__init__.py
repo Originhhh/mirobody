@@ -74,7 +74,7 @@ from .outcome import (
     Alias,
     Coding,
 )
-from .parse import Parsed, parse_range, parse_value
+from .parse import RANGE_SEPARATOR, Parsed, parse_range, parse_value
 from .series import Axes, local_series_id, property_dim, series_id, symptom_series_id
 from .code import NOTE_SERIES, code, code_note, decision_id, release, series_of
 from .icpc3 import ICPC3_SYSTEM, resolve_condition, resolve_symptom
@@ -99,6 +99,7 @@ _SEAM = [
     "local_series_id",
     "name_key",
     "parse_range",
+    "RANGE_SEPARATOR",
     "parse_value",
     "property_dim",
     "release",

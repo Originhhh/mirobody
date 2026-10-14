@@ -55,6 +55,7 @@ from mirobody.collect.observations import (
     KIND_MEASUREMENT,
     KIND_NOTE,
     KIND_SYMPTOM,
+    MODALITY_UNVERIFIED,
     contains_pattern,
     user_tz,
 )
@@ -87,6 +88,10 @@ _LOCAL_TS = (
 #: group has one unit, the canonical values when it has more.
 _STAT_VALUE = "CASE WHEN COUNT(DISTINCT unit_ucum) > 1 THEN {agg}(value_canonical) ELSE {agg}(value_num) END"
 _STAT_UNIT = "CASE WHEN COUNT(DISTINCT unit_ucum) > 1 THEN MAX(unit_canonical) ELSE (ARRAY_AGG(unit_ucum ORDER BY at DESC))[1] END"
+
+# Propagate the evidence status of the rows actually used by each result:
+# an out-of-window or unelected reading must not taint an unrelated answer.
+_UNVERIFIED_ROW = f"o.modality = '{MODALITY_UNVERIFIED}' AS unverified"
 
 #: What a person reports about themselves: a symptom felt, a diagnosis given,
 #: or a note on their day, in their own words, with no value and no unit. The
@@ -400,6 +405,7 @@ class PostgresHealthQuery:
                    (ARRAY_AGG(o.value_text ORDER BY o.observed_start DESC))[1] AS latest_value,
                    (ARRAY_AGG(o.unit_text ORDER BY o.observed_start DESC))[1] AS unit,
                    MAX(o.reason) AS reason,
+                   bool_or(o.modality = '{MODALITY_UNVERIFIED}') AS unverified,
                    bool_or(o.kind = ANY(:reported)) AS reported
               FROM v_observation o
              WHERE o.user_id = :uid {where}
@@ -506,6 +512,7 @@ class PostgresHealthQuery:
                    COUNT(DISTINCT unit_ucum) > 1 AS mixed_units,
                    (ARRAY_AGG(value_num ORDER BY at ASC))[1] AS first_num,
                    (ARRAY_AGG(value_num ORDER BY at DESC))[1] AS last_num,
+                   bool_or(unverified) AS unverified,
                    bool_or(reported) AS reported
               FROM base
              GROUP BY series_id
@@ -661,7 +668,8 @@ class PostgresHealthQuery:
             f"""
             WITH base AS (
                 SELECT o.series_id, o.display, o.code_system, o.code, o.value_num, o.value_canonical,
-                       o.unit_ucum, o.unit_canonical, date_trunc('{trunc}', {_LOCAL_TS}) AS at
+                       o.unit_ucum, o.unit_canonical, {_UNVERIFIED_ROW},
+                       date_trunc('{trunc}', {_LOCAL_TS}) AS at
                   FROM v_observation o
                  WHERE o.user_id = :uid AND o.series_id = ANY(:names) AND o.value_num IS NOT NULL {where}
             ), grouped AS (
@@ -673,6 +681,7 @@ class PostgresHealthQuery:
                        {_STAT_VALUE.format(agg="MAX")} AS max,
                        {_STAT_UNIT} AS unit,
                        false AS elected,
+                       bool_or(unverified) AS unverified,
                        {_BUCKET_BUDGET.format(bucket="at")}
                   FROM base
                  GROUP BY series_id, at
@@ -706,6 +715,7 @@ class PostgresHealthQuery:
                        {_STAT_VALUE.format(agg="MAX")} AS max,
                        {_STAT_UNIT} AS unit,
                        bool_or(elected) AS elected,
+                       bool_or(unverified) AS unverified,
                        bool_or(reported) AS reported,
                        {_BUCKET_BUDGET.format(bucket=bucket)}
                   FROM base
@@ -721,13 +731,14 @@ class PostgresHealthQuery:
 #: Every reading in the window, as the columns the statistics read.
 #: What a statistic counts: per (series, local day), the elected authority
 #: alone where the write side elected one, every reading otherwise.
-_STATS_CTE = """
+_STATS_CTE = f"""
 WITH day_rows AS (
     SELECT o.series_id, o.display, o.code_system, o.code, o.observed_start AS at, o.local_date, o.value_text,
            o.value_num, o.value_canonical, o.unit_ucum, o.unit_canonical, o.elected, o.kind = ANY(:reported) AS reported,
+           {_UNVERIFIED_ROW},
            bool_or(o.elected) OVER (PARTITION BY o.series_id, o.local_date) AS day_elected
       FROM v_observation o
-     WHERE o.user_id = :uid AND o.series_id = ANY(:names) {where}
+     WHERE o.user_id = :uid AND o.series_id = ANY(:names) {{where}}
 ), base AS (
     SELECT * FROM day_rows WHERE elected OR NOT day_elected
 )"""
@@ -744,13 +755,14 @@ _BUCKET_BUDGET = (
 
 #: One row per (series, local day): the elected authority where one exists,
 #: the newest reading of that day otherwise.
-_DAY_AUTHORITY_CTE = """
+_DAY_AUTHORITY_CTE = f"""
 WITH base AS (
     SELECT DISTINCT ON (o.series_id, o.local_date)
            o.series_id, o.display, o.code_system, o.code, o.local_date::timestamp AS at, o.value_text, o.value_num,
-           o.value_canonical, o.unit_ucum, o.unit_canonical, o.elected, o.kind = ANY(:reported) AS reported
+           o.value_canonical, o.unit_ucum, o.unit_canonical, o.elected, o.kind = ANY(:reported) AS reported,
+           {_UNVERIFIED_ROW}
       FROM v_observation o
-     WHERE o.user_id = :uid AND o.series_id = ANY(:names) {where}
+     WHERE o.user_id = :uid AND o.series_id = ANY(:names) {{where}}
      ORDER BY o.series_id, o.local_date, o.elected DESC, o.observed_start DESC, o.id DESC
 )"""
 
@@ -809,6 +821,7 @@ def _catalog_row(r: dict) -> dict:
         "total": int(r.get("total") or 0),
         "reason": r.get("reason") or "",
         "day_known": True,
+        "unverified": bool(r.get("unverified")),
         **({"provenance": PROVENANCE_REPORTED} if r.get("reported") else {}),
     }
 
@@ -855,6 +868,7 @@ def _bucket_row(r: dict) -> dict:
         "total": int(r.get("total") or 0),
         "day_known": True,
         "provenance": "elected:day_authority" if r.get("elected") else "measured",
+        "unverified": bool(r.get("unverified")),
         **({"provenance": PROVENANCE_REPORTED} if r.get("reported") else {}),
     }
 
@@ -874,6 +888,7 @@ def _stats_row(r: dict) -> dict:
         "unit": r.get("unit") or "",
         "mixed_units": bool(r.get("mixed_units")),
         "day_known": True,
+        "unverified": bool(r.get("unverified")),
         "provenance": PROVENANCE_REPORTED if r.get("reported") else "computed",
     }
     # `change` only when both ends are numbers in one unit: a delta across
