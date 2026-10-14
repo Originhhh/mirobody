@@ -1,0 +1,130 @@
+[00:39:31]   router: {'minicpm5-2b': 'loading', 'glm-ocr': 'loading'}
+[00:39:36]   router: {'minicpm5-2b': 'loaded', 'glm-ocr': 'loading'}
+[00:39:43]   router: {'minicpm5-2b': 'loaded', 'glm-ocr': 'loaded'}
+[00:39:43] minicpm5-2b and glm-ocr loaded in 10 s; waiting 35 s for the worker
+[00:40:20] memory, both loaded: RSS 0 MB, footprint None MB
+[00:40:20] [1/30] p002-weight-latest
+[11:23:08] unloaded glm-ocr
+[11:23:08] unloaded minicpm5-2b
+[11:23:10]   router: {'minicpm5-2b': 'loading', 'glm-ocr': 'loading'}
+[11:23:20]   router: {'minicpm5-2b': 'loading', 'glm-ocr': 'loaded'}
+[11:23:25]   router: {'minicpm5-2b': 'loaded', 'glm-ocr': 'loaded'}
+[11:23:25] minicpm5-2b and glm-ocr loaded in 15 s; waiting 35 s for the worker
+[11:24:00] memory, both loaded: RSS 0 MB, footprint None MB
+[11:24:01] [1/30] p002-weight-latest
+[11:27:54]   PASS in 234 s; tools ['query_health_indicators', 'read_file', 'query_health_indicators']; facts 2/2; unsupported []
+[11:27:54] [2/30] p002-rhr-monthly
+[11:29:47]   PASS in 113 s; tools ['query_health_indicators']; facts 6/6; unsupported [45.19]
+[11:29:47] [3/30] p002-sleep-july
+[11:34:39]   PASS in 292 s; tools ['query_health_indicators', 'read_file', 'query_health_indicators']; facts 1/1; unsupported []
+[11:34:39] [4/30] p002-checkup-summary
+[11:39:35]   PASS in 297 s; tools ['ls', 'ls', 'read_file', 'read_file', 'read_file']; facts 3/3; unsupported []
+[11:39:35] [5/30] p002-steps-chart
+[11:41:48]   fail in 132 s; tools ['query_health_indicators']; facts 2/2; unsupported [6100.0, 3300.0, 4500.0]
+[11:41:48] [6/30] p002-headache-journal
+[11:42:33]   PASS in 46 s; tools ['query_health_indicators']; facts 2/2; unsupported []
+[11:42:33] [7/30] p002-vitd-none
+[11:57:03]   fail in 600 s; tools ['query_health_indicators', 'read_file', 'grep', 'read_file', 'ls', 'read_file', 'read_file', 'read_file']; facts 0/1; unsupported []
+[11:57:03] [8/30] p003-bp-latest
+[11:57:56]   PASS in 52 s; tools ['query_health_indicators']; facts 3/3; unsupported []
+[11:57:56] [9/30] p003-weight-change
+[12:03:28]   PASS in 333 s; tools ['query_health_indicators', 'eval']; facts 3/3; unsupported [84.76, 85.28, 0.52]
+[12:03:28] [10/30] p003-hba1c-series
+[12:04:23]   PASS in 55 s; tools ['query_health_indicators']; facts 3/3; unsupported []
+[12:04:23] [11/30] p003-fpg-range
+[12:06:56]   PASS in 152 s; tools ['query_health_indicators', 'query_health_indicators', 'read_file', 'ls', 'read_file']; facts 2/2; unsupported []
+[12:06:56] [12/30] p003-clinic-note
+[12:08:10]   PASS in 74 s; tools ['ls', 'ls', 'read_file']; facts 2/2; unsupported []
+[12:08:10] [13/30] p003-genotype
+[12:08:41]   PASS in 32 s; tools ['query_genetic_data']; facts 1/1; unsupported []
+[12:08:41] [14/30] p003-bp-chart
+[12:24:56]   fail in 600 s; tools ['query_health_indicators', 'read_file', 'read_file']; facts 0/16; unsupported []
+[12:24:56] [15/30] p003-numbness-journal
+[12:26:01]   PASS in 65 s; tools ['query_health_indicators']; facts 2/2; unsupported []
+[12:26:01] [16/30] p003-vitd-none
+[12:27:00]   PASS in 59 s; tools ['query_health_indicators']; facts 1/1; unsupported []
+[12:27:00] [17/30] p004-statin-pgx
+[12:29:56]   PASS in 176 s; tools ['query_genetic_data', 'query_genetic_data', 'query_medications', 'query_medications', 'query_medications']; facts 1/1; unsupported []
+[12:29:56] [18/30] p004-weight-latest
+[12:30:22]   PASS in 26 s; tools ['query_health_indicators']; facts 2/2; unsupported []
+[12:30:22] [19/30] p004-bp-september-none
+[12:31:40]   PASS in 78 s; tools ['query_health_indicators', 'query_health_indicators', 'query_health_indicators']; facts 1/1; unsupported []
+[12:31:40] [20/30] p005-hemoglobin-range
+[12:36:02]   PASS in 262 s; tools ['query_health_indicators', 'ls', 'read_file', 'read_file']; facts 4/4; unsupported []
+[12:36:02] [21/30] p005-ferritin-change
+[12:37:32]   PASS in 90 s; tools ['query_health_indicators']; facts 3/3; unsupported []
+[12:37:32] [22/30] p005-lipids-range
+[12:47:24]   PASS in 592 s; tools ['query_health_indicators', 'query_health_indicators', 'ls', 'read_file', 'read_file']; facts 5/5; unsupported []
+[12:47:24] [23/30] p005-hemoglobin-chart
+[12:48:47]   PASS in 83 s; tools ['query_health_indicators', 'eval']; facts 3/3; unsupported []
+[12:48:47] [24/30] p005-weight-chart
+[12:52:16]   fail in 209 s; tools ['query_health_indicators', 'query_health_indicators']; facts 6/6; unsupported []
+[12:52:16] [25/30] p002-alt-knowledge
+[12:53:04]   fail in 49 s; tools ['search_medical_knowledge']; facts 1/2; unsupported []
+[12:53:04] [26/30] p003-metformin-label
+[12:54:42]   fail in 98 s; tools ['search_medical_knowledge', 'search_medical_knowledge']; facts 1/2; unsupported []
+[12:54:42] [27/30] p005-hgb-meaning
+[12:56:49]   fail in 126 s; tools ['query_health_indicators', 'search_medical_knowledge', 'read_medical_source']; facts 1/3; unsupported []
+[12:56:49] [28/30] p003-a1c-target
+[13:00:15]   fail in 206 s; tools ['query_health_indicators', 'search_medical_knowledge', 'search_medical_knowledge', 'read_medical_source', 'read_medical_source', 'search_medical_knowledge', 'search_medical_knowledge']; facts 2/3; unsupported []
+[13:00:15] [29/30] p005-ferritin-source
+[13:00:46]   fail in 31 s; tools ['query_health_indicators']; facts 2/3; unsupported []
+[13:00:46] [30/30] p004-statin-stop
+[13:08:38]   PASS in 472 s; tools ['query_genetic_data', 'query_medications', 'search_medical_knowledge', 'query_medications', 'query_medications', 'read_medical_source', 'search_medical_knowledge', 'search_medical_knowledge']; facts 2/2; unsupported []
+[13:08:38] done: /home/miro/mirobody-results/win-docker-cpu-1
+# win-docker-cpu-1: minicpm5-2b
+
+Generated by run.py from the JSON beside it. Automatic checks only; Claude Code's grades are in grades.json and ../summary.md.
+
+| Part | Result |
+| --- | --- |
+| Questions passed (automatic) | 20/24 |
+| answered / right tool / facts / language / chart | 22 / 24 / 22 / 22 / 21 |
+| Numbers in no tool result | 7 in 3 answers |
+| Questions added 2026-10-10, passed (automatic) | 1/6 (answered / tool / facts / language 6 / 6 / 1 / 6) |
+| Cited answers: in the format / made-up ids / untraced numbers | 3/22 / 0 / 190 in 25 answers |
+| Seconds per answer, median / p90 | 122.7 / 514.2 |
+| Timeouts (600 s) | 2 |
+| Extraction: printed rows found | 0/0 in 0 documents |
+| … unit / range as printed | 0 / 0 of 0 |
+| … readings stored that are not printed rows | 0 |
+| … report date right | 0/0 |
+| … seconds per document, median | None |
+| Journal: entries found | 0/0 in 0 sentences |
+| … coded right / extra entries / sentences exact | 0/0 / 0 / 0/0 |
+| … seconds per sentence, median | None |
+| llama-server memory, both models loaded: RSS / footprint (MB) | 0 / None (peak while answering 0 / None) |
+
+| Case | Pass | Checks failed | Facts | Unsupported numbers | Seconds |
+| --- | --- | --- | --- | --- | --- |
+| p002-weight-latest | yes | — | 2/2 | — | 234 |
+| p002-rhr-monthly | yes | — | 6/6 | 45.19 | 113 |
+| p002-sleep-july | yes | — | 1/1 | — | 292 |
+| p002-checkup-summary | yes | — | 3/3 | — | 297 |
+| p002-steps-chart | no | chart | 2/2 | 6100.0, 3300.0, 4500.0 | 132 |
+| p002-headache-journal | yes | — | 2/2 | — | 46 |
+| p002-vitd-none | no | answered, facts, language | 0/1 | — | 600 |
+| p003-bp-latest | yes | — | 3/3 | — | 52 |
+| p003-weight-change | yes | — | 3/3 | 84.76, 85.28, 0.52 | 333 |
+| p003-hba1c-series | yes | — | 3/3 | — | 55 |
+| p003-fpg-range | yes | — | 2/2 | — | 152 |
+| p003-clinic-note | yes | — | 2/2 | — | 74 |
+| p003-genotype | yes | — | 1/1 | — | 32 |
+| p003-bp-chart | no | answered, facts, language, chart | 0/16 | — | 600 |
+| p003-numbness-journal | yes | — | 2/2 | — | 65 |
+| p003-vitd-none | yes | — | 1/1 | — | 59 |
+| p004-statin-pgx | yes | — | 1/1 | — | 176 |
+| p004-weight-latest | yes | — | 2/2 | — | 26 |
+| p004-bp-september-none | yes | — | 1/1 | — | 78 |
+| p005-hemoglobin-range | yes | — | 4/4 | — | 262 |
+| p005-ferritin-change | yes | — | 3/3 | — | 90 |
+| p005-lipids-range | yes | — | 5/5 | — | 592 |
+| p005-hemoglobin-chart | yes | — | 3/3 | — | 83 |
+| p005-weight-chart | no | chart | 6/6 | — | 209 |
+| p002-alt-knowledge | no | facts | 1/2 | — | 49 |
+| p003-metformin-label | no | facts | 1/2 | — | 98 |
+| p005-hgb-meaning | no | facts | 1/3 | — | 126 |
+| p003-a1c-target | no | facts | 2/3 | — | 206 |
+| p005-ferritin-source | no | facts | 2/3 | — | 31 |
+| p004-statin-stop | yes | — | 2/2 | — | 472 |
+

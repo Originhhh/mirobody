@@ -2,6 +2,12 @@
 
 ### Added
 
+- **Windows local-model measurements are reproducible from a checkout.** The
+  Windows 11 / RTX 5060 tests lived on a benchmark branch with scripts tied to
+  an external kit. The repository now carries their synthetic inputs, raw
+  speed results and historical quality summaries, plus native CPU/Vulkan/CUDA
+  runners and WSL commands. Model weights remain Q8_0; CPU uses 32k/F16 KV and
+  GPU uses 64k/Q8 KV. Thread counts and DSpark remain measured options.
 - **Try Mirobody before setting up a local server.** The README led with
   Docker and buried the offline engine command. Both editions now start with
   four choices: standardize names with `uvx` and no model key, run the full app
@@ -119,6 +125,16 @@
   checkout path records that PostgreSQL can come from the distribution's
   packages instead: `postgresql-16-pgvector` on Ubuntu 24.04 satisfies the
   schema's `CREATE EXTENSION vector`, measured.
+- **Failed Windows benchmark runs no longer look successful.** HTTP failures,
+  unfinished streams, startup timeouts and failed load/run commands now fail
+  the runner and retain diagnostics instead of reusing an old measurement.
+  The two speed probes share one implementation and the production template;
+  CPU experiments restore the prior service configuration. Public regression
+  gates exercise these failures without downloading a model.
+- **The Windows native-model instructions use a Windows drive checkout.**
+  The English and Chinese guides required a UNC working directory that the
+  measured native launcher refused. Both now name a local drive path and link
+  the benchmark's reproduction commands and hardware limits.
 
 ## 1.5.6
 

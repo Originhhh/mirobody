@@ -1,0 +1,50 @@
+﻿#### 2026-10-12T22:07:04  Microsoft Windows NT 10.0.26200.0  logical_cores 16  gpu: NVIDIA GeForce RTX 5060
+#### uv C:\Users\10905\AppData\Local\Microsoft\WinGet\Packages\astral-sh.uv_Microsoft.Winget.Source_8wekyb3d8bbwe\uv.exe
+#### cuda build C:\mirobody-bench\llama-cuda\llama-server.exe  (sm_12, wanted llama-cuda-13.4)
+== vulkan-base  cpu_load 30%  2026-10-12T22:07:05
+vulkan-base              p003-hba1c-series      gen  112.2 tok/s n=382 pp 5336.6 tok/s ttft 1.654s (derived 1.64s) draft None acc None wall 5.1s
+vulkan-base              p002-sleep-july        gen  113.0 tok/s n=96 pp 4982.2 tok/s ttft 1.824s (derived 1.812s) draft None acc None wall 2.7s
+vulkan-base              p005-hemoglobin-range  gen  116.7 tok/s n=366 pp 5437.8 tok/s ttft 1.674s (derived 1.662s) draft None acc None wall 4.8s
+   vulkan-base working_set_mb 2755 private_mb 4271 vram_mb 3729
+== vulkan-64k-q8  cpu_load 1%  2026-10-12T22:07:25
+vulkan-64k-q8            p003-hba1c-series      gen  116.9 tok/s n=382 pp 5258.3 tok/s ttft 1.674s (derived 1.664s) draft None acc None wall 4.9s
+vulkan-64k-q8            p002-sleep-july        gen  116.8 tok/s n=96 pp 5196.1 tok/s ttft 1.746s (derived 1.737s) draft None acc None wall 2.6s
+vulkan-64k-q8            p005-hemoglobin-range  gen  117.2 tok/s n=366 pp 5180.9 tok/s ttft 1.755s (derived 1.744s) draft None acc None wall 4.9s
+   vulkan-64k-q8 working_set_mb 2790 private_mb 4425 vram_mb 3861
+== vulkan-dspark7  cpu_load 9%  2026-10-12T22:07:44
+vulkan-dspark7           p003-hba1c-series      gen   78.1 tok/s n=342 pp 4519.0 tok/s ttft 1.949s (derived 1.939s) draft 931 acc 208 wall 6.3s
+vulkan-dspark7           p002-sleep-july        gen   75.8 tok/s n=96 pp 4672.8 tok/s ttft 1.94s (derived 1.935s) draft 266 acc 57 wall 3.2s
+vulkan-dspark7           p005-hemoglobin-range  gen   99.2 tok/s n=252 pp 4691.9 tok/s ttft 1.934s (derived 1.927s) draft 532 acc 175 wall 4.5s
+   vulkan-dspark7 working_set_mb 3618 private_mb 5871 vram_mb 5067
+== cuda-base  cpu_load 6%  2026-10-12T22:08:07
+cuda-base                p003-hba1c-series      gen  120.6 tok/s n=300 pp 7181.8 tok/s ttft 1.23s (derived 1.221s) draft None acc None wall 3.7s
+cuda-base                p002-sleep-july        gen  121.4 tok/s n=96 pp 7180.7 tok/s ttft 1.26s (derived 1.259s) draft None acc None wall 2.1s
+cuda-base                p005-hemoglobin-range  gen  120.1 tok/s n=298 pp 7151.3 tok/s ttft 1.262s (derived 1.266s) draft None acc None wall 3.7s
+   cuda-base working_set_mb 2787 private_mb 4512 vram_mb 3846
+== cuda-64k-q8  cpu_load 9%  2026-10-12T22:08:23
+cuda-64k-q8              p003-hba1c-series      gen  101.0 tok/s n=335 pp 6881.3 tok/s ttft 1.291s (derived 1.275s) draft None acc None wall 4.6s
+cuda-64k-q8              p002-sleep-july        gen  100.2 tok/s n=96 pp 6887.3 tok/s ttft 1.316s (derived 1.314s) draft None acc None wall 2.3s
+cuda-64k-q8              p005-hemoglobin-range  gen  100.3 tok/s n=368 pp 6878.2 tok/s ttft 1.311s (derived 1.317s) draft None acc None wall 5.0s
+   cuda-64k-q8 working_set_mb 2831 private_mb 4712 vram_mb 3998
+== cuda-dspark7  cpu_load 3%  2026-10-12T22:08:42
+cuda-dspark7             p003-hba1c-series      gen  164.1 tok/s n=374 pp 5347.7 tok/s ttft 1.65s (derived 1.634s) draft 854 acc 251 wall 3.9s
+cuda-dspark7             p002-sleep-july        gen  135.9 tok/s n=96 pp 5655.7 tok/s ttft 1.599s (derived 1.595s) draft 266 acc 57 wall 2.3s
+cuda-dspark7             p005-hemoglobin-range  gen  178.2 tok/s n=298 pp 5638.5 tok/s ttft 1.6s (derived 1.601s) draft 630 acc 207 wall 3.3s
+   cuda-dspark7 working_set_mb 3805 private_mb 6394 vram_mb 5270
+#### done 2026-10-12T22:08:58
+#### 2026-10-12T22:10:29  Microsoft Windows NT 10.0.26200.0  logical_cores 16  gpu: NVIDIA GeForce RTX 5060
+#### uv C:\Users\10905\AppData\Local\Microsoft\WinGet\Packages\astral-sh.uv_Microsoft.Winget.Source_8wekyb3d8bbwe\uv.exe
+#### cuda build C:\mirobody-bench\llama-cuda\llama-server.exe  (sm_12, wanted llama-cuda-13.4)
+== cpu4-base  cpu_load 1%  2026-10-12T22:10:30
+cpu4-base                p003-hba1c-series      gen    6.3 tok/s n=595 pp 53.4 tok/s ttft 163.026s (derived 163.164s) draft None acc None wall 257.4s
+cpu4-base                p005-hemoglobin-range  gen    7.4 tok/s n=343 pp 53.5 tok/s ttft 168.141s (derived 168.257s) draft None acc None wall 214.4s
+   cpu4-base working_set_mb 3766 private_mb 1563 vram_mb 8
+== cpu4-64k-q8  cpu_load 6%  2026-10-12T22:18:29
+cpu4-64k-q8              p003-hba1c-series      gen    7.3 tok/s n=339 pp 26.4 tok/s ttft 329.263s (derived 329.381s) draft None acc None wall 375.8s
+cpu4-64k-q8              p005-hemoglobin-range  gen    7.6 tok/s n=304 pp 22.7 tok/s ttft 395.391s (derived 395.505s) draft None acc None wall 435.1s
+   cpu4-64k-q8 working_set_mb 3851 private_mb 1681 vram_mb 44
+== cpu4-dspark7  cpu_load 3%  2026-10-12T22:32:08
+cpu4-dspark7             p003-hba1c-series      gen    6.6 tok/s n=222 pp 61.8 tok/s ttft 140.984s (derived 141.115s) draft 434 acc 159 wall 174.5s
+cpu4-dspark7             p005-hemoglobin-range  gen    6.4 tok/s n=283 pp 61.6 tok/s ttft 145.947s (derived 146.096s) draft 567 acc 201 wall 190.4s
+   cpu4-dspark7 working_set_mb 4730 private_mb 2494 vram_mb 3
+#### done 2026-10-12T22:38:19

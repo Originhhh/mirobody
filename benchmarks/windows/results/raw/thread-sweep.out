@@ -1,0 +1,23 @@
+﻿#### 2026-10-13T09:45:44  logical cores 16
+#### physical cores 10
+== t=4  (server reports n_threads=4)
+   cpu-t4                   p003-hba1c-series      gen    5.8 tok/s n=595 pp 47.7 tok/s ttft 182.495s (derived 182.609s) draft None acc None wall 285.2s
+   (elapsed 290s)
+   working_set_mb 3764
+== t=6  (server reports n_threads=6)
+   cpu-t6                   p003-hba1c-series      gen    7.7 tok/s n=209 pp 62.7 tok/s ttft 138.952s (derived 139.06s) draft None acc None wall 165.8s
+   (elapsed 166s)
+   working_set_mb 3764
+== t=8  (server reports n_threads=8)
+   cpu-t8                   p003-hba1c-series      gen    7.9 tok/s n=206 pp 71.3 tok/s ttft 122.179s (derived 122.285s) draft None acc None wall 148.2s
+   (elapsed 148s)
+   working_set_mb 3765
+== t=10  (server reports n_threads=10)
+   cpu-t10                  p003-hba1c-series      gen    8.5 tok/s n=230 pp 71.0 tok/s ttft 122.715s (derived 122.811s) draft None acc None wall 149.6s
+   (elapsed 150s)
+   working_set_mb 3765
+== t=16  (server reports n_threads=16)
+   cpu-t16                  p003-hba1c-series      gen    9.3 tok/s n=230 pp 87.0 tok/s ttft 100.072s (derived 100.157s) draft None acc None wall 124.6s
+   (elapsed 125s)
+   working_set_mb 3765
+#### done 2026-10-13T10:00:57

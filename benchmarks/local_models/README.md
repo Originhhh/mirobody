@@ -987,6 +987,35 @@ scores 0 on every criterion.
 Seen while running this, in the app rather than in a model. Nothing here was
 changed by the evaluation.
 
+**Found on Windows 11 with an RTX 5060** (2026-10-12, the candidate `df5f62a`).
+The full write-up is in [`../windows/results/issues.md`](../windows/results/issues.md):
+
+- **A system HTTP proxy carries loopback traffic and kills long requests.**
+  Windows here has one configured, WSL 2 inherits `http_proxy`/`https_proxy` from
+  it, and both `urllib` and `requests` honour those variables — so requests to
+  `127.0.0.1` and `localhost` are handed to a proxy for which "localhost" is
+  Windows, not the container. Three symptoms, one cause: a CPU turn died with
+  `[WinError 10054]` after ~268 s while `llama-server` was healthy; `curl
+  localhost:18060/api/health` answered **503** with a `Proxy-Connection: close`
+  header; and `/mirobody.json` came back empty, so `__MODEL_SETUP__` could not be
+  read. Current `common.py` adds the local app/router hosts to `NO_PROXY` and
+  `no_proxy`, preserving proxies for external downloads.
+- **`LOCAL_BASE_URL` in `.env` blocks the switch `run.py` needs.** `deploy.sh`
+  with `COMPOSE_PROFILES=local` writes it, `setup_router.py` then answers
+  `409 LOCAL_BASE_URL is set in .env; change it there.` for the `POST /api/setup`
+  that switched sizes on the RC. Current main accepts model changes at the
+  same pinned endpoint; another endpoint remains protected. The WSL runner
+  requires readiness before new document loading and allows a verified loaded
+  generation to proceed to its setup call.
+- **An 8-bit KV cache at 64k costs the CPU half its prompt speed.** 53.5 → 24.5
+  prompt tok/s and 163 s → 329 s to the first token on four threads, against
+  48.5 → 12.7 on the Xeon the note was written from. Not a GPU problem: CUDA went
+  5,337 → 5,196. `docker/local-models-cpu.ini`'s choice (32k, 16-bit) is what the
+  measurement supports, and DSpark measured better still on the CPU
+  (61.7 prompt tok/s, 141 s) — see the Windows record.
+- **CUDA 12.4 cannot run on an RTX 50 series card** (`sm_120`); b11429's
+  `cuda-13.4` Windows build can.
+
 - **The journal reads nothing from a sentence with either small model.**
   The two models fail in different ways, and both end at 0 of 31 entries.
   - Small answered 13 of the 15 sentences with a 6-token `{"entries": []}`,
@@ -1092,3 +1121,4 @@ changed by the evaluation.
 | `results/summary.md`, `results/summary.json` | every size side by side, and the same as data (`report.py summary`) |
 | `results/speed.json` | memory and speed of each model alone (`speed.py`) |
 | `results/ref-<name>/` | a reference the stack was pointed at by env (`run.py --ref <name>`), the same files as a size plus `doctor.txt` |
+| [`../windows/`](../windows/) | the same cases on Windows 11 with an RTX 5060: speed, the deployment routes, and what broke |
