@@ -88,8 +88,10 @@ source commit and a deterministic data digest. No database, model key or
 deployment configuration is read. A hosted walkthrough can translate labels
 and explanations while retaining the original names, dates, units and values.
 
-The public walkthroughs are [Global](https://chat.mirobody.ai/demo?ref=github-demo)
-and [China](https://chat.mirobody.cn/demo?ref=github-demo). They replay synthetic
+The public walkthroughs are [Global](https://chat.mirobody.ai/demo?ref=github-demo&lang=en)
+and [China](https://chat.mirobody.cn/demo?ref=github-demo&lang=en). Both links open
+in English; the language control at the top switches between English and
+Simplified Chinese without changing the hosting region. They replay synthetic
 data; their free-trial sign-in is separate from the local demo accounts and
 codes in this repository.
 

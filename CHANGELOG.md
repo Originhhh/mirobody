@@ -60,6 +60,11 @@
 
 ### Fixed
 
+- **The English README's China demo opened in Chinese.** Both hosting-region
+  links in the English README and demo guide now request English explicitly;
+  the Chinese README requests Simplified Chinese in both regions. The hosted
+  walkthrough's top language control lets readers choose either language.
+
 - **Numeric evidence lost the sign.** A report's `-4.5` validated an
   extracted `4.5`; matching now preserves signs, leading-dot decimals and
   scientific notation. Range separators follow the parser's grammar, so

@@ -18,7 +18,7 @@ Standardize health data with one command. Try the full app in Codespaces with yo
 [![License: Apache-2.0](https://badgen.net/badge/license/Apache-2.0/blue)](LICENSE)
 [![GitHub stars](https://badgen.net/github/stars/thetahealth/mirobody?icon=github&label=stars)](https://github.com/thetahealth/mirobody/stargazers)
 
-**[▶ Live demo](https://chat.mirobody.ai/demo?ref=github-readme&lang=en)** · **[China demo](https://chat.mirobody.cn/demo?ref=github-readme&lang=zh-cn)** · **[Try one command](#try-the-engine-with-one-command)** · **[Open in Codespaces](#try-the-full-app-in-codespaces)** · **[100% local](#run-everything-100-locally)**
+**[▶ Live demo](https://chat.mirobody.ai/demo?ref=github-readme&lang=en)** · **[China demo](https://chat.mirobody.cn/demo?ref=github-readme&lang=en)** · **[Try one command](#try-the-engine-with-one-command)** · **[Open in Codespaces](#try-the-full-app-in-codespaces)** · **[100% local](#run-everything-100-locally)**
 
 </div>
 
