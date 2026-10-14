@@ -23,10 +23,12 @@ import json
 import logging
 import uuid
 
+from contextlib import nullcontext
 from typing import Any
 from collections.abc import AsyncGenerator
 
 from mirobody.agent.checkpointer import thread_for
+from mirobody.agent.clock import as_of, parse_as_of
 from mirobody.agent.registry import agent_name, new_agent
 from mirobody.agent.chat.file import process_files_from_storage
 from mirobody.agent.errors import client_safe_error
@@ -88,6 +90,11 @@ async def run(params: ChatStreamRequest) -> AsyncGenerator[dict[str, Any], None]
         params.query_user_id = params.query_user_id or params.user_id
         params.session_id = params.session_id or str(uuid.uuid4())
 
+        # Validated and gated by `chat_handler` already; parsed again here
+        # (cheap, a short string) rather than threaded through as a second
+        # field, so `ChatStreamRequest` keeps carrying only what the client sent.
+        moment = parse_as_of(params.as_of, params.timezone or get_default_timezone()) if params.as_of else None
+
         may_read, may_write = await _access(params)
         if not may_read:
             yield {"type": ERROR, "message": "No permission to chat for this user"}
@@ -125,8 +132,12 @@ async def run(params: ChatStreamRequest) -> AsyncGenerator[dict[str, Any], None]
         if saved:
             spawn(_summarize_once(params.user_id, params.session_id))
 
-        async for block in _pump(_agent_blocks(params, may_write=may_write), params):
-            yield block
+        # Pins the agent's "now" for this turn, including the background task
+        # `_pump` spawns: `asyncio.create_task` copies the current context, so
+        # setting it before that call is what makes the spawned task see it.
+        with as_of(moment) if moment is not None else nullcontext():
+            async for block in _pump(_agent_blocks(params, may_write=may_write), params):
+                yield block
 
     except Exception as e:
         logger.error("chat turn failed: error_type=%s", type(e).__name__,

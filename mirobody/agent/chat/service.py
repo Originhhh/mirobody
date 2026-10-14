@@ -389,6 +389,25 @@ class ChatService:
                             for err in errors)
             return json_response_with_code(-2, f"Invalid field(s): {bad}", request=request)
 
+        #-------------------------------------------------
+
+        # `as_of` redates the whole turn for a frozen eval run; an ordinary
+        # deployment must refuse it outright rather than quietly answer from
+        # the real clock as if it had been honoured.
+        if body.as_of:
+            from mirobody.agent.clock import eval_as_of_enabled, parse_as_of
+            from mirobody.utils.config import get_default_timezone
+
+            if not eval_as_of_enabled():
+                return json_response_with_code(
+                    -5, "as_of is not enabled on this server (EVAL_AS_OF_ENABLED is off).",
+                    request=request,
+                )
+            try:
+                parse_as_of(body.as_of, body.timezone or get_default_timezone())
+            except ValueError as e:
+                return json_response_with_code(-2, f"Invalid as_of: {e}", request=request)
+
         return StreamingResponse(
             turn.stream(body),
             headers=sse_headers(),
