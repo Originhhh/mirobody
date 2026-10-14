@@ -16,6 +16,7 @@ from contextvars import ContextVar
 from datetime import UTC, datetime
 from typing import Any
 
+from mirobody.agent.clock import now as _eval_now
 from mirobody.kernel import tools
 from mirobody.kernel.ops import is_driver_exception
 from ._authz import caller_of, denied
@@ -64,4 +65,4 @@ class RecordTool:
         raise NotImplementedError
 
     def _clock(self) -> datetime:
-        return self._now() if callable(self._now) else datetime.now(UTC)
+        return self._now() if callable(self._now) else _eval_now(UTC)

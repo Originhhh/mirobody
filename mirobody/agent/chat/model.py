@@ -52,6 +52,12 @@ class ChatStreamRequest(BaseModel):
     #: What `th_messages.scene` records: which surface the turn came from.
     scene: str = "web"
 
+    #: Eval-only: pins the agent's "now" for this turn to an ISO date (noon
+    #: that day, in `timezone`) or an ISO datetime. Honoured only when the
+    #: server has `EVAL_AS_OF_ENABLED` set (`chat/service.py::chat_handler`);
+    #: a request that carries it otherwise is refused, not silently ignored.
+    as_of: str = ""
+
 
 def has_attachment(file_list: Any) -> bool:
     """True when this turn really carries a file the agent can reach.

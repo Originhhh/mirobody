@@ -22,12 +22,11 @@ import json
 import logging
 import re
 from collections.abc import Mapping
-from datetime import datetime
 from pathlib import PurePosixPath
 from typing import Any
 from urllib.parse import urlsplit
 
-from mirobody.kernel.series import zone
+from mirobody.agent.clock import now as _now
 from mirobody.utils import prompts
 
 logger = logging.getLogger(__name__)
@@ -108,7 +107,7 @@ def turn_note(timezone: str, question: str) -> str:
     question. In the system prompt both changed per hour or per question, and
     the tool definitions after them were read again: 5.2k tokens for
     MiniCPM5-2B on llama.cpp each time, 47 with this note (2026-10-12)."""
-    moment = datetime.now(zone(timezone))
+    moment = _now(timezone)
     template = _TURN_NOTES.get(question_language(question))
     if template:
         return template.format(now=moment.strftime("%Y-%m-%d %H:00 %Z (UTC%z)"))
@@ -143,7 +142,7 @@ async def build_system_prompt(
     if tools_description:
         tools_description += "\n\n---\n\n"
 
-    current_time = datetime.now(zone(timezone)).strftime("%A, %B %d, %Y, at %I:00 %p %Z (UTC%z)")
+    current_time = _now(timezone).strftime("%A, %B %d, %Y, at %I:00 %p %Z (UTC%z)")
 
     template = prompts.environment(enable_async=True).from_string(base_prompt)
     return await template.render_async(

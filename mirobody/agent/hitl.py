@@ -29,6 +29,7 @@ from typing import Any
 from langchain_core.messages import BaseMessage
 from langchain_core.tools import tool
 
+from mirobody.agent.clock import now as _now
 from mirobody.kernel.ops import is_driver_exception
 
 from .wire.blocks import INTERRUPT
@@ -77,7 +78,7 @@ def parse_date_answer(answer: str, today: datetime | None = None) -> tuple[str, 
     unclear, where it used to file under the upload day. A month-day without
     a year is this year's."""
     text = (answer or "").strip()
-    today = today or datetime.now()
+    today = today or _now()
     m = _YMD.search(text)
     if m:
         try:
