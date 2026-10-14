@@ -298,7 +298,8 @@ class IndicatorExtractor:
         if not reading.rows:
             return Filed([], reading.answer, 0, None)
         start, source = await _filing_date(user_id, file_key, reading.date, report_date)
-        report = await save_indicators_to_db(str(user_id), reading.rows, start, source, file_key, reading.extractor)
+        report = await save_indicators_to_db(str(user_id), reading.rows, start, source, file_key, reading.extractor,
+                                             text=original_text)
         stored = report.inserted + report.skipped
         if not stored:
             rejected = ", ".join(f"{reason}={n}" for reason, n in sorted(report.rejected.items())) or "none written"

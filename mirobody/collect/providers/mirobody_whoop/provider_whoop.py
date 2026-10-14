@@ -83,7 +83,6 @@ class WhoopProvider(BasePullProvider):
             slug="theta_whoop",
             name="Whoop",
             description="Whoop fitness and health data integration via OAuth2",
-            logo="https://static.thetahealth.ai/res/whoop.png",
             supported=True,
             auth_type=LinkType.OAUTH2,
             status=ProviderStatus.AVAILABLE,

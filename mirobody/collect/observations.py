@@ -175,6 +175,9 @@ class Draft:
     row_ix: int | None = None
     member_of: int | None = None
     derived_from: tuple[int, ...] = ()
+    #: This row's own modality when it differs from its batch's: an extracted
+    #: value the document's text does not bear out (`MODALITY_UNVERIFIED`).
+    modality: str = ""
 
 
 @dataclass(frozen=True)
@@ -277,7 +280,7 @@ def prepare(
     row: dict[str, Any] = {
         "user_id": str(user_id),
         "kind": draft.kind or KIND_MEASUREMENT,
-        "modality": provenance.modality,
+        "modality": draft.modality or provenance.modality,
         "source_kind": provenance.source_kind,
         "source_ref": provenance.source_ref,
         "source_record_id": _clean(draft.source_record_id) or None,

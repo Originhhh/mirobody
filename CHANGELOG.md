@@ -40,9 +40,25 @@
 - **A cited genotype has a citation id.** `query_genetic_data` rows carry a
   `rid` that resolves to the gene, rsID, call and upload file; a model given
   none wrote `r1` anyway.
+- **A value the report does not print is marked.** Each extracted
+  measurement is checked against the document's text; one the text lacks is
+  stored `llm-unverified`, stays in the record, and the agent is told to check
+  the file before relying on it. No correct value was flagged across 953 rows
+  of the OCR benchmark's stored extractions.
 
 ### Fixed
 
+- **Numeric evidence lost the sign.** A report's `-4.5` validated an
+  extracted `4.5`; matching now preserves signs, leading-dot decimals and
+  scientific notation. Range separators follow the parser's grammar, so
+  `125--350` ends at positive 350 and `-5---1` at negative 1. An unreadable
+  exponent leaves verification unknown instead of aborting a report.
+- **An unverified reading became an ordinary trend value.** Raw and latest
+  answers kept its modality but catalog, statistics and time buckets lost it.
+  Every aggregate now carries the status of the inputs actually selected;
+  windows and elected rows prevent an unrelated reading from tainting a result.
+  The shipped PostgreSQL gate covers all nine views and seven input/election
+  scenarios through the actual observation writer and read view.
 - **A ranking fix changed a person into an object.** `weight` became stone
   weight and `temperature` humidifier temperature; the exact-component nudge
   now preserves patient-level measurements and singular/plural ties.
@@ -86,6 +102,12 @@
   glucose, with no range, was stored `high` on the model's say-so. A
   measurement's flag now needs a printed range or a printed marker
   (`6.49↑`, `5.6 H`).
+- **A self-hosted server named hosts outside it.** The built-in device
+  providers answered with logo URLs on Theta's CDN, and CDA with hl7.org; the
+  web client ships those logos, so `logo` is now empty for them.
+- **Physical-exam sites answered unrelated assays.** `胸廓` resolved to a breast
+  aspirate's microscopy and `口腔` to a 1-hour glucose challenge; 21 body-site and
+  department words now refuse. Found by the end-to-end run on a real checkup.
 - **`mirobody doctor --probe` misread Ollama twice.** It failed a server
   listing `minicpm5-2b:latest` and passed a GLM-OCR that never stopped. The
   local-models page also said a 4k Ollama context truncates silently (it

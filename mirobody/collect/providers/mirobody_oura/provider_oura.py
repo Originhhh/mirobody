@@ -83,7 +83,6 @@ class OuraProvider(BasePullProvider):
             slug="theta_oura",
             name="Oura",
             description="Oura Ring sleep, activity, and readiness tracking via OAuth2",
-            logo="https://static.thetahealth.ai/res/oura.png",
             supported=True,
             auth_type=LinkType.OAUTH2,
             status=ProviderStatus.AVAILABLE,

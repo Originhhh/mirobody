@@ -104,7 +104,6 @@ class GarminProvider(BasePullProvider):
             slug="theta_garmin",
             name="Garmin Connect",
             description="Garmin fitness and health data integration via OAuth",
-            logo="https://static.thetahealth.ai/res/garmin.png",
             supported=True,
             auth_type=LinkType.OAUTH1,
             status=ProviderStatus.AVAILABLE,

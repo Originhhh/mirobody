@@ -46,6 +46,30 @@ stool	!unresolved
 heavy metals	!unresolved
 激素	!unresolved
 enzymes	!unresolved
+# A checkup's physical-exam rows are named by body site or department, with
+# a finding for a value (`胸廓 对称`). Each answered an unrelated assay:
+# 胸廓 a breast aspirate's microscopy, 口腔 a 1-hour glucose challenge.
+乳房	!unresolved
+胸廓	!unresolved
+腹部	!unresolved
+甲状腺	!unresolved
+心脏	!unresolved
+肺部	!unresolved
+双肺	!unresolved
+心肺	!unresolved
+肝脏	!unresolved
+脾脏	!unresolved
+肾脏	!unresolved
+胰腺	!unresolved
+膀胱	!unresolved
+前列腺	!unresolved
+卵巢	!unresolved
+淋巴结	!unresolved
+皮肤	!unresolved
+头颅	!unresolved
+四肢	!unresolved
+口腔	!unresolved
+外科	!unresolved
 
 # ── lipid panel ──────────────────────────────────────────────────────────
 total cholesterol	Cholesterol
