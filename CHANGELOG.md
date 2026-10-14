@@ -2,6 +2,12 @@
 
 ### Added
 
+- **The hosted and local walkthroughs can share one synthetic record.**
+  `python demo/export.py` exports the seeded readings, source-file hashes and
+  view-only family grant without a database or model. Upload samples remain
+  separate from the initial record. The READMEs expose Global and China demo
+  links; obsolete hosted developer-API recommendations are removed.
+
 - **Windows local-model measurements are reproducible from a checkout.** The
   Windows 11 / RTX 5060 tests lived on a benchmark branch with scripts tied to
   an external kit. The repository now carries their synthetic inputs, raw

@@ -123,6 +123,5 @@ LOINC 的：`Body bone mass` 在这里能解析到 `101685-6`，但中文的 `�
 [发布说明](https://loinc.org/kb/)。下载免费，但需要注册账号，这也是为什么这里发布
 的是派生词表，而不是源发行版。
 
-→ [标准化](https://docs.mirobody.ai/zh/api-reference/standardization/) ·
-[架构](https://docs.mirobody.ai/zh/concepts/architecture/) ·
-[数据流](https://docs.mirobody.ai/zh/concepts/data-flow/)
+→ [数据管线](pipeline.md) · [操作演示](walkthrough.md) ·
+[演示数据](../demo/README.md)
