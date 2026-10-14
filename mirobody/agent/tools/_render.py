@@ -114,6 +114,10 @@ def render_compact(envelope: tools.Envelope, columns: Sequence[str] | None = Non
         return _render_error(envelope)
     rows = list(envelope.data or [])
     if columns:
+        # Chat's fixed genetic columns omitted ids minted in the envelope;
+        # every rendering path must expose the handles the model can cite.
+        if "rid" not in columns and any(r.get("rid") for r in rows):
+            columns = ("rid", *columns)
         table = query.compact(rows, tuple(columns)) if rows else ""
     else:
         table = _readings_table(rows)

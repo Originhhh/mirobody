@@ -282,7 +282,7 @@ def turkish_i_variants(term: str) -> list[str]:
 def surface_variants(term: str) -> list[str]:
     """The spellings of ``term`` worth trying, most faithful first.
 
-    Never more than ten, and the first is always the term as written, so a
+    Never more than eight, and the first is always the term as written, so a
     caller that stops at the first hit keeps today's answer for today's inputs.
     Every entry after the first can only turn a miss into a hit.
 
@@ -301,11 +301,9 @@ def surface_variants(term: str) -> list[str]:
         term,
         normalize(term),
         " ".join(word_tokens(term)),
-        strip_trailing_abbreviation(term),
         join_series_suffix(term),
         fold_to_hans(term or ""),
         split_camel(term),
-        strip_trailing_abbreviation(split_camel(term)),
         *turkish_i_variants(term or ""),
     )
     for candidate in candidates:

@@ -31,7 +31,10 @@ from mirobody._bundle import (
     read_members,
 )
 from mirobody._strtab import StringTable
-from mirobody.lexical import index_fold, is_component_suffix, measure_stems, split_trailing_parenthetical, surface_variants
+from mirobody.lexical import (
+    fold_plural, index_fold, is_component_suffix, measure_stems, split_trailing_parenthetical,
+    strip_trailing_abbreviation, surface_variants,
+)
 
 if TYPE_CHECKING:  # `_posting` names np.ndarray in its annotation; numpy itself
     import numpy as np  # is imported lazily so `import mirobody.engine` stays cheap
@@ -215,6 +218,7 @@ class OfflineResolver:
         #      files. Their targets are phrases written for the 1.4.x index
         #      build, so they resolve only sometimes; hence (1).
         self._system_values: set[str] | None = None
+        self._system_keys: set[str] | None = None
         self._src = load_alias_sources(fold=index_fold)
 
         version = bundle_version() or "unversioned"
@@ -337,8 +341,19 @@ class OfflineResolver:
                     seen.add(key)
                     yield key
 
-        for surface in surface_variants(term):
+        surfaces = surface_variants(term)
+        for surface in surfaces:
             yield from fresh(self._keys_for(self._normalize(surface)))
+
+        # CamelCase splitting exposes the same qualifier as a spaced report
+        # name. `BloodGlucose-OGTT` must not become ordinary blood glucose;
+        # the vocabulary-backed guard distinguishes qualifiers from repeats.
+        for surface in surfaces:
+            stem = strip_trailing_abbreviation(surface)
+            if stem and stem != surface:
+                token = surface[len(stem):].strip(" -")
+                if self._trailing_token_is_an_abbreviation(stem, token):
+                    yield from fresh(self._keys_for(self._normalize(stem)))
 
         # "Total cholesterol TC" -> "Total cholesterol". A lab report prints the
         # analyte beside its abbreviation constantly, and none of those strings
@@ -360,7 +375,7 @@ class OfflineResolver:
             yield from fresh(self._keys_for(self._normalize(stem)))
 
     def _trailing_token_is_an_abbreviation(self, stem: str, token: str) -> bool:
-        """Is the trailing ALL-CAPS token a repeat of `stem`, or does it add to it?
+        """Is the trailing token a repeat of `stem`, or does it add to it?
 
         `Total cholesterol TC` and `Protein CSF` are the same SHAPE and opposite
         meanings. Stripping the first is lossless; stripping the second answers a
@@ -391,16 +406,18 @@ class OfflineResolver:
         The recursion is bounded: looking the stem up can strip a trailing
         token of its own, one token shorter at each level.
         """
-        if not token or token in self._systems() or is_component_suffix(token) or self._is_blocked(token):
-            return False
-        if any(ch.isdigit() for ch in token):
-            # `Vitamin D-3`, `Apolipoprotein B-100`: a numbered tail is a
-            # member of a series, never a spelling of the stem.
+        if self._system_keys is None:
+            self._system_keys = {self._normalize(system) for system in self._systems()}
+        if not token or self._normalize(token) in self._system_keys or is_component_suffix(token) or self._is_blocked(token):
             return False
         own = self._lookup(token)
         if own is None or not own.loinc:
-            return True
+            # A known `HbA1c` can repeat glycated hemoglobin, but an unknown
+            # numbered token is a member of a series, not an abbreviation.
+            return not any(ch.isdigit() for ch in token)
         base = self._lookup(stem)
+        if any(ch.isdigit() for ch in token):
+            return bool(base and base.loinc == own.loinc)
         return base is None or not base.loinc or base.loinc == own.loinc
 
     def _systems(self) -> set[str]:
@@ -468,16 +485,17 @@ class OfflineResolver:
         return keys
 
     def _pick(self, rows: np.ndarray, key: str) -> int:
-        """Best corpus row: the analyte the key names, then commonness and specimen.
+        """Prefer the named component without changing a patient into a specimen.
 
-        A row whose COMPONENT is the key itself outranks one that only contains
-        it. `globulin` posts 15 rows, and without this the specimen nudge let
-        `Thyroxine.thyroxine binding globulin bound ... in Serum or Plasma`
-        (14016-0) beat `Globulin ... in Serum` (2336-6). On the 7,354-case set
-        it turned 142 wrong answers right and 2 right ones wrong.
+        `globulin` otherwise selects thyroxine bound to globulin, and `urea`
+        selects urea nitrogen. An exact COMPONENT corrects these, but cannot
+        override a patient-level measurement with an organ or device: `weight`
+        became stone weight and `temperature` became humidifier temperature.
+        A singular/plural spelling cannot break an existing commonness tie:
+        `platelet` otherwise prefers mean platelet volume to platelet count.
 
-        Everything is compared as raw blob slices: a hit like `血红蛋白` has
-        hundreds of candidate rows, and the losers are never needed as text.
+        Names stay raw blob slices; only exact component candidates need
+        decoding, not the hundreds of long names an alias can post.
         """
         names = self._names
         rank = self._rank
@@ -488,6 +506,7 @@ class OfflineResolver:
         # a hit into a miss. No shipped rank is NaN; the answer should not
         # depend on that.
         best_row, best_score = -1, float("-inf")
+        exact_matches: list[tuple[int, float]] = []
         for r in rows:
             r = int(r)
             if best_row < 0:
@@ -499,7 +518,21 @@ class OfflineResolver:
             if _SPECIAL_SPECIMEN.search(name):
                 score -= 0.25
             if axis.field_raw(r, _COMPONENT) == exact:
-                score += 0.5
+                exact_matches.append((r, score))
+            if score > best_score:
+                best_row, best_score = r, score
+        baseline = self._axis_row(best_row)
+        baseline_score = best_score
+        if (
+            baseline[1] != key and fold_plural(baseline[1]) == fold_plural(key)
+            and any(score == baseline_score for _row, score in exact_matches)
+        ):
+            return best_row
+        for r, score in exact_matches:
+            candidate = self._axis_row(r)
+            if baseline[4] == "^Patient" and candidate[4] != "^Patient":
+                continue
+            score += 0.5
             if score > best_score:
                 best_row, best_score = r, score
         return best_row

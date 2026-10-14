@@ -174,7 +174,7 @@ def code(
             if verdict.outcome == "switched" and verdict.code:
                 evidence = ("alias", "unit=switched", f"variant_of={loinc}", f"why={verdict.rejected_reason}")
                 loinc = verdict.code
-        return _coded(loinc, did, rule, rel, local, value_kind, value_num, unit_ucum, evidence)
+        return _coded(loinc, did, rule, rel, local, value_kind, value_num, unit_ucum, evidence, unit_text)
 
     from mirobody.engine import resolve_reading
 
@@ -208,22 +208,8 @@ def code(
         return Coding(OUTCOME_NEEDS_INPUT, local, did, RULE_ENGINE, rel, reason="engine:no-match", evidence=evidence)
     if hit.method != "lexical":
         return Coding(OUTCOME_NEEDS_INPUT, local, did, RULE_ENGINE, rel, reason=f"engine:untrusted:{hit.method}", evidence=evidence)
-    if value_kind == KIND_QUANTITY and not unit_ucum:
-        # `空腹血糖 6.1` is mmol/L, and the name alone gives the mg/dL code:
-        # the reading joined the mass series with no canonical value, and the
-        # series statistics silently left it out. The unit is the only thing
-        # that picks between the two, so without one a person has to; a
-        # printed unit that does not normalize ("mmol/l(空腹)") picks nothing.
-        from mirobody.engine import get_resolver
-
-        siblings = get_resolver().unit_variants(hit.loinc)
-        if siblings:
-            return Coding(
-                OUTCOME_NEEDS_INPUT, local, did, RULE_ENGINE, rel,
-                reason="unit:unrecognized" if unit_text else "unit:missing",
-                evidence=evidence + (f"candidate={hit.loinc}", "variants=" + ",".join(siblings)),
-            )
-    return _coded(hit.loinc, did, RULE_ENGINE, rel, local, value_kind, value_num, unit_ucum, evidence + (f"canonical={hit.canonical}",))
+    return _coded(hit.loinc, did, RULE_ENGINE, rel, local, value_kind, value_num, unit_ucum,
+                  evidence + (f"canonical={hit.canonical}",), unit_text)
 
 
 def _coded(
@@ -236,6 +222,7 @@ def _coded(
     value_num: float | None,
     unit_ucum: str,
     evidence: tuple[str, ...],
+    unit_text: str,
 ) -> Coding:
     found = axes_for(loinc)
     if found is None:
@@ -247,6 +234,19 @@ def _coded(
             OUTCOME_NEEDS_INPUT, local, did, rule, rel,
             reason=f"scale:{value_kind}-vs-{axes.scale}", evidence=evidence + (f"candidate={loinc}",),
         )
+    if value_kind == KIND_QUANTITY and not unit_ucum:
+        # A confirmed analyte does not supply its missing unit: FPG 4.76
+        # entered the standard series with NULL canonical value, then AVG
+        # silently omitted it alongside mmol/L readings (PR145 review).
+        from mirobody.engine import get_resolver
+
+        siblings = get_resolver().unit_variants(loinc)
+        if siblings:
+            return Coding(
+                OUTCOME_NEEDS_INPUT, local, did, rule, rel,
+                reason="unit:unrecognized" if unit_text else "unit:missing",
+                evidence=evidence + (f"candidate={loinc}", "variants=" + ",".join(siblings)),
+            )
     canonical_value = canonical_unit = None
     if value_kind == KIND_QUANTITY and value_num is not None and unit_ucum:
         folded = units.canonicalize(value_num, unit_ucum, loinc_code=loinc)

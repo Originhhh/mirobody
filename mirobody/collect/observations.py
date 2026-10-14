@@ -440,7 +440,7 @@ SELECT scope, name_key, unit_ucum, code_system, code
  ORDER BY (scope = :global_scope), id
 """
 
-_SELECT_ROW = "SELECT * FROM th_observation WHERE id = :id AND user_id = :user_id"
+_SELECT_ROW = "SELECT *, decrypt_content(note_text) AS prior_note FROM th_observation WHERE id = :id AND user_id = :user_id"
 
 _COPY_CURRENT = f"""
 INSERT INTO th_coding_current (observation_id, {_CODING_COLUMNS})
@@ -832,7 +832,7 @@ async def amend(
     unit_text: str | None = None,
     observed_start: datetime | None = None,
     observed_end: datetime | None = None,
-    note: str = "",
+    note: str | None = None,
     user_tz: str = "UTC",
     now: datetime | None = None,
 ) -> int | None:
@@ -840,7 +840,8 @@ async def amend(
     old one, re-coded from the corrected text. Returns the new row's id;
     `observation_id` itself when the change leaves the row's fingerprint as
     it was and no note is given, and nothing is written; `None` when the id
-    is not this person's."""
+    is not this person's. Omitted `note` preserves the original annotation;
+    an explicit empty string clears it."""
     async with db.transaction() as tx:
         rows = await tx.execute(_SELECT_ROW, {"id": int(observation_id), "user_id": str(user_id)})
         if not rows:
@@ -857,14 +858,19 @@ async def amend(
             value_text=old["value_text"] if value_text is None else value_text,
             unit_text=old["unit_text"] if unit_text is None else unit_text,
             ref_text=old["ref_text"], flag_text=old["flag_text"], method_text=old["method_text"],
-            specimen_text=old["specimen_text"], note_text=note, panel_text=old["panel_text"],
+            specimen_text=old["specimen_text"],
+            # A unit/date correction must not hide the report's context in
+            # the old row of its amendment chain (PR145 confirmation gate).
+            note_text=(old.get("prior_note") or "") if note is None else note,
+            panel_text=old["panel_text"],
             kind=old["kind"], tz=old["tz"], grain="" if observed_start is not None else old["grain"],
             stat=old["stat"], source_record_id=old.get("source_record_id"), vendor_field=old.get("vendor_field"),
             row_ix=old.get("row_ix"), member_of=old.get("member_of"),
             derived_from=tuple(old.get("derived_from") or ()),
         )
         row = prepare(draft, provenance, str(user_id), user_tz, now=now or datetime.now(tz=translate.zone_for("UTC")))
-        if row["fingerprint"] == old["fingerprint"] and not note:
+        unchanged_note = note is None or note == (old.get("prior_note") or "")
+        if row["fingerprint"] == old["fingerprint"] and unchanged_note:
             return int(observation_id)
         row["extraction_id"] = old.get("extraction_id")
         row["amends"] = int(observation_id)

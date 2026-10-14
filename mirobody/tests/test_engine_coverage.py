@@ -123,6 +123,7 @@ CASES: list[tuple[str, str, str]] = [
     ("sodium",                      r"sodium",                       r""),
     ("potassium",                   r"potassium",                    r""),
     ("albumin",                     r"albumin",                      r"urine|globulin ratio"),
+    ("transthyretin",                r"prealbumin",                   r"binding|mass\]"),
     # Each answered a binding protein: 14016-0 (thyroxine bound to TBG) or,
     # for `GLB`, 13967-5 (SHBG). A liver panel's globulin joined a thyroid series.
     ("球蛋白",                        r"^globulin \[",                 r"binding|albumin"),
@@ -1317,7 +1318,8 @@ def test_a_catalogue_alias_lets_the_unit_pick_the_variant():
     """The catalogue says `bloodGlucoses` is 2339-0, glucose as a mass
     concentration in blood; a Honor watch prints mmol/L. The alias names the
     analyte and the unit picks the sibling. A unit that fits no sibling
-    leaves the alias's code: the alias is a decision, not a guess."""
+    leaves the alias's code: the alias is a decision, not a guess. Missing
+    units still need input; an alias cannot create a canonical quantity."""
     from mirobody import translate
     from mirobody.translate.parse import KIND_QUANTITY
 
@@ -1332,7 +1334,8 @@ def test_a_catalogue_alias_lets_the_unit_pick_the_variant():
 
     assert run("5.6", "mmol/L").code == "15074-8"
     assert run("101", "mg/dL").code == "2339-0"
-    assert run("5.6", "").code == "2339-0"
+    assert run("5.6", "").outcome == "needs-input"
+    assert run("5.6", "").reason == "unit:missing"
     odd = run("5.6", "%")
     assert odd.coded and odd.code == "2339-0"
 

@@ -29,9 +29,10 @@
 - **A reading waiting for input can be answered.** `POST
   /api/v1/health-indicators/confirm-code` takes a reading id and a LOINC code
   (or none, for "not a standard test"), keeps it for the printed name and
-  recodes every reading that carries it. A slip printing `FPG 4.76` with no unit
-  waited forever, because mg/dL and mmol/L are two codes and the coder rightly
-  will not pick.
+  recodes matching readings. For `FPG 4.76` with no unit, supply the unit
+  explicitly: it is recorded as an amendment, with the original preserved.
+  Confirming only the code cannot create a comparable quantity, so a later
+  upload still missing its unit continues to wait for input.
 - **`mirobody import apple export.zip --into <user id>` stores the export.**
   The command only printed a summary before. It now writes through the phone
   push's path and builds the daily values; a re-import adds nothing, and a day
@@ -42,6 +43,32 @@
 
 ### Fixed
 
+- **A ranking fix changed a person into an object.** `weight` became stone
+  weight and `temperature` humidifier temperature; the exact-component nudge
+  now preserves patient-level measurements and singular/plural ties.
+  Platelet count stays a count and transthyretin names prealbumin concentration.
+- **A glued name lost its qualifier.** `BloodGlucose-OGTT` became ordinary
+  glucose and `TotalCholesterol-HDL` total cholesterol. Abbreviation removal
+  now checks whether the suffix changes the measurement, including after
+  CamelCase splitting; repeated `HbA1c` still resolves.
+- **An export counted overlapping Apple devices together.** The new
+  `apple_health_export` stream bypassed hub source selection. It now selects
+  one device before aggregation, with Apple Watch ahead of iPhone names;
+  same-instant buffer collisions keep the same valid winner, regardless of
+  file order or batch boundaries. Re-importing adds no readings.
+- **A printed H/L flag disappeared without a range.** Table rules retain
+  the copied flag separately, so storing a reading keeps it while still
+  refusing an unsupported model judgement.
+- **A valid VCF citation looked deleted.** A no-rsID site's `loc:` identity
+  contains another colon; citation keys now preserve it. The chat renderer
+  also exposes minted ids when a service supplies fixed columns.
+- **Confirmed unitless values vanished from statistics.** A user alias
+  bypassed the unit gate and put a NULL canonical value in a standard series.
+  Both resolver and alias coding now keep such quantities waiting for input.
+- **These regressions were absent from the shipped gate.** Named synthetic
+  resolver, collection and confirmation tests now run from a clone. CI runs
+  a PostgreSQL 17 write/read gate for normal and stacked pull requests;
+  `docs/testing.md` gives the database command and isolation contract.
 - **Globulin answered a binding protein.** `球蛋白`, `Globulin` and `GLB`
   resolved to 14016-0 (thyroxine bound to TBG) or 13967-5 (SHBG): a row whose
   component only contains the word outranked the one whose component is the
