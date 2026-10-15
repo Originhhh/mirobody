@@ -48,9 +48,9 @@ running the minimal suite while reporting the full one. If a doc says `[agents]`
 ```bash
 ruff check mirobody examples   # rule set in pyproject.toml; 0 findings on main
 python -m compileall -q mirobody
-pytest -q               # 332 in a clone (319 pass, 13 strict xfails): the four
-                        # shipped gate modules. On `[test]` alone the security
-                        # module skips. The regression suite is gitignored
+pytest -q               # 731 in a clone with [app]: 620 pass, 12 strict xfails,
+                        # 99 database cases skip until MIROBODY_TEST_POSTGRES_DSN
+                        # is set (docs/testing.md). The regression suite is gitignored
 lint-imports            # 6 contracts, must say "0 broken"
 python3 -c "import mirobody.kernel.meds, mirobody.kernel.query"   # the library layer, bare interpreter
 ```

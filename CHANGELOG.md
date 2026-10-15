@@ -1,4 +1,4 @@
-## Unreleased
+## 1.5.7
 
 ### Added
 
@@ -7,7 +7,6 @@
   view-only family grant without a database or model. Upload samples remain
   separate from the initial record. Each README links to its language's hosted
   demo; obsolete hosted developer-API recommendations are removed.
-
 - **Windows local-model measurements are reproducible from a checkout.** The
   Windows 11 / RTX 5060 tests lived on a benchmark branch with scripts tied to
   an external kit. The repository now carries their synthetic inputs, raw
@@ -64,7 +63,6 @@
   Global and China links. The English README now keeps only the Global demo
   with `lang=en`; the Chinese README keeps only the China demo with
   `lang=zh-cn`. Each edition's top demo link opens its matching language.
-
 - **Numeric evidence lost the sign.** A report's `-4.5` validated an
   extracted `4.5`; matching now preserves signs, leading-dot decimals and
   scientific notation. Range separators follow the parser's grammar, so
@@ -168,6 +166,10 @@
   The English and Chinese guides required a UNC working directory that the
   measured native launcher refused. Both now name a local drive path and link
   the benchmark's reproduction commands and hardware limits.
+- **The contributor docs counted the tests of 1.5.4.** `AGENTS.md`,
+  `CONTRIBUTING.md` and `docs/testing.md` said 332 tests in four modules. A
+  clone with `[app]` collects 731 in thirteen, and `docs/testing.md` now
+  describes each module and what skips without `[app]` or a database.
 
 ## 1.5.6
 

@@ -91,9 +91,10 @@ the mail client.
     `[app]` for the server and agent layers. What each install pulls in is in
     [docs/testing.md](docs/testing.md).
 
-    A clone collects **332** tests with `[app]` (319 pass, 13 are strict xfails)
-    in four gate modules; on `[test]` alone `test_security_gates.py` skips, which
-    leaves 251. The maintainers'
+    A clone collects **731** tests with `[app]` in thirteen gate modules: 620
+    pass, 12 are strict xfails, and the 99 database cases skip until
+    `MIROBODY_TEST_POSTGRES_DSN` names a database. On `[test]` alone the
+    modules that need FastAPI skip too, which leaves 409 passing. The maintainers'
     regression suite is gitignored, so the extras buy you the ability to RUN the
     layer you are changing, not more tests. Write new tests under `tests/` at
     the repo root and say in the PR what you ran. Everything there is dropped at
