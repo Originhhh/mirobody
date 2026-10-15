@@ -5,8 +5,8 @@
 - **The hosted and local walkthroughs can share one synthetic record.**
   `python demo/export.py` exports the seeded readings, source-file hashes and
   view-only family grant without a database or model. Upload samples remain
-  separate from the initial record. The READMEs expose Global and China demo
-  links; obsolete hosted developer-API recommendations are removed.
+  separate from the initial record. Each README links to its language's hosted
+  demo; obsolete hosted developer-API recommendations are removed.
 
 - **Windows local-model measurements are reproducible from a checkout.** The
   Windows 11 / RTX 5060 tests lived on a benchmark branch with scripts tied to
@@ -60,10 +60,10 @@
 
 ### Fixed
 
-- **The English README's China demo opened in Chinese.** Both hosting-region
-  links in the English README and demo guide now request English explicitly;
-  the Chinese README requests Simplified Chinese in both regions. The hosted
-  walkthrough's top language control lets readers choose either language.
+- **Each README offers one demo in its own language.** Both editions showed
+  Global and China links. The English README now keeps only the Global demo
+  with `lang=en`; the Chinese README keeps only the China demo with
+  `lang=zh-cn`. Each edition's top demo link opens its matching language.
 
 - **Numeric evidence lost the sign.** A report's `-4.5` validated an
   extracted `4.5`; matching now preserves signs, leading-dot decimals and

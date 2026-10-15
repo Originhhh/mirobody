@@ -18,7 +18,7 @@
 [![License: Apache-2.0](https://badgen.net/badge/license/Apache-2.0/blue)](LICENSE)
 [![GitHub stars](https://badgen.net/github/stars/thetahealth/mirobody?icon=github&label=stars)](https://github.com/thetahealth/mirobody/stargazers)
 
-**[▶ 国内在线体验](https://chat.mirobody.cn/demo?ref=github-readme&lang=zh-cn)** · **[海外在线体验](https://chat.mirobody.ai/demo?ref=github-readme&lang=zh-cn)** · **[一条命令体验](#一条命令体验标准化引擎)** · **[在 Codespaces 中打开](#在-codespaces-体验完整应用)** · **[100% 本地部署](#100-本地部署应用数据和模型)**
+**[▶ 在线体验](https://chat.mirobody.cn/demo?ref=github-readme&lang=zh-cn)** · **[一条命令体验](#一条命令体验标准化引擎)** · **[在 Codespaces 中打开](#在-codespaces-体验完整应用)** · **[100% 本地部署](#100-本地部署应用数据和模型)**
 
 </div>
 
