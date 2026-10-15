@@ -12,27 +12,27 @@ long-lived venv:
 
 | install | packages | tests |
 | --- | --- | --- |
-| `'.[test]'` | 20 | 238 passed, 13 xfailed (`test_security_gates.py` skips) |
-| `'.[test,parse]'` | 77 | 238 passed, 13 xfailed (`test_security_gates.py` skips) |
-| `'.[test,app]'` | 148 | 319 passed, 13 xfailed |
+| `'.[test]'` | 20 | 409 passed, 161 skipped, 12 xfailed |
+| `'.[test,parse]'` | 78 | 409 passed, 161 skipped, 12 xfailed |
+| `'.[test,app]'` | 148 | 620 passed, 99 skipped, 12 xfailed |
 
-The extras barely change what a clone can run, and that is not a mistake in
-the table. Four public modules are kept in the repository: the resolver score,
-the cross-language identity gate, `test_skills.py`, which checks the agent
-skills' commands and claims, and `test_security_gates.py`, which pins the
-server's security decisions. The skills module also ships in the wheel as
-inspectable release evidence, but skips when the wheel is installed without
-the repository-root `skills/` directory. The first three need no extra, so
-every install runs them in a clone; the security module needs FastAPI, which
-only `[app]` installs, and skips its 81 tests without it
-(`pytest.importorskip("fastapi")`). The 13
-xfails are the known cross-language splits, described below. What the extras
-still decide is what the SERVER needs, which is what the package counts are
-for.
+The extras change less of what a clone can run than the package counts
+suggest. Thirteen public modules are kept in the repository, described below.
+Nine of them need no extra, so every install runs them in a clone. `[parse]`
+adds nothing a clone can run. `[app]` adds 211 tests, the ones that need
+FastAPI and skip without it (`pytest.importorskip("fastapi")`): the security
+gates (81), the collection (55) and extraction (70) regressions, and the
+confirmation route checks (5). The 99 database cases skip on every install
+until `MIROBODY_TEST_POSTGRES_DSN` names a database (see below); CI supplies
+one. The skills module also ships in the wheel as inspectable release
+evidence, but skips when the wheel is installed without the repository-root
+`skills/` directory. The 12 xfails are the known cross-language splits,
+described below. What the extras still decide is what the SERVER needs, which
+is what the package counts are for.
 
-<sub>Measured 2026-10-08 on a clone-shaped tree, each install in a fresh
+<sub>Measured 2026-10-15 on a clone-shaped tree, each install in a fresh
 venv: packages are `uv pip freeze` lines, tests `pytest -q mirobody/tests`
-(332 collected with `[app]`). `pytest` in a checkout that also has the
+(731 collected with `[app]`). `pytest` in a checkout that also has the
 maintainers' local suite collects more; these are the numbers a clone sees.</sub>
 
 They used to abort collection outright rather than skip — first with
@@ -46,7 +46,7 @@ enough.
 That is the entire happy path. `testpaths` is set, so bare `pytest` collects
 two trees, and a third that is neither:
 
-- `mirobody/tests/` — four public modules, described below.
+- `mirobody/tests/` — thirteen public modules, described below.
   It ships in the repository and is what `pytest mirobody` runs in a clone;
   only `test_skills.py` is carried into the wheel, and
   `scripts/check_wheel_data.py` fails if another test member turns up there.
@@ -81,6 +81,10 @@ a clone can re-run it.
 | `test_confirmation_regressions.py` | confirmed aliases still need units; explicit units use observation amendments | pure coding checks run without `[app]`; route checks need it |
 | `test_postgres_regressions.py` | actual schema, writer, confirmation, statistics, Apple import/re-import and citation lifecycle | needs `[app,test]` and `MIROBODY_TEST_POSTGRES_DSN`; CI supplies PostgreSQL 17 |
 | `test_extraction_regressions.py` | signed values, range endpoints, unreadable exponents and unverified answer provenance | application tests; the database gate additionally checks all nine views, windows and elected inputs |
+| `test_citations.py` | every number in an answer traced to the rows it cites (`kernel.citations`) | library-only; the agent, the benchmark and the training judge run the same check |
+| `test_local_model_contract.py` | the GPU and CPU presets agree on weights, context and the chat template | reads `docker/*.ini` and `docker/minicpm5-2b.jinja`; no model download |
+| `test_windows_probe_regressions.py` | the Windows benchmark's speed probes fail on HTTP errors, unfinished streams and timeouts | synthetic local HTTP server; CI also runs it on `windows-latest` |
+| `test_windows_scripts_regressions.py` | the Windows benchmark's shell orchestration, against stubbed commands | runs the scripts under `bash` with a stubbed `docker`; skips on Windows |
 
 ```bash
 pytest mirobody/tests/test_engine_coverage.py -s
