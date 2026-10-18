@@ -84,6 +84,10 @@ _LOCAL_TS = (
     " ELSE o.observed_start AT TIME ZONE o.tz END"
 )
 
+# Whole-second formatting collapsed distinct device samples onto one displayed
+# instant. Keep PostgreSQL's microseconds without padding whole-second rows.
+_LOCAL_TIME = f"rtrim(rtrim(to_char({_LOCAL_TS}, 'YYYY-MM-DD HH24:MI:SS.US'), '0'), '.')"
+
 #: The number a statistic runs over, per group: the printed values when the
 #: group has one unit, the canonical values when it has more.
 _STAT_VALUE = "CASE WHEN COUNT(DISTINCT unit_ucum) > 1 THEN {agg}(value_canonical) ELSE {agg}(value_num) END"
@@ -259,7 +263,7 @@ class PostgresHealthQuery:
         comment = ", decrypt_content(o.note_text) AS comment" if notes else ""
         columns = f"""o.id, o.series_id, o.display, o.name_text, o.value_text, o.unit_text,
                    o.ref_text, o.flag_text, o.value_num, o.unit_ucum, o.value_canonical, o.unit_canonical,
-                   to_char({_LOCAL_TS}, 'YYYY-MM-DD HH24:MI:SS') AS local_time,
+                   {_LOCAL_TIME} AS local_time,
                    o.observed_start, o.observed_end,
                    o.local_date, o.modality, o.code_system, o.code, o.elected, o.outcome,
                    o.source_kind, p.period_start,
@@ -437,7 +441,7 @@ class PostgresHealthQuery:
             SELECT * FROM (
                 SELECT o.id, o.series_id, o.display, o.name_text, o.value_text, o.unit_text,
                        o.ref_text, o.flag_text, o.value_num, o.value_canonical, o.unit_canonical, o.comparator,
-                       to_char({_LOCAL_TS}, 'YYYY-MM-DD HH24:MI:SS') AS local_time,
+                       {_LOCAL_TIME} AS local_time,
                        o.tz, o.local_date, o.modality, o.code_system, o.code, o.elected, o.outcome,
                        {_REPORTED_COLUMNS},
                        {_FILE_KEY} AS file_key, {_FILE_NAME},
@@ -541,7 +545,7 @@ class PostgresHealthQuery:
                    o.value_canonical, o.unit_canonical, o.code_system, o.code, o.local_date, o.elected, o.modality,
                    o.outcome, {_REPORTED_COLUMNS},
                    {_FILE_KEY} AS file_key, {_FILE_NAME},
-                   to_char({_LOCAL_TS}, 'YYYY-MM-DD HH24:MI:SS') AS local_time
+                   {_LOCAL_TIME} AS local_time
               FROM v_observation o
             {_FILE_JOIN}
              WHERE o.user_id = :uid AND o.series_id = ANY(:names) {where}

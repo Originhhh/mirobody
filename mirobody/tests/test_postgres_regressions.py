@@ -74,6 +74,41 @@ async def _write_glucose():
     ], observations.Provenance(modality="lab-report", source_kind="file", source_ref="th_files:synthetic-glucose"), user_tz="UTC")
 
 
+@pytest.mark.parametrize("zone", ["UTC", "UTC+08:00", "UTC-05:30", "Asia/Shanghai", "America/New_York"])
+async def test_reading_times_retain_microseconds_across_raw_latest_and_records(database, zone):
+    from datetime import timedelta, timezone
+    from zoneinfo import ZoneInfo
+    from mirobody.collect.observations import Draft, Provenance, ingest
+    from mirobody.collect.query import PostgresHealthQuery
+    from mirobody.kernel import query
+
+    if zone.startswith(("UTC+", "UTC-")):
+        hours, minutes = map(int, zone[4:].split(":"))
+        delta = timedelta(hours=hours, minutes=minutes)
+        local_zone = timezone(delta if zone[3] == "+" else -delta)
+    else:
+        local_zone = ZoneInfo(zone)
+    base = datetime(2026, 6, 1, 23, 59, 59, tzinfo=UTC)
+    instants = [base + timedelta(microseconds=n) for n in (0, 1, 10, 100, 1000, 10000, 100000, 120000, 123456, 999999, 1000000, 1000001)]
+    drafts = [Draft(name_text=f"Synthetic clock {i}", value_text=str(i), tz=zone, observed_start=at)
+              for i, at in enumerate(instants)]
+    report = await ingest("1", drafts, Provenance("device-sensed", "device", "synthetic-subsecond"), user_tz="UTC")
+    assert report.inserted == len(drafts)
+    expected = {}
+    for row_id, instant in zip(report.ids, instants, strict=True):
+        local = instant.astimezone(local_zone).replace(tzinfo=None)
+        text = local.isoformat(sep=" ")
+        expected[row_id] = text.rstrip("0").rstrip(".") if local.microsecond else text
+    hq = PostgresHealthQuery()
+    selection = query.Selection(indicators=tuple(d.name_text for d in drafts))
+    window = query.Window(0, 0, "UTC")
+    for rows in (await hq.readings("1", selection, window, limit=50),
+                 await hq.latest("1", selection, window),
+                 (await hq.records("1", limit=None))["rows"],
+                 (await hq.records("1", created_since=datetime(2026, 1, 1, tzinfo=UTC), limit=None))["rows"]):
+        assert {row["row_id"]: row["time"] for row in rows} == expected
+
+
 async def test_confirmation_without_unit_does_not_silently_join_a_standard_series(database):
     router = importlib.import_module("mirobody.server.routers.indicator_router")
     report = await _write_glucose()

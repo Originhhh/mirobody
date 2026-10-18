@@ -1,3 +1,13 @@
+## Unreleased
+
+### Fixed
+
+- **Readings in the same second showed the same time.** Raw readings, latest
+  values and the records list formatted times to the whole second, so distinct
+  device samples (an intraday heart-rate stream, a burst of uploads) were shown
+  at one instant. They now keep the stored microseconds, trailing zeros trimmed;
+  whole-second times and bucket periods read as before.
+
 ## 1.5.7
 
 ### Added
