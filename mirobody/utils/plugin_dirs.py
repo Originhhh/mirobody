@@ -54,6 +54,7 @@ import importlib
 import importlib.util
 import logging
 import os
+import sys
 from importlib.metadata import entry_points
 from types import ModuleType
 
@@ -98,8 +99,43 @@ def resolve_plugin_dir(configured: str) -> tuple[str | None, str | None]:
     if not raw:
         return None, None
 
-    # The historical spelling: CWD-relative, which doubles as a dotted path.
+    # Existing filesystem paths identify the requested directory. Resolve the
+    # package from its real ancestry: CWD may be outside the importable root,
+    # and a same-named installed package must not replace an explicit path.
     relative = raw.removeprefix(os.getcwd()).removeprefix(os.sep).strip()
+    for candidate in (raw, relative):
+        if not candidate or not os.path.isdir(candidate):
+            continue
+        directory = os.path.abspath(candidate)
+        real_directory = os.path.realpath(directory)
+        parent = real_directory
+        parts = []
+        while os.path.isfile(os.path.join(parent, "__init__.py")):
+            parts.insert(0, os.path.basename(parent))
+            parent = os.path.dirname(parent)
+        packages = [".".join(parts)] if parts else []
+        # A regular package can also sit below a namespace parent, which has
+        # no __init__.py. Use existing import roots without extending sys.path.
+        for root in sys.path:
+            if not isinstance(root, str):
+                continue
+            try:
+                suffix = os.path.relpath(real_directory, os.path.realpath(root or os.getcwd()))
+            except ValueError:
+                continue
+            if suffix not in (".", os.pardir) and not suffix.startswith(os.pardir + os.sep):
+                packages.append(suffix.replace(os.sep, "."))
+        for package in dict.fromkeys(packages):
+            try:
+                spec = importlib.util.find_spec(package)
+            except Exception:
+                spec = None
+            if spec and spec.origin and os.path.realpath(os.path.dirname(spec.origin)) == real_directory:
+                return directory, package
+        return directory, None
+
+    # A dotted package or the documented slash spelling can name an installed
+    # package even when its directory is not relative to this working directory.
     dotted = relative.replace(os.path.sep, ".") if relative else ""
 
     if dotted:
@@ -111,11 +147,6 @@ def resolve_plugin_dir(configured: str) -> tuple[str | None, str | None]:
             # An importable package. Trust ITS location, not the string: this is
             # also how a caller may pass a dotted name instead of a path.
             return os.path.dirname(spec.origin), dotted
-
-    # Not importable, but the directory may still exist, under either spelling.
-    for candidate in (raw, relative):
-        if candidate and os.path.isdir(candidate):
-            return os.path.abspath(candidate), None
 
     return None, None
 

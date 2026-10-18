@@ -1,3 +1,14 @@
+## Unreleased
+
+### Fixed
+
+- **A tool directory configured by path could lose its tools.** Given an
+  absolute path to an importable package, the loader fell back to loading files
+  by location whenever the server ran outside the checkout, and every module
+  with a relative import was skipped: 4 of the 9 built-in tools, including
+  `query_health_indicators`. The directory's own package is now found from its
+  ancestry and the existing import roots; the agent and task loaders share it.
+
 ## 1.5.7
 
 ### Added

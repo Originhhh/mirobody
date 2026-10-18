@@ -29,6 +29,10 @@ labs = "my_plugin.tools"
 
 `examples/mirobody_example_plugin/` is a complete example.
 
+A directory that is an importable package keeps its dotted name however it is
+configured (absolute, relative, with `..`, a trailing slash or a symlink), so its
+modules may use relative imports from any working directory.
+
 ### Discovery Rules
 
 1. **File Location**: Must be a `.py` file inside a configured tool directory.
