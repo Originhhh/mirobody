@@ -94,6 +94,12 @@ CASES: list[tuple[str, str, str]] = [
     ("Non-HDL Cholesterol-Non-HDL", r"non HDL",                    r"in HDL \[|in LDL"),
     ("Non-HDL Cholesterol-Non-HDL-C", r"non HDL",                    r"in HDL \[|in LDL"),
     ("Lipid-Low-Density Lipoprotein Calculated", r"cholesterol.*LDL|LDL.*cholesterol", r"HDL|ratio"),
+    # `CHOL` answered calculated LDL and `总胆固醇(CHOL)` was refused as two
+    # analytes. The lipoprotein spellings keep their own codes.
+    ("CHOL",                        r"^cholesterol \[",              r"LDL|HDL|VLDL"),
+    ("总胆固醇(CHOL)",                r"^cholesterol \[",              r"LDL|HDL|VLDL"),
+    ("LDL-CHOL",                    r"cholesterol.*LDL|LDL.*cholesterol", r"HDL|ratio"),
+    ("HDL-CHOL",                    r"cholesterol.*HDL|HDL.*cholesterol", r"non.?HDL|LDL|ratio"),
     # ── complete blood count ─────────────────────────────────────────────────
     ("hemoglobin",                  r"hemoglobin",                   r"A1c|glycated"),
     # The British spelling answered 4548-4 Hemoglobin A1c, and `Haemoglobin
@@ -412,6 +418,12 @@ CASES: list[tuple[str, str, str]] = [
     ("血糖(空腹)",                    r"^fasting glucose",             r"tolerance|urine"),
     ("systolic_blood_pressure",     r"systolic blood pressure",      r""),
     ("total_cholesterol",           r"^cholesterol \[",              r"LDL|HDL|VLDL"),
+    # Bare column headers: `Height` answered left kidney height by ultrasound
+    # and `Systolic` a peak pressure during a septal defect.
+    ("Height",                      r"^body height",                 r"kidney|testis|percentile"),
+    ("Height (cm)",                 r"^body height",                 r"kidney|testis|percentile"),
+    ("Systolic",                    r"^systolic blood pressure",     r"peak|septal"),
+    ("Diastolic",                   r"^diastolic blood pressure",    r""),
     # ── fifth sweep: the surfaces a report actually prints ───────────────────
     #
     # (a) "名称(缩写)" — the single commonest shape on a Chinese report.

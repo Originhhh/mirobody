@@ -74,6 +74,41 @@ async def _write_glucose():
     ], observations.Provenance(modality="lab-report", source_kind="file", source_ref="th_files:synthetic-glucose"), user_tz="UTC")
 
 
+@pytest.mark.parametrize("zone", ["UTC", "UTC+08:00", "UTC-05:30", "Asia/Shanghai", "America/New_York"])
+async def test_reading_times_retain_microseconds_across_raw_latest_and_records(database, zone):
+    from datetime import timedelta, timezone
+    from zoneinfo import ZoneInfo
+    from mirobody.collect.observations import Draft, Provenance, ingest
+    from mirobody.collect.query import PostgresHealthQuery
+    from mirobody.kernel import query
+
+    if zone.startswith(("UTC+", "UTC-")):
+        hours, minutes = map(int, zone[4:].split(":"))
+        delta = timedelta(hours=hours, minutes=minutes)
+        local_zone = timezone(delta if zone[3] == "+" else -delta)
+    else:
+        local_zone = ZoneInfo(zone)
+    base = datetime(2026, 6, 1, 23, 59, 59, tzinfo=UTC)
+    instants = [base + timedelta(microseconds=n) for n in (0, 1, 10, 100, 1000, 10000, 100000, 120000, 123456, 999999, 1000000, 1000001)]
+    drafts = [Draft(name_text=f"Synthetic clock {i}", value_text=str(i), tz=zone, observed_start=at)
+              for i, at in enumerate(instants)]
+    report = await ingest("1", drafts, Provenance("device-sensed", "device", "synthetic-subsecond"), user_tz="UTC")
+    assert report.inserted == len(drafts)
+    expected = {}
+    for row_id, instant in zip(report.ids, instants, strict=True):
+        local = instant.astimezone(local_zone).replace(tzinfo=None)
+        text = local.isoformat(sep=" ")
+        expected[row_id] = text.rstrip("0").rstrip(".") if local.microsecond else text
+    hq = PostgresHealthQuery()
+    selection = query.Selection(indicators=tuple(d.name_text for d in drafts))
+    window = query.Window(0, 0, "UTC")
+    for rows in (await hq.readings("1", selection, window, limit=50),
+                 await hq.latest("1", selection, window),
+                 (await hq.records("1", limit=None))["rows"],
+                 (await hq.records("1", created_since=datetime(2026, 1, 1, tzinfo=UTC), limit=None))["rows"]):
+        assert {row["row_id"]: row["time"] for row in rows} == expected
+
+
 async def test_confirmation_without_unit_does_not_silently_join_a_standard_series(database):
     router = importlib.import_module("mirobody.server.routers.indicator_router")
     report = await _write_glucose()
@@ -131,6 +166,33 @@ async def test_confirmed_unit_preserves_original_and_both_readings_enter_statist
     rows = await database("SELECT outcome, series_id FROM v_observation WHERE id=:id", {"id": later.ids[0]}, log_sql=False)
     assert rows[0]["outcome"] == "needs-input"
     assert rows[0]["series_id"].startswith("local:")
+
+
+async def test_a_mixed_unit_mean_keeps_its_precision_and_a_single_basis(database):
+    from mirobody.collect import observations
+    from mirobody.collect.query import PostgresHealthQuery
+    from mirobody.kernel import query
+
+    drafts = [observations.Draft(name_text=name, value_text=value, unit_text=unit,
+                                 observed_start=datetime(2026, 1, day, tzinfo=UTC))
+              for name, value, unit, day in (("Creatinine", "80", "umol/L", 1), ("Creatinine", "0.9", "mg/dL", 2),
+                                             ("Albumin", "40", "g/L", 1), ("Albumin", "600", "umol/L", 2))]
+    await observations.ingest("1", drafts, observations.Provenance(modality="lab-report", source_kind="file",
+                                                                   source_ref="th_files:synthetic-units"), user_tz="UTC")
+    store, window = PostgresHealthQuery(), query.Window(0, 0, "UTC")
+    creatinine, albumin = query.Selection(indicators=("2160-0",)), query.Selection(indicators=("1751-7",))
+    # 0.9 mg/dL is 79.56 umol/L; rounded to four places in mol/L the mean read 0.0001.
+    [stats] = await store.stats("1", creatinine, window)
+    [month] = await store.buckets("1", creatinine, window, resolution="month", limit=10)
+    for row in (stats, month):
+        assert row["unit"] == "mol/L"
+        assert row["avg"] == pytest.approx(79.7808e-6, rel=1e-5)
+    # No molar mass joins g/L to mol/L, so there is no mean to give.
+    [stats] = await store.stats("1", albumin, window)
+    [month] = await store.buckets("1", albumin, window, resolution="month", limit=10)
+    assert stats["count"] == 2 and stats["mixed_units"]
+    for row in (stats, month):
+        assert (row["min"], row["max"], row["avg"], row["unit"]) == (None, None, None, "")
 
 
 async def test_confirmation_does_not_replace_an_existing_recognized_unit(database):

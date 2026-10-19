@@ -8,6 +8,27 @@
   OpenAI-compatible providers reject that with HTTP 400. The redacted answer
   now keeps each call's id and name with empty arguments, both before a model
   call and before memory writes.
+- **Common report names resolved to a different test.** `CHOL` answered
+  calculated LDL, `Height` a left-kidney ultrasound height and `Systolic` a
+  septal-defect peak pressure, so `Height 170 cm` was filed as a kidney
+  dimension. They now resolve to total cholesterol, body height and systolic
+  blood pressure; `总胆固醇(CHOL)`, `HDL-CHOL` and `Diastolic` resolve too.
+- **A dimensionless value ending in 1 lost its last digit.** With the UCUM
+  unit `1` (INR, specific gravity, ratios) the value cell's final digit was
+  taken for a repeated unit, so `1.021` displayed as `1.02` and `11` as `1`
+  in raw, latest, catalogue and statistics rows. A unit that starts with a
+  digit is now removed only after a printed space; `170 ms` still shows `170`.
+- **A mean over readings in two units could be wrong.** It runs on canonical
+  values, which were rounded to four places in base units: creatinine at
+  80 umol/L and 0.9 mg/dL averaged 0.0001 mol/L (100 umol/L). Without a molar
+  mass to join them (albumin in g/L and umol/L, vitamin D in nmol/L and
+  ng/mL), g/L and mol/L values were averaged under one unit. Canonical means
+  are now unrounded, and such a series gets no min, max or average.
+- **Readings in the same second showed the same time.** Raw readings, latest
+  values and the records list formatted times to the whole second, so distinct
+  device samples (an intraday heart-rate stream, a burst of uploads) were shown
+  at one instant. They now keep the stored microseconds, trailing zeros trimmed;
+  whole-second times and bucket periods read as before.
 - **A tool directory configured by path could lose its tools.** Given an
   absolute path to an importable package, the loader fell back to loading files
   by location whenever the server ran outside the checkout, and every module
