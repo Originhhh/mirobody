@@ -1,3 +1,14 @@
+## Unreleased
+
+### Fixed
+
+- **A redacted genotype answer could break the next request.** After a
+  turn that read genotype data, the guard removed a later answer's tool calls
+  but kept their results, so the history held `tool` messages with no call;
+  OpenAI-compatible providers reject that with HTTP 400. The redacted answer
+  now keeps each call's id and name with empty arguments, both before a model
+  call and before memory writes.
+
 ## 1.5.7
 
 ### Added
