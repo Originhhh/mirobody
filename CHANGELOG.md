@@ -13,6 +13,11 @@
   septal-defect peak pressure, so `Height 170 cm` was filed as a kidney
   dimension. They now resolve to total cholesterol, body height and systolic
   blood pressure; `总胆固醇(CHOL)`, `HDL-CHOL` and `Diastolic` resolve too.
+- **A dimensionless value ending in 1 lost its last digit.** With the UCUM
+  unit `1` (INR, specific gravity, ratios) the value cell's final digit was
+  taken for a repeated unit, so `1.021` displayed as `1.02` and `11` as `1`
+  in raw, latest, catalogue and statistics rows. A unit that starts with a
+  digit is now removed only after a printed space; `170 ms` still shows `170`.
 
 ## 1.5.7
 
