@@ -937,6 +937,11 @@ def _shown(value: object, unit: object) -> str:
     page that sets the two side by side showed "170 ms ms"."""
     text, unit = _text(value).strip(), _text(unit).strip()
     if unit and text.casefold().endswith(unit.casefold()):
+        # UCUM's dimensionless "1" is also a digit: "1.021" is a value, not
+        # "1.02 1". A unit that starts with a digit needs a printed space.
+        boundary = len(text) - len(unit)
+        if unit[0].isdigit() and (boundary == 0 or not text[boundary - 1].isspace()):
+            return _text(value)
         head = text[: -len(unit)].rstrip()
         if head[-1:].isdigit():
             return head
