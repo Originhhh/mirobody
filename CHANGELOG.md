@@ -2,6 +2,12 @@
 
 ### Fixed
 
+- **A redacted genotype answer could break the next request.** After a
+  turn that read genotype data, the guard removed a later answer's tool calls
+  but kept their results, so the history held `tool` messages with no call;
+  OpenAI-compatible providers reject that with HTTP 400. The redacted answer
+  now keeps each call's id and name with empty arguments, both before a model
+  call and before memory writes.
 - **A tool directory configured by path could lose its tools.** Given an
   absolute path to an importable package, the loader fell back to loading files
   by location whenever the server ran outside the checkout, and every module
