@@ -8,6 +8,10 @@
   with a relative import was skipped: 4 of the 9 built-in tools, including
   `query_health_indicators`. The directory's own package is now found from its
   ancestry and the existing import roots; the agent and task loaders share it.
+  When Python imports that package from somewhere else (a source checkout
+  beside a non-editable install), the directory resolves as before, so the
+  default `mirobody/agent/tools` still reaches the installed copy, and a
+  warning names both locations.
 
 ## 1.5.7
 

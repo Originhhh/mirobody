@@ -101,8 +101,10 @@ def resolve_plugin_dir(configured: str) -> tuple[str | None, str | None]:
 
     # Existing filesystem paths identify the requested directory. Resolve the
     # package from its real ancestry: CWD may be outside the importable root,
-    # and a same-named installed package must not replace an explicit path.
+    # and a same-named installed package must not replace a directory that
+    # imports as itself.
     relative = raw.removeprefix(os.getcwd()).removeprefix(os.sep).strip()
+    shadowed = None
     for candidate in (raw, relative):
         if not candidate or not os.path.isdir(candidate):
             continue
@@ -113,7 +115,8 @@ def resolve_plugin_dir(configured: str) -> tuple[str | None, str | None]:
         while os.path.isfile(os.path.join(parent, "__init__.py")):
             parts.insert(0, os.path.basename(parent))
             parent = os.path.dirname(parent)
-        packages = [".".join(parts)] if parts else []
+        ancestry = ".".join(parts)
+        packages = [ancestry] if parts else []
         # A regular package can also sit below a namespace parent, which has
         # no __init__.py. Use existing import roots without extending sys.path.
         for root in sys.path:
@@ -125,14 +128,26 @@ def resolve_plugin_dir(configured: str) -> tuple[str | None, str | None]:
                 continue
             if suffix not in (".", os.pardir) and not suffix.startswith(os.pardir + os.sep):
                 packages.append(suffix.replace(os.sep, "."))
+        imported_from = None
         for package in dict.fromkeys(packages):
             try:
                 spec = importlib.util.find_spec(package)
             except Exception:
                 spec = None
-            if spec and spec.origin and os.path.realpath(os.path.dirname(spec.origin)) == real_directory:
+            if not (spec and spec.origin):
+                continue
+            location = os.path.dirname(spec.origin)
+            if os.path.realpath(location) == real_directory:
                 return directory, package
-        return directory, None
+            if package == ancestry and spec.submodule_search_locations:
+                imported_from = location
+        if imported_from is None:
+            return directory, None
+        # The directory's own package is imported from elsewhere: a checkout
+        # beside a non-editable install, with CWD off sys.path. This copy
+        # cannot get package context, so the spelling resolves as before.
+        shadowed = directory, ancestry, imported_from
+        break
 
     # A dotted package or the documented slash spelling can name an installed
     # package even when its directory is not relative to this working directory.
@@ -146,7 +161,18 @@ def resolve_plugin_dir(configured: str) -> tuple[str | None, str | None]:
         if spec and spec.origin:
             # An importable package. Trust ITS location, not the string: this is
             # also how a caller may pass a dotted name instead of a path.
-            return os.path.dirname(spec.origin), dotted
+            found = os.path.dirname(spec.origin)
+            if shadowed:
+                logger.warning("a plugin directory's package is imported from elsewhere; loading that copy: "
+                               "directory=%s package=%s imported_from=%s", shadowed[0], dotted, found)
+            return found, dotted
+
+    if shadowed:
+        # A path spelling names no package, and an explicit path is never
+        # swapped for another copy, so its files load by location.
+        logger.warning("a plugin directory's package is imported from elsewhere; loading its files by location, "
+                       "so modules with relative imports fail: directory=%s package=%s imported_from=%s", *shadowed)
+        return shadowed[0], None
 
     return None, None
 
