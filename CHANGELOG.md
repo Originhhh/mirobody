@@ -2,6 +2,17 @@
 
 ### Fixed
 
+- **A redacted genotype answer could break the next request.** After a
+  turn that read genotype data, the guard removed a later answer's tool calls
+  but kept their results, so the history held `tool` messages with no call;
+  OpenAI-compatible providers reject that with HTTP 400. The redacted answer
+  now keeps each call's id and name with empty arguments, both before a model
+  call and before memory writes.
+- **Common report names resolved to a different test.** `CHOL` answered
+  calculated LDL, `Height` a left-kidney ultrasound height and `Systolic` a
+  septal-defect peak pressure, so `Height 170 cm` was filed as a kidney
+  dimension. They now resolve to total cholesterol, body height and systolic
+  blood pressure; `总胆固醇(CHOL)`, `HDL-CHOL` and `Diastolic` resolve too.
 - **A dimensionless value ending in 1 lost its last digit.** With the UCUM
   unit `1` (INR, specific gravity, ratios) the value cell's final digit was
   taken for a repeated unit, so `1.021` displayed as `1.02` and `11` as `1`

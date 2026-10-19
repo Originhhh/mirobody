@@ -597,6 +597,13 @@ body fat percentage	Percentage of body fat Measured
 体脂率	Percentage of body fat Measured
 SpO2	oxygen saturation
 血氧	oxygen saturation
+# Bare column headers whose keys post only specialty rows. `Height` gave
+# 15286-8, left kidney height by ultrasound, so `Height 170 cm` was filed as
+# a kidney dimension; `Systolic` gave 24372-5, a peak pressure during a
+# septal defect. `Diastolic` resolved to nothing.
+Height	Body height
+Systolic	Systolic blood pressure
+Diastolic	Diastolic blood pressure
 # Fasting glucose is its OWN LOINC concept (1558-6, COMPONENT
 # `Glucose^post CFst`), not plain glucose (2339-0). These rows used to target
 # `Glucose`, which collapsed a fasting reading into the generic glucose
@@ -626,6 +633,16 @@ PLT	Platelet count PLT
 RBC	RBC # Bld
 WBC	WBC # Bld
 TC	Cholesterol
+# `CHOL` answered 13457-7, calculated LDL. The key posts 178 rows, and LDL,
+# HDL, total cholesterol and their ratio tie on commonness, so the first row
+# won. A slip's CHOL column is total cholesterol, like TC above; `总胆固醇
+# (CHOL)` was refused as two analytes. The trailing-token guard then stops
+# cutting `LDL-CHOL` to `LDL`, its halves now differing, so hyphenated
+# spellings get rows. A spaced row would also catch `CHOL/HDL`, a ratio.
+CHOL	Cholesterol
+LDL-CHOL	LDL-C
+HDL-CHOL	HDL-C
+CHOL-LDL	LDL-C
 TG	Triglyceride
 GLU	Glucose
 Cr	Creatinine

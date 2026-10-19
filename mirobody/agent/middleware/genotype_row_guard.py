@@ -40,10 +40,14 @@ def _digest(content: Any) -> bytes:
 
 
 def _redacted_answer(message: AIMessage) -> AIMessage:
-    # A model may write a copied genotype into a later tool-call argument.
-    return message.model_copy(update={"content": _REDACTED_ANSWER,
-                                      "tool_calls": [], "invalid_tool_calls": [],
-                                      "additional_kwargs": {}, "response_metadata": {}})
+    # A model may write a copied genotype into a later tool-call argument, so
+    # the arguments go. Ids and names stay: their results stay in the history,
+    # and a provider rejects a tool result whose call is missing (HTTP 400).
+    return message.model_copy(update={
+        "content": _REDACTED_ANSWER,
+        "tool_calls": [{**call, "args": {}} for call in message.tool_calls],
+        "invalid_tool_calls": [{**call, "args": "{}", "error": None} for call in message.invalid_tool_calls],
+        "additional_kwargs": {}, "response_metadata": {}})
 
 
 def _redacted_tool(message: ToolMessage) -> ToolMessage:

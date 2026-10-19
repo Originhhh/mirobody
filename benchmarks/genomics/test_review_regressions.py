@@ -277,7 +277,11 @@ class GenotypeRowGuardTests(unittest.TestCase):
         safe = redact_genotype_history(messages)
         self.assertNotIn("AG", safe[1].content + safe[2].content + safe[3].content)
         self.assertIsNone(safe[1].artifact)
-        self.assertFalse(safe[2].tool_calls)
+        # The call keeps its id and name, so the redacted result still answers
+        # it; only the copied arguments go.
+        self.assertEqual([(c["id"], c["name"], c["args"]) for c in safe[2].tool_calls],
+                         [("copied", "write_file", {})])
+        self.assertEqual(safe[3].tool_call_id, "copied")
         self.assertEqual(safe[4].content, messages[4].content)
 
     def test_tool_result_without_name_follows_call_id(self) -> None:
@@ -310,7 +314,8 @@ class GenotypeRowGuardTests(unittest.TestCase):
         safe, visible, returned, redacted, answers = guard._guard_messages(messages)
         self.assertEqual((visible, returned, redacted, answers), (0, 0, 2, 1))
         self.assertNotIn("AG", " ".join(str(message.content) for message in safe))
-        self.assertFalse(safe[2].tool_calls)
+        self.assertEqual([(c["id"], c["args"]) for c in safe[2].tool_calls], [("copied", {})])
+        self.assertEqual(safe[3].tool_call_id, "copied")
 
     def test_genetic_session_cannot_write_or_reopen_scratch_files(self) -> None:
         guard = GenotypeRowGuardMiddleware()
