@@ -8,6 +8,11 @@
   OpenAI-compatible providers reject that with HTTP 400. The redacted answer
   now keeps each call's id and name with empty arguments, both before a model
   call and before memory writes.
+- **Common report names resolved to a different test.** `CHOL` answered
+  calculated LDL, `Height` a left-kidney ultrasound height and `Systolic` a
+  septal-defect peak pressure, so `Height 170 cm` was filed as a kidney
+  dimension. They now resolve to total cholesterol, body height and systolic
+  blood pressure; `总胆固醇(CHOL)`, `HDL-CHOL` and `Diastolic` resolve too.
 
 ## 1.5.7
 
