@@ -1042,6 +1042,21 @@ def test_a_signed_number_is_a_quantity_and_prose_corroborates_no_scale():
     assert resolve_reading("total cholesterol", "193", "mg/dL").evidence == ("name", "property", "scale")
 
 
+def test_a_reading_of_exactly_one_keeps_its_number():
+    """`1` is also the UCUM unity unit, so a value cell holding exactly 1 was
+    read as a unit with no number and stored as narrative: a series 1, 2, 3
+    counted three readings and averaged two of them to 2.5."""
+    from mirobody.translate.parse import KIND_QUANTITY, parse_value
+    from mirobody.units import normalize_unit, parse_value_unit
+
+    assert parse_value_unit("1") == parse_value_unit("1.0")
+    assert parse_value_unit("1").value == 1.0 and parse_value_unit("1").unit is None
+    for value, unit in (("1", "mmol/L"), ("1", ""), ("<1", "mg/dL"), ("1", "1")):
+        parsed = parse_value(value, unit)
+        assert parsed.value_kind == KIND_QUANTITY and parsed.value_num == 1.0, (value, unit, parsed)
+    assert normalize_unit("1") == "1"
+
+
 def test_a_signed_dipstick_grade_is_not_a_quantity():
     """`+1` and `+2` are dipstick grades as often as numbers. Read as a
     quantity once signs counted, 尿蛋白 +1 left Protein [Presence] for the

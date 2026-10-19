@@ -18,6 +18,12 @@
   taken for a repeated unit, so `1.021` displayed as `1.02` and `11` as `1`
   in raw, latest, catalogue and statistics rows. A unit that starts with a
   digit is now removed only after a printed space; `170 ms` still shows `170`.
+- **A reading of exactly 1 lost its number.** `1` is also the UCUM unity
+  unit, so a value cell holding exactly `1` parsed as a unit with no value
+  and was stored as narrative. Counts included it while means, minima and
+  buckets dropped it: a series 1, 2, 3 counted three readings and averaged
+  2.5. A bare number is now always a value; `1.0`, `<1` and the unit
+  column `1` were never affected.
 - **A mean over readings in two units could be wrong.** It runs on canonical
   values, which were rounded to four places in base units: creatinine at
   80 umol/L and 0.9 mg/dL averaged 0.0001 mol/L (100 umol/L). Without a molar
