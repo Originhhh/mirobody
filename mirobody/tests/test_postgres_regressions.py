@@ -195,6 +195,23 @@ async def test_a_mixed_unit_mean_keeps_its_precision_and_a_single_basis(database
         assert (row["min"], row["max"], row["avg"], row["unit"]) == (None, None, None, "")
 
 
+async def test_a_reading_of_exactly_one_enters_the_statistics(database):
+    from mirobody.collect import observations
+    from mirobody.collect.query import PostgresHealthQuery
+    from mirobody.engine import resolve_reading
+    from mirobody.kernel import query
+
+    drafts = [observations.Draft(name_text="Glucose", value_text=value, unit_text="mmol/L",
+                                 observed_start=datetime(2026, 1, day, tzinfo=UTC))
+              for value, day in (("1", 1), ("2", 2), ("3", 3))]
+    await observations.ingest("1", drafts, observations.Provenance(modality="lab-report", source_kind="file",
+                                                                   source_ref="th_files:synthetic-unity"), user_tz="UTC")
+    selection = query.Selection(indicators=(resolve_reading("Glucose", "2", "mmol/L").loinc,))
+    # `1` read as the UCUM unity unit: the count kept it and the mean, 2.5, did not.
+    [stats] = await PostgresHealthQuery().stats("1", selection, query.Window(0, 0, "UTC"))
+    assert (stats["count"], stats["avg"], stats["min"]) == (3, pytest.approx(2.0), pytest.approx(1.0))
+
+
 async def test_confirmation_does_not_replace_an_existing_recognized_unit(database):
     from mirobody.collect import observations
 

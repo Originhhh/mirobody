@@ -444,7 +444,9 @@ def parse_value_unit(text: str | None) -> ParsedQuantity:
         return empty
 
     # ── Path A: whole input is a unit ────────────────────────────────
-    direct = _resolve_strict(cleaned)
+    # A bare number is a value even where UCUM spells a unit the same way:
+    # `1` is the unity unit, so a reading printed as `1` lost its number.
+    direct = None if _VALUE_PREFIX.fullmatch(cleaned) else _resolve_strict(cleaned)
     if direct is not None:
         return ParsedQuantity("", None, direct)
 
