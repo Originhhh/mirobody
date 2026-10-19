@@ -24,6 +24,11 @@
   mass to join them (albumin in g/L and umol/L, vitamin D in nmol/L and
   ng/mL), g/L and mol/L values were averaged under one unit. Canonical means
   are now unrounded, and such a series gets no min, max or average.
+- **Readings in the same second showed the same time.** Raw readings, latest
+  values and the records list formatted times to the whole second, so distinct
+  device samples (an intraday heart-rate stream, a burst of uploads) were shown
+  at one instant. They now keep the stored microseconds, trailing zeros trimmed;
+  whole-second times and bucket periods read as before.
 
 ## 1.5.7
 

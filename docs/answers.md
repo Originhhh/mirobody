@@ -129,6 +129,10 @@ And `view` is a dispatch TABLE, not a chain of `if`s (`query.DISPATCH`):
 | `latest` | the most recent value per indicator |
 | any, with no `keywords` or `indicators` | the catalogue, and a note that the view waits for names |
 
+Raw and latest rows, and the records list, show the reading's local time with
+its stored microseconds when it has any (`2026-06-01 12:00:00.000001`), trailing
+zeros trimmed; a whole second stays `2026-06-01 12:00:00`.
+
 A view with nothing selected used to be refused ("the catalogue has one
 shape"). In the 2026-10-06 local-model evaluation MiniCPM5-2B opened with
 `view="latest"` and no indicator 3 times and MiniCPM5-1B 7 times, then
