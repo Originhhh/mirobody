@@ -92,8 +92,10 @@ The public walkthroughs are [Global](https://chat.mirobody.ai/demo?ref=github-de
 and [China](https://chat.mirobody.cn/demo?ref=github-demo&lang=en). Both links open
 in English; the language control at the top switches between English and
 Simplified Chinese without changing the hosting region. They replay synthetic
-data; their free-trial sign-in is separate from the local demo accounts and
-codes in this repository.
+data. To continue with your own records, the Global walkthrough sends you to
+[Theta](https://www.thetahealth.ai/) (web or iPhone) and the China one to
+Mirobody sign-in; neither uses the local demo accounts and codes in this
+repository.
 
 ## Not in the wheel
 
