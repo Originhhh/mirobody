@@ -26,8 +26,10 @@ a name as printed on a report, so a model can copy any of them back.
 A series may hold readings in two units (5.6 mmol/L and 100 mg/dL are one
 series). A statistic over such a series is computed over the canonical
 values, in the canonical unit, and says so; over a single-unit series it is
-computed in that unit. Raw rows always carry both the value as printed and
-its canonical pair.
+computed in that unit. When the readings share no canonical unit (albumin in
+g/L and umol/L, with no molar mass to convert by), there is no min, max or
+average. Raw rows always carry both the value as printed and its canonical
+pair.
 
 ## Election
 
@@ -85,9 +87,26 @@ _LOCAL_TS = (
 )
 
 #: The number a statistic runs over, per group: the printed values when the
-#: group has one unit, the canonical values when it has more.
-_STAT_VALUE = "CASE WHEN COUNT(DISTINCT unit_ucum) > 1 THEN {agg}(value_canonical) ELSE {agg}(value_num) END"
-_STAT_UNIT = "CASE WHEN COUNT(DISTINCT unit_ucum) > 1 THEN MAX(unit_canonical) ELSE (ARRAY_AGG(unit_ucum ORDER BY at DESC))[1] END"
+#: group has one unit, the canonical values when every numeric reading has
+#: one in a single canonical unit, and none otherwise. With no molar mass,
+#: albumin in g/L and umol/L stays g/L and mol/L, and 40 g/L with 600 umol/L
+#: averaged to 20.0003 "mol/L".
+_COMMON_CANONICAL = "COUNT(DISTINCT unit_canonical) = 1 AND COUNT(value_canonical) = COUNT(value_num)"
+_STAT_VALUE = (
+    "CASE WHEN COUNT(DISTINCT unit_ucum) <= 1 THEN {agg}(value_num)"
+    f" WHEN {_COMMON_CANONICAL} THEN {{agg}}(value_canonical) END"
+)
+_STAT_UNIT = (
+    "CASE WHEN COUNT(DISTINCT unit_ucum) <= 1 THEN (ARRAY_AGG(unit_ucum ORDER BY at DESC))[1]"
+    f" WHEN {_COMMON_CANONICAL} THEN MAX(unit_canonical) END"
+)
+#: The mean, rounded to four places in a printed unit only. Canonical values
+#: are base units, where four places turned creatinine at 80 umol/L and
+#: 0.9 mg/dL into 0.0001 mol/L (100 umol/L) and bilirubin into 0.0.
+_STAT_AVG = (
+    "CASE WHEN COUNT(DISTINCT unit_ucum) <= 1 THEN ROUND(AVG(value_num)::numeric, 4)"
+    f" WHEN {_COMMON_CANONICAL} THEN AVG(value_canonical) END"
+)
 
 # Propagate the evidence status of the rows actually used by each result:
 # an out-of-window or unelected reading must not taint an unrelated answer.
@@ -503,7 +522,7 @@ class PostgresHealthQuery:
                    COUNT(value_num) AS numeric_count,
                    {_STAT_VALUE.format(agg="MIN")} AS min,
                    {_STAT_VALUE.format(agg="MAX")} AS max,
-                   ROUND(({_STAT_VALUE.format(agg="AVG")})::numeric, 4) AS avg,
+                   {_STAT_AVG} AS avg,
                    (ARRAY_AGG(value_text ORDER BY at ASC))[1] AS first,
                    to_char((ARRAY_AGG(local_date ORDER BY at ASC))[1], 'YYYY-MM-DD') AS first_date,
                    (ARRAY_AGG(value_text ORDER BY at DESC))[1] AS last,
@@ -676,7 +695,7 @@ class PostgresHealthQuery:
                 SELECT series_id, {_LATEST_IDENTITY},
                        to_char(at, 'YYYY-MM-DD HH24:MI') AS period,
                        COUNT(*) AS n,
-                       ROUND(({_STAT_VALUE.format(agg="AVG")})::numeric, 4) AS avg,
+                       {_STAT_AVG} AS avg,
                        {_STAT_VALUE.format(agg="MIN")} AS min,
                        {_STAT_VALUE.format(agg="MAX")} AS max,
                        {_STAT_UNIT} AS unit,
@@ -710,7 +729,7 @@ class PostgresHealthQuery:
                 SELECT series_id, {_LATEST_IDENTITY},
                        to_char({bucket}, 'YYYY-MM-DD') AS period,
                        COUNT(*) AS n,
-                       ROUND(({_STAT_VALUE.format(agg="AVG")})::numeric, 4) AS avg,
+                       {_STAT_AVG} AS avg,
                        {_STAT_VALUE.format(agg="MIN")} AS min,
                        {_STAT_VALUE.format(agg="MAX")} AS max,
                        {_STAT_UNIT} AS unit,

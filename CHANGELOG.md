@@ -18,6 +18,12 @@
   taken for a repeated unit, so `1.021` displayed as `1.02` and `11` as `1`
   in raw, latest, catalogue and statistics rows. A unit that starts with a
   digit is now removed only after a printed space; `170 ms` still shows `170`.
+- **A mean over readings in two units could be wrong.** It runs on canonical
+  values, which were rounded to four places in base units: creatinine at
+  80 umol/L and 0.9 mg/dL averaged 0.0001 mol/L (100 umol/L). Without a molar
+  mass to join them (albumin in g/L and umol/L, vitamin D in nmol/L and
+  ng/mL), g/L and mol/L values were averaged under one unit. Canonical means
+  are now unrounded, and such a series gets no min, max or average.
 
 ## 1.5.7
 

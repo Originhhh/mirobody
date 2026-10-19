@@ -133,6 +133,33 @@ async def test_confirmed_unit_preserves_original_and_both_readings_enter_statist
     assert rows[0]["series_id"].startswith("local:")
 
 
+async def test_a_mixed_unit_mean_keeps_its_precision_and_a_single_basis(database):
+    from mirobody.collect import observations
+    from mirobody.collect.query import PostgresHealthQuery
+    from mirobody.kernel import query
+
+    drafts = [observations.Draft(name_text=name, value_text=value, unit_text=unit,
+                                 observed_start=datetime(2026, 1, day, tzinfo=UTC))
+              for name, value, unit, day in (("Creatinine", "80", "umol/L", 1), ("Creatinine", "0.9", "mg/dL", 2),
+                                             ("Albumin", "40", "g/L", 1), ("Albumin", "600", "umol/L", 2))]
+    await observations.ingest("1", drafts, observations.Provenance(modality="lab-report", source_kind="file",
+                                                                   source_ref="th_files:synthetic-units"), user_tz="UTC")
+    store, window = PostgresHealthQuery(), query.Window(0, 0, "UTC")
+    creatinine, albumin = query.Selection(indicators=("2160-0",)), query.Selection(indicators=("1751-7",))
+    # 0.9 mg/dL is 79.56 umol/L; rounded to four places in mol/L the mean read 0.0001.
+    [stats] = await store.stats("1", creatinine, window)
+    [month] = await store.buckets("1", creatinine, window, resolution="month", limit=10)
+    for row in (stats, month):
+        assert row["unit"] == "mol/L"
+        assert row["avg"] == pytest.approx(79.7808e-6, rel=1e-5)
+    # No molar mass joins g/L to mol/L, so there is no mean to give.
+    [stats] = await store.stats("1", albumin, window)
+    [month] = await store.buckets("1", albumin, window, resolution="month", limit=10)
+    assert stats["count"] == 2 and stats["mixed_units"]
+    for row in (stats, month):
+        assert (row["min"], row["max"], row["avg"], row["unit"]) == (None, None, None, "")
+
+
 async def test_confirmation_does_not_replace_an_existing_recognized_unit(database):
     from mirobody.collect import observations
 
