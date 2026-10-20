@@ -5,11 +5,11 @@
 - **The hosted way to use your own records is named.** The READMEs offered
   self-hosting and a synthetic demo, but nowhere to go with your own records
   without running anything, and `demo/README.md` still promised a free-trial
-  sign-in on the Global walkthrough that no longer exists. Outside mainland
-  China that is now Theta (web or iPhone), which runs on Mirobody; in mainland
-  China it is chat.mirobody.cn and its WeChat mini program. Both READMEs gain
-  a row in "Choose where to start", and SECURITY.md drops the retired
-  platform.mirobody.ai from its hosted-products list.
+  sign-in on the walkthrough that no longer exists. That place is Theta,
+  which runs on Mirobody, on the web or as a mobile app; the Chinese README
+  also names the mainland China edition, chat.mirobody.cn and its WeChat mini
+  program. Both READMEs gain a row in "Choose where to start", and SECURITY.md
+  drops the retired platform.mirobody.ai from its hosted-products list.
 
 ### Fixed
 
