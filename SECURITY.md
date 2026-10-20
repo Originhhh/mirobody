@@ -48,8 +48,8 @@ Of particular interest:
 - Secrets handling: config encryption, key material in logs or error paths
 - SSRF or credential leakage in the vendor integrations
 
-**Out of scope** — the hosted products (chat.mirobody.ai,
-platform.mirobody.ai): report those to security@thetahealth.ai as well, but
+**Out of scope** — the hosted products (chat.mirobody.ai, chat.mirobody.cn
+and Theta): report those to security@thetahealth.ai as well, but
 they are not covered by this repository's advisories. Also out of scope:
 findings that require an attacker who already has host or database access, and
 reports from automated scanners without a demonstrated impact.
