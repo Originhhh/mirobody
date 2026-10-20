@@ -13,6 +13,13 @@
 
 ### Fixed
 
+- **A total over many readings had no direct answer.** `view=stats` gave count, min, max and
+  average but no sum, so a total over more rows than the raw view returns (a year of exercise
+  logs) had to be rebuilt as average times count. Stats now carry `sum` over the same values
+  and unit as the average.
+- **A result cut at 40,000 characters read as complete.** The cut was said only after the
+  rows and the meta line did not mark it. A cut result now says so before its rows and the
+  meta line reads `truncated`.
 - **A redacted genotype answer could break the next request.** After a
   turn that read genotype data, the guard removed a later answer's tool calls
   but kept their results, so the history held `tool` messages with no call;

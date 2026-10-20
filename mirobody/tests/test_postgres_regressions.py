@@ -431,3 +431,21 @@ async def test_evidence_survives_actual_writes_windows_and_elected_answers(datab
                                  start=window.start if case == "window" else "", end=window.end if case == "window" else "")
     envelope = _envelope_for(method, request, window, rows)
     assert any("check the file" in note for note in envelope.assumptions) is expected
+
+
+async def test_stats_sum_is_the_total_over_every_reading_of_an_unelected_day(database):
+    from mirobody.collect import observations
+    from mirobody.collect.query import PostgresHealthQuery
+    from mirobody.kernel import query
+
+    drafts = [observations.Draft(name_text="activeDuration", value_text=str(ms), unit_text="ms",
+                                 observed_start=datetime(2026, 1, 1, hour, tzinfo=UTC))
+              for ms, hour in ((600000, 8), (1200000, 12), (900000, 18))]
+    await observations.ingest("1", drafts, observations.Provenance("device-sensed", "device", "synthetic-sum",
+                                                                   vendor="synthetic-research"), user_tz="UTC")
+    [stats] = await PostgresHealthQuery().stats("1", query.Selection(indicators=("activeDuration",)), query.Window(0, 0, "UTC"))
+    # Three logs on one day, none elected. A total over more rows than the raw
+    # view returns could only be rebuilt as avg x count before `sum` existed.
+    assert (stats["count"], stats["unit"]) == (3, "ms")
+    assert stats["sum"] == pytest.approx(2_700_000)
+    assert stats["avg"] == pytest.approx(900_000)

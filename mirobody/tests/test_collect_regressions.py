@@ -219,3 +219,16 @@ async def test_malformed_genotype_citation_does_not_query(citation_store, monkey
     monkeypatch.setattr(citation_store, "execute_query", execute)
     assert await citation_store._genotypes("synthetic-subject", [key]) == {}
     execute.assert_not_awaited()
+
+
+def test_a_rendering_cut_by_characters_says_so_before_its_rows():
+    from mirobody.agent.tools import _render
+    from mirobody.kernel import tools
+
+    rows = [{"indicator": "Heart rate", "name": "HR", "time": f"2026-01-01 00:{i // 60:02d}:{i % 60:02d}",
+             "value": str(60 + i % 40), "unit": "/min", "system": "http://loinc.org", "code": "8867-4",
+             "file": f"synthetic-{i}.json", "total": 5000} for i in range(3000)]
+    text = _render.render_compact(tools.Envelope(status="ok", data=rows, meta=tools.Meta(row_count=len(rows))))
+    # The cut used to be said only after the rows, with a meta line that read complete.
+    assert text.splitlines()[0].startswith("cut: only the first")
+    assert "truncated" in text.splitlines()[-1]
