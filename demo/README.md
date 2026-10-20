@@ -88,13 +88,11 @@ source commit and a deterministic data digest. No database, model key or
 deployment configuration is read. A hosted walkthrough can translate labels
 and explanations while retaining the original names, dates, units and values.
 
-The public walkthroughs are [Global](https://chat.mirobody.ai/demo?ref=github-demo&lang=en)
-and [China](https://chat.mirobody.cn/demo?ref=github-demo&lang=en). Both links open
-in English; the language control at the top switches between English and
-Simplified Chinese without changing the hosting region. They replay synthetic
-data. To continue with your own records, the Global walkthrough sends you to
-[Theta](https://www.thetahealth.ai/) (web or iPhone) and the China one to
-Mirobody sign-in; neither uses the local demo accounts and codes in this
+The [public walkthrough](https://chat.mirobody.ai/demo?ref=github-demo&lang=en)
+opens in English; the language control at the top switches between English and
+Simplified Chinese. It replays synthetic data. To continue with your own
+records it sends you to [Theta](https://www.thetahealth.ai/), on the web or as a
+mobile app; it does not use the local demo accounts and codes in this
 repository.
 
 ## Not in the wheel

@@ -35,7 +35,7 @@
 | 在浏览器里体验完整应用 | [GitHub Codespaces](#在-codespaces-体验完整应用) | GitHub 账号和你自己的模型 API Key |
 | 应用、模型和记录都留在自己机器上 | [Docker 100% 本地部署](#100-本地部署应用数据和模型) | 带 Compose 的 Docker；16 GB 内存；无需 API Key |
 | 应用和记录留在自己机器上，且不用 Docker | [不用 Docker 运行](#不用-docker-运行) | Debian 或 Ubuntu；PostgreSQL 16；Python 3.12；你自己的模型 API Key |
-| 什么都不部署，直接用自己的记录 | 中国大陆：[chat.mirobody.cn](https://chat.mirobody.cn/) 及其微信小程序。其他地区：基于 Mirobody 的 [Theta](https://dr.thetahealth.ai/zh/login?utm_source=mirobody&utm_medium=github&utm_campaign=mirobody-to-theta&utm_content=readme)，有网页版和 [iPhone App](https://apps.apple.com/us/app/theta-wellness/id6739960903) | 注册账号 |
+| 什么都不部署，直接用自己的记录 | 中国大陆：[chat.mirobody.cn](https://chat.mirobody.cn/)，或在微信小程序中搜索「Mirobody」。其他地区：基于 Mirobody 的 [Theta](https://dr.thetahealth.ai/zh/login?utm_source=mirobody&utm_medium=github&utm_campaign=mirobody-to-theta&utm_content=readme)，有网页版和移动 App | 注册账号 |
 
 ## 一条命令体验标准化引擎
 
@@ -196,7 +196,7 @@ resolve("血脂").resolved                                     # False    一个
 | 包会说明是哪份词表在回答：`mirobody.BUNDLE_VERSION` 是 `loinc-2.83+2026.09.17-aacb2c715b56` | `python -c "import mirobody; print(mirobody.BUNDLE_VERSION)"` |
 | 公开的健康 agent 评测集：[ESL-Bench](https://huggingface.co/datasets/mirobody/ESL-Bench)、[MedHall-Bench](https://huggingface.co/datasets/mirobody/MedHall-Bench)、[MedHarm-Bench](https://huggingface.co/datasets/mirobody/MedHarm-Bench) | [`mirobody-eval`](https://github.com/thetahealth/mirobody-eval) · [`benchmarks/`](benchmarks/README.md) |
 
-Mirobody 也是 [Theta Wellness](https://www.thetahealth.ai/) 这款已上线的个人健康产品所用的引擎，它有网页版和 iPhone App。
+Mirobody 也是 [Theta Wellness](https://www.thetahealth.ai/) 这款已上线的个人健康产品所用的引擎，它有网页版和移动 App。
 
 ## 参与贡献
 
