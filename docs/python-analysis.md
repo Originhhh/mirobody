@@ -1,5 +1,7 @@
 # Local Python analysis
 
+[中文](python-analysis.zh-CN.md)
+
 Every chat model uses the same `python_exec` tool. A cloud model can generate
 the code, while execution uses the application's local Docker daemon.
 The calculator has no application mounts, database credentials or network.
@@ -20,7 +22,8 @@ pharmacogenomics use this same envelope path.
   available inside the computation. This is a container path, not an upload
   or library path for the agent's document tools.
 
-The current turn begins at the latest human message. Failed or empty latest
+The current turn begins at the latest user question; harness repair instructions
+remain in that same turn. Failed or empty latest
 lookups are refused rather than silently reusing earlier readings or turning
 missing data into zero. Use the existing query `stats` and time-bucket views
 for the aggregates they already provide; Python handles additional arithmetic

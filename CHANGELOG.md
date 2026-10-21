@@ -1,6 +1,14 @@
 ## Unreleased
 
+## 1.5.8
+
 ### Added
+
+- **Local Python analysis setup in English and Chinese.** The guide now
+  explains the original-result inputs, container isolation, opt-in Docker
+  socket access and executor failure behavior in both languages. Start with
+  [the setup guide](docs/python-analysis.md) or its
+  [Chinese edition](docs/python-analysis.zh-CN.md).
 
 - **Real progress during long-conversation summarization.** The web client
   previously had no signal while the summary model worked. Actual middleware
