@@ -29,10 +29,11 @@ def package():
         del sys.modules[key]
 
 
-def make_package(root: Path, name: str) -> Path:
+def make_package(root: Path, name: str, *, namespace_parent: bool = False) -> Path:
     tools = root / name / "tools"
     tools.mkdir(parents=True)
-    (root / name / "__init__.py").write_text("")
+    if not namespace_parent:
+        (root / name / "__init__.py").write_text("")
     (tools / "__init__.py").write_text("")
     (tools / "_helper.py").write_text("VALUE = 1\n")
     (tools / "lab.py").write_text("from ._helper import VALUE\n")
@@ -74,16 +75,50 @@ def test_a_package_directory_keeps_its_name_from_any_working_directory(tmp_path,
     assert_loads(directory, prefix, tools)
 
 
+@pytest.mark.parametrize("spelling", ["relative", "absolute", "dotdot", "trailing slash"])
+@pytest.mark.parametrize("symlinked_root", [False, True])
+def test_a_symlinked_package_keeps_its_import_name(tmp_path, monkeypatch, package, spelling, symlinked_root):
+    tools = make_package(tmp_path / "releases", f"{package}_release")
+    checkout = tmp_path / "checkout"
+    checkout.mkdir()
+    (checkout / package).symlink_to(tools.parent, target_is_directory=True)
+    import_root = checkout
+    if symlinked_root:
+        import_root = tmp_path / "import-root"
+        import_root.symlink_to(checkout, target_is_directory=True)
+    elsewhere = tmp_path / "elsewhere"
+    elsewhere.mkdir()
+    configured_tools = checkout / package / "tools"
+    configured = {
+        "relative": os.path.relpath(configured_tools, elsewhere),
+        "absolute": str(configured_tools),
+        "dotdot": str(configured_tools / ".." / "tools"),
+        "trailing slash": str(configured_tools) + os.sep,
+    }[spelling]
+    run_from(monkeypatch, elsewhere, import_root)
+    import_path = sys.path[:]
+
+    directory, prefix = resolve_plugin_dir(configured)
+
+    assert prefix == f"{package}.tools"
+    assert os.path.realpath(directory) == os.path.realpath(tools)
+    assert_loads(directory, prefix, tools)
+    assert sys.path == import_path
+
+
 @pytest.mark.parametrize("spelling", ["relative", "absolute below the working directory"])
-def test_a_checkout_beside_an_installed_copy_loads_the_installed_package(tmp_path, monkeypatch, caplog, package, spelling):
+@pytest.mark.parametrize("namespace_parent", [False, True])
+def test_a_checkout_beside_an_installed_copy_loads_the_installed_package(
+    tmp_path, monkeypatch, caplog, package, spelling, namespace_parent,
+):
     """A checkout with a non-editable install, served from the checkout root.
 
     The checkout copy cannot be imported as its package here, and loading it by
     file drops every module with a relative import. The dotted spelling reaches
     the installed copy, as on 1.5.7, and a warning names both locations.
     """
-    installed = make_package(tmp_path / "site", package)
-    checkout = make_package(tmp_path / "checkout", package)
+    installed = make_package(tmp_path / "site", package, namespace_parent=namespace_parent)
+    checkout = make_package(tmp_path / "checkout", package, namespace_parent=namespace_parent)
     run_from(monkeypatch, tmp_path / "checkout", tmp_path / "site")
     configured = f"{package}/tools" if spelling == "relative" else str(checkout)
 
@@ -117,9 +152,12 @@ def test_an_explicit_path_is_never_swapped_for_the_installed_copy(tmp_path, monk
     assert f"imported_from={tmp_path / 'site' / package / 'tools'}" in warning
 
 
-def test_a_directory_that_imports_as_itself_wins_over_an_installed_namesake(tmp_path, monkeypatch, caplog, package):
-    make_package(tmp_path / "site", package)
-    checkout = make_package(tmp_path / "checkout", package)
+@pytest.mark.parametrize("namespace_parent", [False, True])
+def test_a_directory_that_imports_as_itself_wins_over_an_installed_namesake(
+    tmp_path, monkeypatch, caplog, package, namespace_parent,
+):
+    make_package(tmp_path / "site", package, namespace_parent=namespace_parent)
+    checkout = make_package(tmp_path / "checkout", package, namespace_parent=namespace_parent)
     elsewhere = tmp_path / "elsewhere"
     elsewhere.mkdir()
     run_from(monkeypatch, elsewhere, tmp_path / "checkout", tmp_path / "site")
@@ -132,11 +170,17 @@ def test_a_directory_that_imports_as_itself_wins_over_an_installed_namesake(tmp_
     assert not caplog.messages
 
 
-def test_a_plain_directory_is_never_replaced_by_an_installed_namesake(tmp_path, monkeypatch, caplog, package):
+@pytest.mark.parametrize("checkout_on_path", [False, True])
+def test_a_plain_directory_is_never_replaced_by_an_installed_namesake(
+    tmp_path, monkeypatch, caplog, package, checkout_on_path,
+):
     make_package(tmp_path / "site", package)
     plain = tmp_path / "checkout" / package / "tools"
     plain.mkdir(parents=True)
-    run_from(monkeypatch, tmp_path / "checkout", tmp_path / "site")
+    roots = [tmp_path / "site"]
+    if checkout_on_path:
+        roots.insert(0, tmp_path / "checkout")
+    run_from(monkeypatch, tmp_path / "checkout", *roots)
 
     with caplog.at_level(logging.WARNING, logger="mirobody.utils.plugin_dirs"):
         directory, prefix = resolve_plugin_dir(f"{package}/tools")

@@ -104,6 +104,7 @@ def resolve_plugin_dir(configured: str) -> tuple[str | None, str | None]:
     # and a same-named installed package must not replace a directory that
     # imports as itself.
     relative = raw.removeprefix(os.getcwd()).removeprefix(os.sep).strip()
+    dotted = relative.replace(os.path.sep, ".") if relative else ""
     shadowed = None
     for candidate in (raw, relative):
         if not candidate or not os.path.isdir(candidate):
@@ -117,18 +118,28 @@ def resolve_plugin_dir(configured: str) -> tuple[str | None, str | None]:
             parent = os.path.dirname(parent)
         ancestry = ".".join(parts)
         packages = [ancestry] if parts else []
+        # A namespace parent stops the ancestry scan before the full import
+        # name. Its configured spelling can still reach an installed copy.
+        if parts and dotted:
+            packages.append(dotted)
         # A regular package can also sit below a namespace parent, which has
         # no __init__.py. Use existing import roots without extending sys.path.
         for root in sys.path:
             if not isinstance(root, str):
                 continue
-            try:
-                suffix = os.path.relpath(real_directory, os.path.realpath(root or os.getcwd()))
-            except ValueError:
-                continue
-            if suffix not in (".", os.pardir) and not suffix.startswith(os.pardir + os.sep):
-                packages.append(suffix.replace(os.sep, "."))
-        imported_from = None
+            absolute_root = os.path.abspath(root or os.getcwd())
+            real_root = os.path.realpath(absolute_root)
+            # Resolving a package symlink erases its import name. Keep the
+            # logical path too, even when the import root is itself a symlink.
+            for target, base in dict.fromkeys((
+                (directory, absolute_root), (directory, real_root), (real_directory, real_root),
+            )):
+                try:
+                    suffix = os.path.relpath(target, base)
+                except ValueError:
+                    continue
+                if suffix not in (".", os.pardir) and not suffix.startswith(os.pardir + os.sep):
+                    packages.append(suffix.replace(os.sep, "."))
         for package in dict.fromkeys(packages):
             try:
                 spec = importlib.util.find_spec(package)
@@ -139,20 +150,17 @@ def resolve_plugin_dir(configured: str) -> tuple[str | None, str | None]:
             location = os.path.dirname(spec.origin)
             if os.path.realpath(location) == real_directory:
                 return directory, package
-            if package == ancestry and spec.submodule_search_locations:
-                imported_from = location
-        if imported_from is None:
+            if parts and package in (ancestry, dotted) and spec.submodule_search_locations:
+                shadowed = directory, package, location
+        if shadowed is None:
             return directory, None
         # The directory's own package is imported from elsewhere: a checkout
         # beside a non-editable install, with CWD off sys.path. This copy
         # cannot get package context, so the spelling resolves as before.
-        shadowed = directory, ancestry, imported_from
         break
 
     # A dotted package or the documented slash spelling can name an installed
     # package even when its directory is not relative to this working directory.
-    dotted = relative.replace(os.path.sep, ".") if relative else ""
-
     if dotted:
         try:
             spec = importlib.util.find_spec(dotted)
@@ -163,15 +171,19 @@ def resolve_plugin_dir(configured: str) -> tuple[str | None, str | None]:
             # also how a caller may pass a dotted name instead of a path.
             found = os.path.dirname(spec.origin)
             if shadowed:
-                logger.warning("a plugin directory's package is imported from elsewhere; loading that copy: "
-                               "directory=%s package=%s imported_from=%s", shadowed[0], dotted, found)
+                logger.warning(  # phi: ok deployment plugin paths and import names, not health data
+                    "a plugin directory's package is imported from elsewhere; loading that copy: "
+                    "directory=%s package=%s imported_from=%s", shadowed[0], dotted, found,
+                )
             return found, dotted
 
     if shadowed:
         # A path spelling names no package, and an explicit path is never
         # swapped for another copy, so its files load by location.
-        logger.warning("a plugin directory's package is imported from elsewhere; loading its files by location, "
-                       "so modules with relative imports fail: directory=%s package=%s imported_from=%s", *shadowed)
+        logger.warning(  # phi: ok deployment plugin paths and import names, not health data
+            "a plugin directory's package is imported from elsewhere; loading its files by location, "
+            "so modules with relative imports fail: directory=%s package=%s imported_from=%s", *shadowed,
+        )
         return shadowed[0], None
 
     return None, None

@@ -31,11 +31,14 @@ labs = "my_plugin.tools"
 
 A directory that is an importable package keeps its dotted name however it is
 configured (absolute, relative, with `..`, a trailing slash or a symlink), so its
-modules may use relative imports from any working directory. If Python imports
-that package from another location (a source checkout beside a non-editable
-install), a warning names both: a spelling that doubles as the dotted name, like
-the default `mirobody/agent/tools`, loads the imported copy, and any other
-spelling loads its own files by location.
+modules may use relative imports from any working directory. A symlinked parent
+package keeps its logical import name, including when the import root is also a
+symlink. If Python imports that package from another location (a source checkout
+beside a non-editable install), a warning names both: a spelling that doubles as
+the dotted name, like the default `mirobody/agent/tools`, loads the imported copy,
+and any other spelling loads its own files by location. The installed-copy rule
+also applies to a regular package below a namespace parent without `__init__.py`;
+plain directories still load their own files.
 
 ### Discovery Rules
 
