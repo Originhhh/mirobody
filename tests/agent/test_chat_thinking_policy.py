@@ -71,7 +71,7 @@ def test_openrouter_requests_visible_thinking_without_changing_host_policy(budge
 def test_native_anthropic_keeps_adaptive_shape_and_valid_effort_but_shows_summary():
     entry = {"model": "claude-sonnet-5-5", "llm_type": "google_anthropic_vertex", "project": "project",
              "model_kwargs": {"thinking": {"type": "adaptive", "display": "omitted"}, "output_config": {"effort": "low"}}}
-    enabled, effort = clients._chat_thinking_entry(entry, "high", lambda _: None, "claude")
+    enabled, effort = clients._chat_thinking_entry(entry, "high", lambda _: None)
     payload = clients._vertex_anthropic_kwargs("claude", enabled, effort, lambda _: None)["model_kwargs"]
     assert payload["thinking"] == {"type": "adaptive", "display": "summarized"}
     assert payload["output_config"] == {"effort": "low"}
@@ -80,7 +80,7 @@ def test_native_anthropic_keeps_adaptive_shape_and_valid_effort_but_shows_summar
 
 def test_anthropic_disabled_budget_becomes_supported_enabled_shape():
     entry = {"model": "claude-sonnet-4-5", "llm_type": "anthropic", "thinking": {"type": "disabled"}}
-    enabled, effort = clients._chat_thinking_entry(entry, "low", lambda _: None, "claude")
+    enabled, effort = clients._chat_thinking_entry(entry, "low", lambda _: None)
     payload = clients._anthropic_kwargs("claude", enabled, effort, lambda _: None)
     assert payload["thinking"] == {"type": "enabled", "budget_tokens": 2048}
 

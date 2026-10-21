@@ -167,8 +167,7 @@ class TurnStream:
                     for event in tool_call_events(message, self._tool_ids):
                         if isinstance(event, ToolCallStarted):
                             names[event.call_id] = event.name
-                            logger.info("[Tool Call] trace_id=%s tool_name=%s tool_id=%s",
-                                        trace_id, event.name, event.call_id)
+                            logger.info("[Tool Call] trace_id=%s tool_id=%s", trace_id, event.call_id)
                         elif isinstance(event, ToolCallCompleted):
                             yield {"type": TOOL_CALL, "id": event.call_id,
                                    "name": names.pop(event.call_id, ""), "args": event.arguments}

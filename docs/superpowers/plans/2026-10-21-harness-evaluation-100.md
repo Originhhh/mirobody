@@ -109,3 +109,17 @@ Files: `mirobody/agent/middleware/genotype_summarization.py`, `mirobody/agent/wi
 - Stop ends reception; server-side generation cancellation remains explicit
   open work in `docs/roadmap.md`. No live learned-model score or hardware
   TTFT improvement is claimed; the 100-question model run is still pending.
+
+## Additional PR gates
+
+- The separate genomics unittest suite exposed two stale summary spies: they
+  patched the inherited summary implementation and supplied no model window.
+  They now declare a bounded test model and inspect actual model input through
+  its generation method, preserving the genotype-redaction assertions.
+- `python -m unittest discover -s benchmarks/genomics -p 'test_*.py'`:
+  37 tests run, 36 passed and one skipped locally. The health-record unittest
+  suite ran three tests, all passing. The affected thinking/summary tests ran
+  43 tests, all passing after this correction.
+- Comment-style, version and PHI-log gates passed. New diagnostics retain
+  IDs/status messages without model aliases or tool-name interpolation; the
+  PHI baseline was not expanded.

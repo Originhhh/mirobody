@@ -805,7 +805,7 @@ def _generic_kwargs(alias: str, entry: dict, resolve: Resolver) -> dict[str, Any
 
 
 def _chat_thinking_entry(
-    entry: dict[str, Any], thinking: str | None, resolve: Resolver, alias: str,
+    entry: dict[str, Any], thinking: str | None, resolve: Resolver,
 ) -> tuple[dict[str, Any], str | None]:
     """Apply the interactive contract without changing the utility entry or dialect.
 
@@ -881,13 +881,13 @@ def _chat_thinking_entry(
                     entry.pop(field, None)
                 return entry, effort
             if entry.get("reasoning_effort") == "none":
-                logger.warning("model %s: Chat Completions thinking is disabled by its tool-call contract; use a Responses entry", alias)
+                logger.warning("Chat Completions thinking is disabled by its tool-call contract; use a Responses entry")
                 return entry, None
             known_host = not base or urlparse(str(base)).hostname == "api.openai.com" or entry.get("auth_type") == "azure_wif"
             known_model = model.lower().startswith(("gpt-5", "gpt-6", "o1", "o3", "o4"))
             if (known_host and known_model) or entry.get("thinking_style") == "openai":
                 return entry, effort
-    logger.warning("model %s: native thinking is unverified for llm_type=%s dialect=%s; run mirobody doctor --probe", alias, family, dialect)
+    logger.warning("native thinking is unverified for this transport; run mirobody doctor --probe")
     return entry, None
 
 
@@ -916,7 +916,7 @@ def build_chat_model(
     if thinking is None:
         thinking = normalize_thinking(entry.get("thinking_level"))
     if require_thinking:
-        entry, thinking = _chat_thinking_entry(entry, thinking, resolve, alias)
+        entry, thinking = _chat_thinking_entry(entry, thinking, resolve)
     thinking_level = thinking or "-"
 
     if family in OPENAI_COMPATIBLE_TYPES:
