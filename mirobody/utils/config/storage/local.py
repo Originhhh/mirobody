@@ -1,5 +1,6 @@
 import asyncio
 import logging
+import os
 
 from pathlib import Path
 from typing import IO
@@ -92,13 +93,10 @@ class LocalStorage(AbstractStorage):
         """
         object_key = self._build_object_key(key)
         candidate = (self.base_path / object_key).resolve()
-        root = self.base_path.resolve()
-        # `is_relative_to` compares resolved paths, so it also catches a key
-        # that traverses through an existing symlink.
-        if not candidate.is_relative_to(root):
-            raise ValueError(
-                f"file key {key!r} resolves outside the storage root"
-            )
+        root = os.path.join(str(self.base_path.resolve()), "")
+        # Resolve symlinks first; the separator also excludes sibling prefixes.
+        if not str(candidate).startswith(root):
+            raise ValueError("File key resolves outside the storage root")
         return candidate
     
     #-----------------------------------------------------

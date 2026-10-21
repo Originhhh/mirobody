@@ -2,7 +2,6 @@
 import logging
 from typing import BinaryIO
 
-from mirobody.kernel.ops import is_driver_exception
 from mirobody.utils.file_types import guess_mime
 
 logger = logging.getLogger(__name__)
@@ -18,8 +17,8 @@ def storage_failure(action: str, key: str, exc: Exception) -> str:
     from mirobody.utils.log import secret_fingerprint
 
     error_type = type(exc).__name__
-    logger.error("%s failed: key=%s error_type=%s", action, secret_fingerprint(key), error_type,
-                 exc_info=not is_driver_exception(exc))
+    # Vendor exceptions can quote signed URLs, object keys and credentials.
+    logger.error("%s failed: key=%s error_type=%s", action, secret_fingerprint(key), error_type)
     return f"{action} failed ({error_type})"
 
 

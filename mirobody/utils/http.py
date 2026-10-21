@@ -142,17 +142,11 @@ def json_response(content: Any, status_code: int = 200, request: Request | None 
     if not disable_log:
         extra = _log_extra(request, status=status_code)
 
-        message = ""
-        if content and isinstance(content, dict):
-            if "message" in content and isinstance(content["message"], str) and len(content["message"]) > 0:
-                message = content["message"]
-            elif "msg" in content and isinstance(content["msg"], str) and len(content["msg"]) > 0:
-                message = content["msg"]
-
+        # Response messages can quote credentials or uploaded report contents.
         if status_code >= 400:
-            logger.warning(message, stacklevel=2, extra=extra)
+            logger.warning("HTTP response", stacklevel=2, extra=extra)
         else:
-            logger.info(message, stacklevel=2, extra=extra)
+            logger.info("HTTP response", stacklevel=2, extra=extra)
 
     return Response(
         content     = json.dumps(
@@ -185,9 +179,9 @@ def json_response_with_code(code: int = 0, msg: str = "ok", data: Any = None, re
         extra = _log_extra(request, status=status)
         if code != 0:
             extra["error_code"] = code
-            logger.warning(msg, stacklevel=2, extra=extra)
+            logger.warning("HTTP response", stacklevel=2, extra=extra)
         else:
-            logger.info(msg, stacklevel=2, extra=extra)
+            logger.info("HTTP response", stacklevel=2, extra=extra)
 
     content = {
         "code"      : code,
@@ -345,7 +339,7 @@ def jsonrpc_error(id: Any, code: int, msg: str = "", data: Any = None, method: s
                   request: Request | None = None, disable_log: bool = False) -> Response:
     if not disable_log:
         extra = _log_extra(request, mcp_method=method, request_id=id, error_code=code)
-        logger.warning(msg, stacklevel=2, extra=extra)
+        logger.warning("HTTP response", stacklevel=2, extra=extra)
 
     content = {
         "jsonrpc"   : "2.0",
