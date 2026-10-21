@@ -44,7 +44,7 @@ _COLUMNS: dict[str, tuple[str, ...]] = {
     "catalog": ("indicator", "system", "code", "count", "first_date", "last_date", "reason"),
     "readings": ("indicator", "name", "time", "value", "unit", "ref", "flag", "system", "code", "file"),
     "buckets": ("indicator", "period", "avg", "min", "max", "n", "unit", "system", "code"),
-    "stats": ("indicator", "count", "min", "max", "avg", "first", "first_date", "last", "last_date",
+    "stats": ("indicator", "count", "min", "max", "avg", "sum", "first", "first_date", "last", "last_date",
               "change", "unit", "mixed_units", "system", "code"),
     "latest": ("indicator", "name", "date", "time", "value", "unit", "ref", "flag", "system", "code", "file"),
 }
@@ -122,12 +122,18 @@ def render_compact(envelope: tools.Envelope, columns: Sequence[str] | None = Non
     else:
         table = _readings_table(rows)
     body = table or "(no rows)"
+    cut = [envelope.meta.cut] if envelope.meta.cut else []
     if len(body) > MAX_RENDER_CHARS:
+        # Said only after the rows, this cut was invisible: the meta line still
+        # read as complete and a model summed the rows it could see.
+        shown = body[:MAX_RENDER_CHARS].count("\n")
+        cut.append(f"cut: only the first {shown} lines of the table fit in {MAX_RENDER_CHARS} characters; "
+                   "narrow the dates or ask view=stats for totals and averages")
         body = body[:MAX_RENDER_CHARS] + f"\n… cut at {MAX_RENDER_CHARS} characters"
     # A cut answer says so before its rows: said after them, among the notes,
     # it was missed (`tools.Meta.cut`).
-    lines = [envelope.meta.cut, "", body] if envelope.meta.cut else [body]
-    lines += ["", _meta_line(envelope.meta)]
+    lines = [*cut, "", body] if cut else [body]
+    lines += ["", _meta_line(envelope.meta, cut_chars=len(cut) > bool(envelope.meta.cut))]
     if envelope.assumptions:
         lines.append("notes: " + "; ".join(envelope.assumptions))
     if envelope.next_steps:
@@ -163,7 +169,7 @@ def _render_error(envelope: tools.Envelope) -> str:
     return f"error ({envelope.error_kind}): {reason}. {hint}"
 
 
-def _meta_line(meta: tools.Meta) -> str:
+def _meta_line(meta: tools.Meta, *, cut_chars: bool = False) -> str:
     # A tool whose data has no time axis (genetics) reports no zone, and gets
     # no window line: "window=all recorded data, tz=, dates=tz_exact" on a
     # genotype answer is three tokens of noise and one false claim: a
@@ -177,7 +183,7 @@ def _meta_line(meta: tools.Meta) -> str:
     bits.append(f"rows={meta.row_count}")
     if meta.catalog_total:
         bits.append(f"of {meta.catalog_total}")
-    if meta.truncated:
+    if meta.truncated or cut_chars:
         bits.append("truncated")
     return "(" + ", ".join(bits) + ")"
 

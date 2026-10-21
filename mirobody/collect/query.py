@@ -494,9 +494,13 @@ class PostgresHealthQuery:
         return [_bucket_row(r) for r in rows]
 
     async def stats(self, subject_id: str, sel: query.Selection, window: query.Window) -> list[dict]:
-        """count/min/max/avg/first/last/change per series over the WHOLE
+        """count/min/max/avg/sum/first/last/change per series over the WHOLE
         window, in SQL, over `_STATS_CTE`: a day with an elected authority
         counts once, as that value; any other day counts every reading.
+
+        `sum` is over the same values as `avg`, in the same unit. Without it a
+        total over more than `query.ROW_CAP` readings (a year of exercise logs)
+        could only be rebuilt as avg x count, which a model rarely did.
 
         `first_date`/`last_date` are the readings' stored local days, as the
         catalogue's are. They were the UTC date of the instant, so a report
@@ -527,6 +531,7 @@ class PostgresHealthQuery:
                    {_STAT_VALUE.format(agg="MIN")} AS min,
                    {_STAT_VALUE.format(agg="MAX")} AS max,
                    {_STAT_AVG} AS avg,
+                   {_STAT_VALUE.format(agg="SUM")} AS sum,
                    (ARRAY_AGG(value_text ORDER BY at ASC))[1] AS first,
                    to_char((ARRAY_AGG(local_date ORDER BY at ASC))[1], 'YYYY-MM-DD') AS first_date,
                    (ARRAY_AGG(value_text ORDER BY at DESC))[1] AS last,
@@ -904,6 +909,7 @@ def _stats_row(r: dict) -> dict:
         "min": _number(r.get("min")),
         "max": _number(r.get("max")),
         "avg": _number(r.get("avg")),
+        "sum": _number(r.get("sum")),
         "first": _shown(r.get("first"), r.get("unit")),
         "first_date": r.get("first_date") or "",
         "last": _shown(r.get("last"), r.get("unit")),
