@@ -38,10 +38,15 @@ uv pip install -e '.[app,test]'
 
 Check out the branch or release under test before installing it. The original
 `fix/local-model-harness` branch and RC image are historical identifiers.
-Build the deterministic corpus using the pinned generator commands in
-[local_models/Reproduce](../local_models/README.md#reproduce); its expected
-`files.jsonl` SHA-256 is
-`5bad865b1e5cba4979d453338f79b2d5bf342e9c19b8cd8061901ae1dab09b11`.
+For the current 100-question suite, build and validate the corpus using
+[the source recipe](../local_models/README.md#source-and-reproducibility),
+use a fresh `BENCH_QA_GENERATION`, and enable `EVAL_AS_OF_ENABLED=true` on
+the isolated test server. Its manifest validates source hashes before loading.
+The archived 24+6-question Windows measurements used the historical
+[reproduction recipe](../local_models/HISTORY.md#reproduce) and
+`files.jsonl` SHA-256
+`5bad865b1e5cba4979d453338f79b2d5bf342e9c19b8cd8061901ae1dab09b11`;
+that hash does not identify the new suite.
 
 ## Docker deployment and quality
 

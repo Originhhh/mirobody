@@ -187,7 +187,7 @@ with every image kept home.
   record loaded then (`qa5`), with an older llama.cpp build (b11269). Large
   does not fit on the 16 GB machine the rest ran on; small ran beside it so
   the two compare on one machine and record
-  ([benchmarks](../benchmarks/local_models/README.md#small-and-large-on-one-machine-2026-10-08)).
+  ([benchmarks](../benchmarks/local_models/HISTORY.md#small-and-large-on-one-machine-2026-10-08)).
 - **Records and commits.** The small row from the 16 GB laptop ran entirely at 958fae5, on a record
   (`qa4`) loaded through the final pipeline, as a user's would be today. The
   cloud models answered from the record loaded at 490a0e1 (`qa3`, two
@@ -226,7 +226,7 @@ the medical knowledge tools, thinking on for every model), on 30 questions:
 the 24 above and six for the new tools. One 48 GB Apple-silicon machine, one
 record, every model through the same stack; the grade is out of 248 for the
 24 and out of 60 for the six
-([benchmarks](../benchmarks/local_models/README.md#sampling-thinking-two-more-models-and-what-post-training-is-for-2026-10-10)).
+([benchmarks](../benchmarks/local_models/HISTORY.md#sampling-thinking-two-more-models-and-what-post-training-is-for-2026-10-10)).
 
 | | Grade, 24 questions | Six added | Cites its numbers |
 | --- | ---: | ---: | ---: |
@@ -432,7 +432,9 @@ and it does not yet cite its numbers. Nothing about you leaves the machine.
 
 The large size, on a 32 GB Mac or a 24 GB NVIDIA GPU: pick it on the same
 page. About 2 minutes an answer on a 48 GB Apple-silicon machine, graded 240 of 248 (the small
-size 229 on the same machine), and the only local size that looks at a photo.
+size 229 on the same machine), and interprets visual content directly. The
+small size also reads report photos, instrument displays and labels through
+GLM-OCR-0.9B; OCR text alone does not establish facts about an image's appearance.
 
 ### The best answers
 
@@ -474,28 +476,68 @@ pinned entries above say `supports_image: false`, so it reaches them as its
 OCR text. The setup page does not offer this mode: it refuses local while
 `.env` holds a key.
 
-## Thinking between tool calls
+## Thinking and the final answer
 
-Every chat model thinks before a tool call and again after its result, at
-`AGENT_THINKING` (`medium` in `config.llm.yaml`); an entry's `thinking_level`
-overrides it. Within a turn the reasoning is sent back with each step, so the
-model reads where it got to. Measured with one two-step lookup on 2026-10-10:
+Interactive chat requests native thinking for every supported model. Set its
+effort with `AGENT_THINKING` (`medium` by default) or a positive entry-level
+`thinking_level`: `low`, `medium` or `high`. Chat promotes `off` to the agent
+level, or `medium` if that is also off; it also enables the dialect's visible
+summary where available. This policy applies only to the interactive harness.
+Document extraction, OCR, titles and other utility entries keep their own
+thinking settings and can remain off.
 
-| Entry | Thinks | You see it | How |
-| --- | --- | --- | --- |
-| `local` (MiniCPM5-2B, Qwen3.8-27B) | yes | yes | `chat_template_kwargs.enable_thinking` |
-| `deepseek` | yes | yes | DeepSeek thinks by default |
-| `qwen` (DashScope) | yes | yes | `enable_thinking` with a budget |
-| `gpt` (OpenRouter) | yes | after the tool result | OpenRouter's `reasoning.effort` |
-| `claude-sonnet` (OpenRouter) | no | no | OpenRouter routes it to Google Vertex, which returns no thinking |
-| `openai` (direct) | no | no | GPT-6 Sol takes a function tool on Chat Completions only at `reasoning_effort: none` |
-| `gemini-flash`, `claude` (direct) | set to think | not measured | the Gemini API refused the measuring machine's region; no Anthropic key |
+| Chat route | Requested behavior |
+| --- | --- |
+| `local` | `chat_template_kwargs.enable_thinking: true` |
+| `deepseek` | Native `thinking.type: enabled`, with its supported effort; retained reasoning travels with tool history |
+| `qwen` on DashScope | `enable_thinking: true` with a budget |
+| OpenRouter (`gpt`, `claude-sonnet`) | `reasoning.enabled: true`, `exclude: false`, with effort or an explicitly configured budget |
+| Direct `openai` | Responses API with reasoning effort and `summary: auto`; `store: false`, replaying opaque reasoning context |
+| Native Claude and Gemini | Their native thinking dialect and visible summaries/thoughts |
+
+The direct OpenAI entry uses Responses because GPT-6 Sol supports function
+calling with reasoning there; its Chat Completions tool contract requires
+`reasoning_effort: none`. OpenAI exposes a summary rather than raw reasoning.
+An explicitly configured legacy Chat Completions entry retains that restriction
+and reports it instead of sending an unsupported combination.
+[OpenAI model contract](https://developers.openai.com/api/docs/models/gpt-6-sol),
+[reasoning summaries](https://developers.openai.com/api/docs/guides/reasoning#reasoning-summaries).
+DeepSeek's native tool API requires reasoning from all retained assistant turns;
+the local template path retains reasoning within the current user turn.
+[DeepSeek thinking protocol](https://api-docs.deepseek.com/guides/thinking_mode/).
+OpenRouter's signed or encrypted reasoning details retain their original order
+across tool calls; only text and summaries are displayed. Replay uses the
+history remaining after privacy guards, including genotype redaction.
+[OpenRouter reasoning protocol](https://openrouter.ai/docs/guides/best-practices/reasoning-tokens#preserving-reasoning).
+
+Requesting thinking does not prove that an endpoint streams it. An unknown
+dialect receives no guessed API parameter. `mirobody doctor --probe` performs
+two streamed chat requests: a tool call, then a reply to a synthetic tool result.
+It reports whether a native thinking chunk was actually observed across either
+request; a working tool call with no visible thinking fails that capability
+check. This is still only a short probe, not a quality or latency verdict. No
+new cloud-model result is claimed by the offline transport tests. In the
+2026-10-10 measurements, OpenRouter's GPT first exposed thinking after the tool
+result, while its Claude route exposed none; both depend on the selected host.
+
+The stream keeps work and the answer separate. Native thinking or summaries
+appear immediately. Tool activity and model text accompanying tool calls belong
+in the thinking panel. Text from a candidate final step is held until the step
+finishes, then emitted once as the answer; an interrupted or rejected step does
+not become an answer. A voice client can consume only answer text. This adds
+buffering to final text, so the first visible thinking token is an important
+latency measure; the harness never invents hidden reasoning to fill a delay.
+
+Benchmarks record `first_token_s` for the first nonempty thinking or answer text,
+plus `first_reasoning_s`, `first_tool_s` and `first_text_s`. Tool status,
+heartbeats and usage do not count as a generated token. Missing observations
+remain null; first thinking, first answer and total duration are distinct.
 
 ## How to switch
 
 - **The setup page.** `./deploy.sh` prints its link; later it is Settings ›
   Model. Paste a key (the model it will use is shown beside it, and takes
-  another name, checked with one real request), or choose **100% on this
+  another name, checked with a short streamed tool round), or choose **100% on this
   machine** and a size. The choice is stored encrypted and applies without a
   restart.
 - **`.env`.** The key, and the model by the variable each `config.llm.yaml`
@@ -514,10 +556,10 @@ model reads where it got to. Measured with one two-step lookup on 2026-10-10:
   docker compose exec mirobody mirobody doctor --probe
   ```
 
-  It shows which entry each surface uses, sends each one real request (a tool
-  call, a schema-bound answer, an image, the OCR passes) through the code the
-  product uses, and checks that each local server runs the model its entry
-  names.
+  It shows which entry each surface uses, checks a streamed chat tool round
+  and visible thinking with two requests, and probes extraction, vision and
+  OCR through the product's code. It also checks that each local server runs
+  the model its entry names.
 
 ## How it was measured, and how to rerun it
 

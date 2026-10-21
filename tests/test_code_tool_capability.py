@@ -93,6 +93,15 @@ def test_empty_failed_and_previous_turn_sources_are_refused():
         source_results([HumanMessage("Calculate"), old, failed])
 
 
+@pytest.mark.parametrize("name", ["__empty_answer__", "__last_model_call__"])
+def test_harness_nudges_do_not_hide_this_turn_original_results(name):
+    source = message([{"value": 7.0}])
+    messages = [HumanMessage("Calculate"), source, HumanMessage("Use the source above", name=name)]
+    assert source_results(messages)[0]["data"] == [{"value": 7.0}]
+    with pytest.raises(ValueError, match="no original"):
+        source_results([*messages, HumanMessage("A different question", name="person")])
+
+
 def test_model_schema_contains_code_and_source_handles_without_runtime_or_table():
     properties = python_exec.tool_call_schema.model_json_schema()["properties"]
     assert set(properties) == {"code", "timeout_s"}

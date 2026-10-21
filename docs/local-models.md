@@ -291,7 +291,7 @@ The `local` entry sends `temperature: 0`. MiniCPM5-2B's model card gives
 `temperature 1.0, top_p 0.95, min_p 0` for thinking mode; on the evaluation
 those settings graded 182 to 200 of 248 over three runs against 194 and 212
 at temperature 0, losing on numbers and medical claims no tool returned
-([benchmarks](../benchmarks/local_models/README.md#sampling-thinking-two-more-models-and-what-post-training-is-for-2026-10-10)).
+([benchmarks](../benchmarks/local_models/HISTORY.md#sampling-thinking-two-more-models-and-what-post-training-is-for-2026-10-10)).
 A model you add gets the same temperature; its card's other settings go in
 its preset section.
 

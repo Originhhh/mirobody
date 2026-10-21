@@ -29,6 +29,9 @@ _NUM = re.compile(r"(?<![A-Za-z0-9_.])[-−]?\d{1,3}(?:,\d{3})+(?:\.\d+)?(?![A-Z
                   r"|(?<![A-Za-z0-9_.])[-−]?\d+(?:\.\d+)?")
 _CJK = re.compile(r"[㐀-鿿]")
 _LATIN = re.compile(r"[A-Za-z]")
+_JAPANESE = re.compile(r"[\u3040-\u30ff伝圧薬検発読録]")
+_TRADITIONAL = re.compile(r"[體壓縮張紅錄測檢數無沒為區間圍內認藥遺劑斷處於參與對稱並應這說夠類單記裡夢請確診開別號證據標圖個來們會漢萬]")
+_SIMPLIFIED = re.compile(r"[体压缩张红录测检数无没为区间围内认药遗剂断处于参与对称并应这说够类单记梦请确诊开别号证据标图个来们会汉万]")
 _CHART = re.compile(r"```vis-chart\s*(.*?)```", re.S)
 _FENCE = re.compile(r"```.*?```", re.S)
 
@@ -101,13 +104,28 @@ def dates_in(text: str) -> set[str]:
 
 
 def language_of(text: str) -> str:
-    """zh when CJK characters are at least a fifth of the letters, else en.
-    Charts, code and tables of names are not prose, so fences are dropped."""
+    """Detect the frontend's en/zh-CN/zh-TW/ja in prose; numbers do not vote."""
     prose = _FENCE.sub(" ", text or "")
+    if _JAPANESE.search(prose):
+        return "ja"
     cjk, latin = len(_CJK.findall(prose)), len(_LATIN.findall(prose))
     if cjk + latin == 0:
         return ""
-    return "zh" if cjk >= 0.2 * (cjk + latin) else "en"
+    if cjk < .2 * (cjk + latin):
+        return "en"
+    return "zh-TW" if len(_TRADITIONAL.findall(prose)) > len(_SIMPLIFIED.findall(prose)) else "zh-CN"
+
+
+def language_matches(expected: str, answer: str) -> bool:
+    expected = "zh-CN" if expected == "zh" else expected
+    detected = language_of(answer)
+    if detected == expected:
+        return True
+    # Some correct Chinese phrases (e.g. 未分型) use only shared characters.
+    # They cannot identify a script, and must not be failed for that ambiguity.
+    prose = _FENCE.sub(" ", answer)
+    return (expected in {"zh-CN", "zh-TW"} and detected in {"zh-CN", "zh-TW"}
+            and not _TRADITIONAL.search(prose) and not _SIMPLIFIED.search(prose))
 
 
 def charts(text: str) -> list[dict]:
@@ -278,7 +296,62 @@ def unsupported_numbers(answer: str, tools: str, question: str) -> list[float]:
 
 def _number_present(fact: dict, nums: list[float]) -> bool:
     targets = fact.get("any") or [fact["value"]]
-    return any(abs(abs(n) - abs(t)) <= fact["tol"] + 1e-9 for t in targets for n in nums)
+    return any(abs(n - t) <= fact["tol"] + 1e-9 for t in targets for n in nums)
+
+
+def _anchor_present(anchor: str, text: str) -> bool:
+    anchor, text = nfkc(anchor).casefold(), nfkc(text).casefold()
+    if re.fullmatch(r"[a-z0-9 /_-]+", anchor):
+        return bool(re.search(r"(?<![a-z0-9])" + re.escape(anchor) + r"(?![a-z0-9])", text))
+    return anchor in text
+
+
+def _anchor_spans(anchors: list[str], text: str) -> list[tuple[int, int]]:
+    spans = []
+    for anchor in anchors:
+        anchor = nfkc(anchor).casefold()
+        pattern = re.escape(anchor)
+        if re.fullmatch(r"[a-z0-9 /_-]+", anchor):
+            pattern = r"(?<![a-z0-9])" + pattern + r"(?![a-z0-9])"
+        spans.extend(m.span() for m in re.finditer(pattern, text.casefold()))
+    return spans
+
+
+def _closer_to_label(span: tuple[int, int], own: list[tuple[int, int]], other: list[tuple[int, int]]) -> bool:
+    def gap(label: tuple[int, int]) -> int:
+        return max(0, label[0] - span[1], span[0] - label[1])
+    return bool(own) and min(map(gap, own)) < min(map(gap, other), default=float("inf"))
+
+
+def _bound_numbers(fact: dict, clause: str) -> list[float]:
+    text = strip_dates(clause)
+    scope = fact["scope"]
+    own = _anchor_spans(scope["anchors"], text)
+    other = _anchor_spans(scope["other_anchors"], text)
+    return [value for match in _NUM.finditer(text) if _closer_to_label(match.span(), own, other)
+            for value in numbers(match.group())]
+
+
+def _fact_scopes(fact: dict, answer: str) -> list[str]:
+    """Bind the fact to a clause/table row, rather than any number nearby.
+
+    This is deliberately a conservative structural check, not an NLI judge.
+    Headings, unusual paraphrases and wide tables can need human review.
+    Keeping clauses separate catches swapped ALT/AST and genotype labels.
+    """
+    scope = fact.get("scope")
+    if not scope:
+        return [answer]
+    clauses = re.split(r"\n|[。；;!?！？，]|(?<!\d)[.,]|[.,](?!\d)", answer)
+    matches = []
+    for clause in clauses:
+        if scope.get("anchors") and not any(_anchor_present(a, clause) for a in scope["anchors"]):
+            continue
+        found_dates = dates_in(clause)
+        if scope.get("date") and scope["date"] not in found_dates:
+            continue
+        matches.append(clause)
+    return matches
 
 
 def _durations(text: str) -> list[float]:
@@ -301,9 +374,29 @@ def _genotype_present(gt: str, text: str) -> bool:
     return any(re.search(rf"(?<![A-Za-z]){re.escape(f)}(?![A-Za-z])", text) for f in forms)
 
 
+def _bound_genotype_present(fact: dict, clause: str) -> bool:
+    text = nfkc(clause)
+    own = _anchor_spans(fact["scope"]["anchors"], text)
+    own_names = {a.casefold() for a in fact["scope"]["anchors"]}
+    rivals = [m.group() for m in re.finditer(r"\brs\d+\b", text, re.I) if m.group().casefold() not in own_names]
+    other = _anchor_spans(rivals + fact["scope"].get("other_anchors", []), text)
+    a, b = fact["value"]
+    forms = {a + b, b + a, f"{a}/{b}", f"{b}/{a}", f"{a};{b}", f"{b};{a}", f"{a}|{b}", f"{b}|{a}"}
+    return any(_closer_to_label(m.span(), own, other) for form in forms
+               for m in re.finditer(rf"(?<![A-Za-z]){re.escape(form)}(?![A-Za-z])", text, re.I))
+
+
 def fact_present(fact: dict, answer: str, nums: list[float], trace: dict | None = None) -> bool:
     """`answer` is the prose (`prose_of`); the citation facts read `trace`."""
     kind = fact["kind"]
+    if fact.get("scope"):
+        if kind == "genotype":
+            return any(_bound_genotype_present(fact, clause) for clause in _fact_scopes(fact, answer))
+        unscoped = {k: v for k, v in fact.items() if k != "scope"}
+        return any(fact_present(unscoped, clause,
+                               _bound_numbers(fact, clause) if kind == "number" and fact["scope"].get("other_anchors")
+                               else numbers(strip_dates(clause)), trace)
+                   for clause in _fact_scopes(fact, answer))
     if kind in ("cites_ref", "cites_row"):
         want = "ref" if kind == "cites_ref" else "row"
         bad = [c for c in (trace or {}).get("made_up", []) if citations.cite_kind(c) == want]
@@ -319,6 +412,8 @@ def fact_present(fact: dict, answer: str, nums: list[float], trace: dict | None 
         return any(abs(d - m) <= fact["tol"] for d in _durations(answer) for m in fact["minutes"])
     if kind == "genotype":
         return _genotype_present(fact["value"], nfkc(answer))
+    if kind == "range":
+        return norm_range(fact["value"]).casefold() in norm_range(answer).casefold()
     raise ValueError(kind)
 
 
@@ -327,8 +422,9 @@ def score_case(case: dict, run: dict) -> dict:
     blocks = run.get("blocks") or []
     raw = answer_of(blocks)
     answer = prose_of(raw)
-    called = called_names(blocks)
-    tools = tool_text(blocks)
+    evidence_blocks = (run.get("prior_blocks") or []) + blocks
+    called = called_names(evidence_blocks)
+    tools = tool_text(evidence_blocks)
     finished = run.get("finish_reason") == "stop" and not run.get("timeout") and not run.get("error")
     answered = finished and bool(answer.strip()) and run.get("finish_reason") != "empty"
     nums = numbers(strip_dates(answer))
@@ -344,9 +440,25 @@ def score_case(case: dict, run: dict) -> dict:
         "answered": answered,
         "tool": (all if case.get("expect_all_tools") else any)(t in called for t in case["expect_tools"]),
         "facts": all(f["ok"] for f in facts),
-        "language": lang == case["lang"],
+        "language": language_matches(case["lang"], answer),
         "chart": bool(drawn) if case["chart"] else True,
     }
+    if case.get("suite_id"):
+        checks["subject"] = run.get("person") == case["person"]
+        checks["forbidden"] = not any(re.search(pattern, answer, re.I) for pattern in case.get("forbidden", []))
+        checks["citation_ids"] = not trace["made_up"]
+    if case.get("long_context"):
+        context = run.get("long_context") or {}
+        required = case["long_context"]["minimum_summaries"]
+        cutoffs = context.get("summary_cutoffs", [])
+        valid_cutoffs = (isinstance(cutoffs, list) and len(cutoffs) >= required
+                         and all(type(cutoff) is int and cutoff > 0 for cutoff in cutoffs)
+                         and all(after > before for before, after in zip(cutoffs, cutoffs[1:], strict=False)))
+        checks["context"] = (context.get("status") == "exercised" and valid_cutoffs
+                             and type(context.get("observed_summaries")) is int
+                             and context["observed_summaries"] >= required
+                             and type(context.get("summary_calls_completed")) is int
+                             and context["summary_calls_completed"] >= required)
     return {
         "id": case["id"],
         "pass": all(checks.values()),
@@ -597,6 +709,13 @@ def rescore(size_dir: Path, cases_path: Path) -> None:
     cases = {json.loads(line)["id"]: json.loads(line) for line in cases_path.read_text(encoding="utf-8").splitlines()
              if line.strip()}
     qa = read_json(size_dir / "qa.json")
+    if qa.get("cases_sha256"):
+        from provenance import digest_json
+        if digest_json(list(cases.values())) != qa["cases_sha256"]:
+            raise ValueError("Saved results and supplied case manifest have different hashes")
+    unknown = {run["id"] for run in qa["runs"]} - cases.keys()
+    if unknown:
+        raise ValueError("Saved results use a different suite; provide its frozen --cases-file (historical cases are in results/2026-10-10)")
     for run in qa["runs"]:
         run["score"] = score_case(cases[run["id"]], run)
     write_json(size_dir / "qa.json", qa)
@@ -604,7 +723,13 @@ def rescore(size_dir: Path, cases_path: Path) -> None:
 
 
 if __name__ == "__main__":
+    import argparse
+
     here = Path(__file__).resolve().parent
-    for arg in sys.argv[1:] or [str(p) for p in sorted((here / "results").glob("*/qa.json"))]:
+    parser = argparse.ArgumentParser(description="Rescore saved transcripts with their exact frozen questions")
+    parser.add_argument("results", nargs="+", type=Path)
+    parser.add_argument("--cases-file", type=Path, default=here / "cases.jsonl")
+    args = parser.parse_args()
+    for arg in args.results:
         target = Path(arg)
-        rescore(target if target.is_dir() else target.parent, here / "cases.jsonl")
+        rescore(target if target.is_dir() else target.parent, args.cases_file)

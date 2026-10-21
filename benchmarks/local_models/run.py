@@ -6,18 +6,19 @@
    does), waits until the router reports the answering model and GLM-OCR
    `loaded`, and gives the worker time to read the saved choice.
 2. Records the memory the two models' llama-server processes hold.
-3. **Questions** (`qa`): every case of cases.jsonl, in order, each in a fresh
-   chat session against the Q&A accounts load.py filled, scored by score.py.
-4. **Extraction** (`extraction`): the plan's documents into a fresh account,
+3. **Questions** (`qa`, the default): 100 scored requests, with five follow-ups
+   reusing real sessions and one bounded source-backed context-stress sequence.
+   The Q&A accounts come from load.py; score.py checks the frozen manifest.
+4. **Extraction** (`extraction`, optional): the plan's documents into a fresh account,
    one at a time, each scored against its printed rows.
-5. **Journal** (`journal`): the plan's sentences through
+5. **Journal** (`journal`, optional): the plan's sentences through
    `POST /api/v1/journal/sentence` into a fresh account, scored against the
    entries each states.
 
 Writes results/<size>/ (meta.json, qa.json, extraction.json, journal.json,
 summary.md) and records the environment in results/run.json. `--parts` runs a
 subset, `--cases` some questions, `--out` writes elsewhere so a rerun can be
-compared with the stored one (`report.py --diff`).
+compared with the stored one (`report.py diff <old> <new>`).
 """
 
 from __future__ import annotations
@@ -38,13 +39,15 @@ import requests
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from common import (
-    APP, HERE, OCR_MODEL, RESULTS, ROOT, ROUTER, ROUTER_FROM_APP, SIZES, Account, Corpus, ResourceStop, bench_email,
+    APP, HERE, OCR_MODEL, RESULTS, ROOT, ROUTER, ROUTER_FROM_APP, SIZES, Account, ApiError, Corpus, ResourceStop, bench_email,
     git_dirty, git_head, gguf_in_cache, guard, llama_version, memory_snapshot, model_files, now_iso, qa_email,
     read_json, read_jsonl, resources, router_status, setup_token, sha256, sign_in, swapouts, wait_loaded,
     wait_tasks_drained, write_json,
 )
 from load import LOAD_STATE, settings_for, stored_readings, upload_document
 from score import acceptable_dates, rescore, score_case, score_document, score_sentence
+from provenance import AS_OF, record_identity, saved_manifest, select_cases, validate_cases, validate_corpus
+from timing import StreamTiming, summarize_timings
 
 QUESTION_TIMEOUT = 600
 #: After a timeout the turn keeps running on the server; the next question
@@ -182,56 +185,70 @@ class MemorySampler(threading.Thread):
 # --- questions -----------------------------------------------------------------------
 
 
-def ask(account: Account, question: str, timeout: float) -> dict:
-    """One question in a fresh session, streamed to the end or the timeout."""
-    created = account.post("/api/session", {"query_user_id": account.user_id})
-    session_id = (created.get("data") or {}).get("session_id") or created.get("session_id")
+def ask(account: Account, question: str, timeout: float, *, session_id: str | None = None,
+        as_of: str = AS_OF) -> dict:
+    """One scored turn; a follow-up reuses its prerequisite's real session."""
+    previous_assistants = 0
+    if session_id is not None:
+        previous = account.get("/api/history", session_id=session_id)["data"]["history"]
+        previous_assistants = sum(m.get("role") == "assistant" for m in previous)
+    if session_id is None:
+        created = account.post("/api/session", {"query_user_id": account.user_id})
+        session_id = (created.get("data") or {}).get("session_id") or created.get("session_id")
     blocks: list[dict] = []
-    out: dict[str, Any] = {"session_id": session_id, "started": now_iso()}
-    first_text = None
+    out: dict[str, Any] = {"session_id": session_id, "started": now_iso(), "as_of": as_of}
+    timing = StreamTiming()
     finish = None
+    t0 = time.monotonic()
     try:
         for _ in range(12):
             t0 = time.monotonic()          # a wait for the rate limit's window is not the answer's time
             r = account.session.post(APP + "/api/chat", headers=account.headers(), stream=True, timeout=(30, 120),
                                      json={"question": question, "session_id": session_id,
-                                           "query_user_id": account.user_id})
+                                           "query_user_id": account.user_id, "as_of": as_of})
             if r.status_code != 429:
                 break
             r.close()
             out["rate_limited"] = out.get("rate_limited", 0) + 1
             time.sleep(10)
         with r:
-            for line in r.iter_lines(decode_unicode=True):
+            r.raise_for_status()
+            if "application/json" in r.headers.get("content-type", ""):
+                envelope = r.json()
+                out["configuration_error"] = envelope.get("code") == -5
+                raise ApiError(f"chat rejected the request: code={envelope.get('code')}; {envelope.get('msg')}")
+            for line in r.iter_lines(decode_unicode=True, chunk_size=1):
                 if time.monotonic() - t0 > timeout:
                     out["timeout"] = True
                     break
                 if not line or not line.startswith("data:"):
                     continue
                 block = json.loads(line[5:].strip())
+                if not isinstance(block, dict):
+                    raise ValueError("SSE data must contain a JSON object")
                 kind = block.get("type")
+                if kind in ("text", "reasoning") and not isinstance(block.get(kind), str):
+                    raise ValueError(f"SSE {kind} content must be a string")
                 if kind == "heartbeat":
                     continue
-                if kind == "text" and first_text is None:
-                    first_text = time.monotonic() - t0
+                timing.observe(block, time.monotonic() - t0)
                 if kind == "end":
                     finish = block.get("finish_reason")
                     break
                 if kind == "error":
                     out["error"] = block.get("message")
                 _merge(blocks, block)
-    except requests.RequestException as e:
+    except (requests.RequestException, ValueError, ApiError) as e:
         out["error"] = f"{type(e).__name__}: {e}"[:300]
-    out.update({"seconds": round(time.monotonic() - t0, 1), "first_text_s": round(first_text, 1) if first_text else None,
+    out.update({"seconds": round(time.monotonic() - t0, 3), **timing.as_dict(),
                 "finish_reason": finish, "blocks": blocks})
     if out.get("timeout") or (finish is None and not out.get("error")):
-        out["late_s"] = _wait_answer(account, session_id)
+        out["late_s"] = _wait_answer(account, session_id, previous_assistants=previous_assistants)
     return out
 
 
 def _merge(blocks: list[dict], block: dict) -> None:
-    """Join streamed text and reasoning, as the server's transcript does; keep
-    only the reasoning's length (the answer and the tools are what is scored)."""
+    """Join streamed chunks; preserve reasoning for separate manual review."""
     kind = block.get("type")
     if kind in ("text", "reasoning") and blocks and blocks[-1].get("type") == kind:
         field = "text" if kind == "text" else "reasoning"
@@ -240,7 +257,7 @@ def _merge(blocks: list[dict], block: dict) -> None:
     blocks.append(dict(block))
 
 
-def _wait_answer(account: Account, session_id: str) -> float | None:
+def _wait_answer(account: Account, session_id: str, *, previous_assistants: int = 0) -> float | None:
     t0 = time.monotonic()
     while time.monotonic() - t0 < LATE_WAIT:
         time.sleep(15)
@@ -248,7 +265,7 @@ def _wait_answer(account: Account, session_id: str) -> float | None:
             history = account.get("/api/history", session_id=session_id)["data"]["history"]
         except Exception:
             continue
-        if any(m.get("role") == "assistant" for m in history):
+        if sum(m.get("role") == "assistant" for m in history) > previous_assistants:
             return round(time.monotonic() - t0, 1)
     return None
 
@@ -261,7 +278,7 @@ def _wait_answer(account: Account, session_id: str) -> float | None:
 _RATE_LIMITED = re.compile(r"rate|429|TypeError|NoneType|temporarily|APIError", re.I)
 
 
-def run_questions(size: str, cases: list[dict], timeout: float, plan: dict, *, ocr: bool = True,
+def run_questions(size: str, cases: list[dict], timeout: float, plan: dict, *, corpus: Corpus | None = None, ocr: bool = True,
                   save=None, retries: int = 0) -> list[dict]:
     """Every case in order; `save(runs)` after each, so a run cut short keeps
     the answers it has."""
@@ -269,8 +286,11 @@ def run_questions(size: str, cases: list[dict], timeout: float, plan: dict, *, o
     accounts: dict[str, Account] = {}
     for person, cfg in plan["qa_people"].items():
         if qa_email(person) in state:
+            if state[qa_email(person)].get("record_sha256") != record_identity(plan):
+                raise ValueError("Loaded account provenance differs from this suite; reload with a new account generation")
             accounts[person] = sign_in(qa_email(person), tz=cfg["tz"], lang=cfg["lang"])
     runs = []
+    by_id = {}
     for i, case in enumerate(cases, 1):
         account = accounts.get(case["person"])
         if account is None:
@@ -279,26 +299,37 @@ def run_questions(size: str, cases: list[dict], timeout: float, plan: dict, *, o
             break
         log(f"[{i}/{len(cases)}] {case['id']}")
         before = swapouts()
-        result = ask(account, case["question"], timeout)
-        if result.get("error") and not result.get("timeout"):
-            log(f"  error: {result['error']}; checking the router and asking once more")
-            if size in SIZES:
-                ensure_loaded(size, ocr=ocr)
-            first = result
-            result = ask(account, case["question"], timeout)
-            result["retried_after"] = {k: first.get(k) for k in ("error", "seconds", "finish_reason")}
+        parent = by_id.get(case.get("depends_on"))
+        if case.get("depends_on") and (parent is None or parent.get("finish_reason") != "stop"
+                                       or parent.get("timeout") or parent.get("error")):
+            result = {"blocks": [], "seconds": None, "finish_reason": None,
+                      "error": "prerequisite turn did not complete", "blocked_by": case["depends_on"],
+                      **StreamTiming().as_dict()}
+        else:
+            account.lang = case["lang"]
+            if case.get("long_context"):
+                if corpus is None:
+                    raise ValueError("A long-context case requires its verified source corpus")
+                from long_context import run_long_context
+                result = run_long_context(account, case, parent=parent, corpus=corpus, ask=ask, timeout=timeout)
+            else:
+                result = ask(account, case["question"], timeout, session_id=parent["session_id"] if parent else None,
+                             as_of=case["as_of"])
+            if parent and not case.get("long_context"):
+                result["prior_blocks"] = parent.get("prior_blocks", []) + parent.get("blocks", [])
         limited: list[dict] = []
-        while (retries and len(limited) < retries and result.get("error") and not result.get("timeout")
+        while (not case.get("depends_on") and retries and len(limited) < retries and result.get("error") and not result.get("timeout")
                and _RATE_LIMITED.search(str(result["error"]))):
             wait = 60 * 2 ** len(limited)
             log(f"  rate-limited ({str(result['error'])[:60]}); asking again in {wait} s")
-            limited.append({k: result.get(k) for k in ("error", "seconds", "finish_reason")})
+            limited.append(result)
             time.sleep(wait)
-            result = ask(account, case["question"], timeout)
+            result = ask(account, case["question"], timeout, as_of=case["as_of"])
         if limited:
             result["rate_limited_attempts"] = limited
         after = swapouts()
         result.update({"id": case["id"], "person": case["person"], "question": case["question"],
+                       "domain": case["domain"], "lang": case["lang"], "depends_on": case.get("depends_on"),
                        "swapouts": after - before if before is not None and after is not None else None})
         # The text is kept: whether a long reasoning is a repetition loop is
         # read from it (README.md, "Sampling").
@@ -307,11 +338,15 @@ def run_questions(size: str, cases: list[dict], timeout: float, plan: dict, *, o
                 b["reasoning_chars"] = len(b.get("reasoning", ""))
         result["score"] = score_case(case, result)
         s = result["score"]
-        log(f"  {'PASS' if s['pass'] else 'fail'} in {result['seconds']:.0f} s; tools {s['tools_called']}; "
+        log(f"  {'PASS' if s['pass'] else 'fail'} in {result['seconds']} s; tools {s['tools_called']}; "
             f"facts {sum(f['ok'] for f in s['facts'])}/{len(s['facts'])}; unsupported {s['unsupported_numbers']}")
         runs.append(result)
+        by_id[case["id"]] = result
         if save:
             save(runs)
+        if result.get("configuration_error"):
+            STOPPED.append("The server refused the frozen clock. Enable EVAL_AS_OF_ENABLED on the isolated evaluation server.")
+            break
     return runs
 
 
@@ -493,20 +528,46 @@ def summarize(size_dir: Path) -> dict:
     qa = read_json(size_dir / "qa.json", {"runs": []})
     ext = read_json(size_dir / "extraction.json", {"documents": []})
     jnl = read_json(size_dir / "journal.json", {"sentences": []})
-    # The qa_ figures are the first 24 cases', comparable across runs; cases
-    # added later (`added` in cases.jsonl) are counted apart, as new_.
-    added = {c["id"] for c in read_jsonl(HERE / "cases.jsonl") if c.get("added")}
+    manifest = saved_manifest(qa)
+    added = {c["id"] for c in manifest if c.get("added")}
     runs = [r for r in qa["runs"] if r["id"] not in added]
     new = [r for r in qa["runs"] if r["id"] in added]
     traces = [r["score"]["trace"] for r in qa["runs"] if r["score"].get("trace")]
     shown = [t for t in traces if t["rows_shown"] or t["refs_shown"]]
-    times = [r["seconds"] for r in runs]
+    times = [r["seconds"] for r in runs if r.get("seconds") is not None]
     usage = [_usage(r) for r in runs]
     docs = ext["documents"]
     sents = jnl["sentences"]
     found = sum(d["score"]["found"] for d in docs)
+    requested_n = len(qa.get("selected_ids", [])) or len(runs)
+    unattempted = max(0, requested_n - len(qa["runs"]))
+    languages = {r["id"]: r.get("lang") or next(c["lang"] for c in manifest if c["id"] == r["id"]) for r in runs}
+    long_ids = {c["id"] for c in manifest if c.get("long_context")}
+    long_runs = [r for r in runs if r["id"] in long_ids]
     return {
         "size": meta.get("size"), "agent": meta.get("agent"),
+        "suite_id": qa.get("suite_id", "historical-30"), "requested_n": requested_n,
+        "unattempted_n": unattempted, "complete": unattempted == 0,
+        "latency": summarize_timings(qa["runs"] + [{} for _ in range(unattempted)]),
+        "families": {family: {"n": sum(r.get("domain") == family for r in runs),
+                               "pass": sum(r["score"]["pass"] for r in runs if r.get("domain") == family)}
+                     for family in sorted({r.get("domain", "legacy") for r in runs})},
+        "languages": {language: {"n": sum(languages[r["id"]] == language for r in runs),
+                                  "pass": sum(r["score"]["pass"] for r in runs if languages[r["id"]] == language)}
+                      for language in sorted(set(languages.values()))},
+        "failed_attempts_before_retry": sum(len(r.get("rate_limited_attempts", [])) for r in runs),
+        "long_context": {
+            "requested": len(long_ids & set(qa.get("selected_ids", [r["id"] for r in runs]))),
+            "scored": len(long_runs),
+            "exercised": sum(bool(r["score"].get("checks", {}).get("context")) for r in long_runs),
+            "passed": sum(bool(r["score"]["pass"]) for r in long_runs),
+            "not_exercised": sum((r.get("long_context") or {}).get("status") == "not_exercised" for r in long_runs),
+            "errors": sum((r.get("long_context") or {}).get("status") == "error" for r in long_runs),
+            "blocked": sum(bool(r.get("blocked_by")) for r in long_runs),
+            "pressure_requests": sum(len(r.get("pressure_turns", [])) for r in long_runs),
+            "setup_seconds": [r.get("context_setup_seconds") for r in long_runs],
+            "final_request_seconds": [r.get("final_request_seconds") for r in long_runs],
+        },
         "qa_pass": sum(r["score"]["pass"] for r in runs), "qa_n": len(runs),
         "qa_checks": {k: sum(r["score"]["checks"][k] for r in runs) for k in
                       ("answered", "tool", "facts", "language", "chart")},
@@ -547,7 +608,7 @@ def summarize(size_dir: Path) -> dict:
 def _usage(run: dict) -> dict:
     """The tokens a turn read and wrote (the app's `usage` block; the cache
     share is what the server did not have to read again) and its tool calls."""
-    blocks = run.get("blocks") or []
+    blocks = (run.get("blocks") or []) + [block for turn in run.get("pressure_turns", []) for block in turn.get("blocks", [])]
     used = [b for b in blocks if b.get("type") == "usage"]
     return {"input": sum(b.get("input_tokens") or 0 for b in used),
             "output": sum(b.get("output_tokens") or 0 for b in used),
@@ -559,20 +620,25 @@ def write_summary(size_dir: Path, cases: list[dict]) -> None:
     s = summarize(size_dir)
     qa = read_json(size_dir / "qa.json", {"runs": []})
     lines = [f"# {s['size']}: {s['agent']}", "",
-             ("Generated by run.py from the JSON beside it. Automatic checks only; Claude Code's grades are in "
-              "grades.json and ../summary.md."), "",
+             ("Generated from the saved transcript and frozen case manifest. Automatic structural checks only; "
+              "clinical claims, readability and false negatives need separate human review."), "",
+             (f"Suite: {s['suite_id']}; scored rows {s['qa_n']} of {s['requested_n']} requested. "
+              "This development set is not directly comparable with the historical 30-question suite."), "",
              "| Part | Result |", "| --- | --- |",
-             f"| Questions passed (automatic) | {s['qa_pass']}/{s['qa_n']} |",
+             f"| Questions passed (automatic) | {s['qa_pass']}/{s['requested_n']} ({s['unattempted_n']} unattempted) |",
              (f"| answered / right tool / facts / language / chart | {s['qa_checks']['answered']} / "
               f"{s['qa_checks']['tool']} / {s['qa_checks']['facts']} / {s['qa_checks']['language']} / "
               f"{s['qa_checks']['chart']} |"),
              f"| Numbers in no tool result | {s['qa_unsupported_numbers']} in {s['qa_answers_with_unsupported']} answers |",
-             (f"| Questions added 2026-10-10, passed (automatic) | {s['new_pass']}/{s['new_n']} (answered / tool / "
-              f"facts / language {' / '.join(str(v) for v in s['new_checks'].values())}) |"),
              (f"| Cited answers: in the format / made-up ids / untraced numbers | {s['trace_format']}/{s['trace_n']} / "
               f"{s['trace_made_up']} / {s['trace_untraced']} in {s['trace_answers_untraced']} answers |"),
              f"| Seconds per answer, median / p90 | {s['qa_median_s']} / {s['qa_p90_s']} |",
              f"| Timeouts ({QUESTION_TIMEOUT} s) | {s['qa_timeouts']} |",
+             (f"| Native context stress: exercised / passed / requested | {s['long_context']['exercised']} / {s['long_context']['passed']} / "
+              f"{s['long_context']['requested']} (unexercised {s['long_context']['not_exercised']}, "
+              f"errors {s['long_context']['errors']}, blocked {s['long_context']['blocked']}) |"),
+             (f"| Context stress extra requests / setup seconds / final request seconds | {s['long_context']['pressure_requests']} / "
+              f"{s['long_context']['setup_seconds']} / {s['long_context']['final_request_seconds']} |"),
              f"| Extraction: printed rows found | {s['ext_found']}/{s['ext_rows']} in {s['ext_docs']} documents |",
              f"| … unit / range as printed | {s['ext_unit_ok']} / {s['ext_range_ok']} of {s['ext_found']} |",
              f"| … readings stored that are not printed rows | {s['ext_extra']} |",
@@ -585,6 +651,15 @@ def write_summary(size_dir: Path, cases: list[dict]) -> None:
              (f"| llama-server memory, both models loaded: RSS / footprint (MB) | {s['memory_idle_rss_mb']} / "
               f"{s['memory_idle_footprint_mb']} (peak while answering {s['memory_peak_rss_mb']} / "
               f"{s['memory_peak_footprint_mb']}) |"), "",
+             ("First visible token includes actual thinking/reasoning content. Heartbeats, statuses and tool events "
+              "do not count. Missing observations remain null; failures that emitted content remain in distributions."), "",
+             "| Latency | Observed n | Missing n | p50 seconds | p90 seconds |", "| --- | --- | --- | --- | --- |",
+             *[f"| {name} | {row['n']} | {row['missing']} | {row['p50']} | {row['p90']} |"
+               for name, row in s["latency"].items()], "",
+             "| Family | Pass | Scored n |", "| --- | --- | --- |",
+             *[f"| {family} | {row['pass']} | {row['n']} |" for family, row in s["families"].items()], "",
+             "| Language | Pass | Scored n |", "| --- | --- | --- |",
+             *[f"| {language} | {row['pass']} | {row['n']} |" for language, row in s["languages"].items()], "",
              "| Case | Pass | Checks failed | Facts | Unsupported numbers | Seconds |",
              "| --- | --- | --- | --- | --- | --- |"]
     for r in qa["runs"]:
@@ -592,7 +667,7 @@ def write_summary(size_dir: Path, cases: list[dict]) -> None:
         failed = ", ".join(k for k, v in sc["checks"].items() if not v) or "—"
         facts = f"{sum(f['ok'] for f in sc['facts'])}/{len(sc['facts'])}"
         lines.append(f"| {r['id']} | {'yes' if sc['pass'] else 'no'} | {failed} | {facts} | "
-                     f"{', '.join(str(x) for x in sc['unsupported_numbers']) or '—'} | {r['seconds']:.0f} |")
+                     f"{', '.join(str(x) for x in sc['unsupported_numbers']) or '—'} | {r.get('seconds')} |")
     (size_dir / "summary.md").write_text("\n".join(lines) + "\n", encoding="utf-8")
 
 
@@ -689,20 +764,16 @@ def reference_state() -> dict:
 # --- main ----------------------------------------------------------------------------
 
 
-#: The mirobody-gen commit the corpus is built at (README.md, "Reproduce").
-#: A build does not record it, so a checkout that has moved on since is
-#: reported beside it, not instead of it; the JSONL hashes tell the builds apart.
-GEN_COMMIT = "248df0f2aead8051c81ef1f7a9fa431e627e8791"
-
-
 def environment(corpus: Corpus | None) -> dict:
     gen = Path(__import__("os").environ.get("MIROBODY_GEN_DIR", str(ROOT.parent / "mirobody-gen")))
     people = len(corpus.people) if corpus else None
+    provenance = read_json(HERE / "plan.json")["provenance"]
     return {
         "mirobody_commit": git_head(ROOT), "mirobody_dirty": git_dirty(ROOT),
-        "mirobody_gen": {"seed": 7, "people": people, "commit": GEN_COMMIT,
+        "mirobody_gen": {"seed": 7, "people": people, "commit": provenance["generator_commit"],
                          "repo_head_at_run": git_head(gen) if gen.exists() else "",
-                         "build": f"mirobody-gen build --seed 7 --people {people} --out <dir> --render",
+                         "build": provenance["recipe"], "as_of": provenance["as_of"],
+                         "audit": provenance["audit"], "suite_id": provenance["suite_id"],
                          "corpus": str(corpus.dir) if corpus else "",
                          "sha256": {p.name: sha256(p) for p in sorted(corpus.dir.glob("*.jsonl"))} if corpus else {}},
         "llama_cpp": llama_version(),
@@ -740,8 +811,10 @@ def main() -> None:
     who.add_argument("--ref", help="a reference the stack is already configured for (a cloud model, by env); "
                                    "results/ref-<REF>, no model switching and no llama-server")
     ap.add_argument("--corpus", required=True, help="the mirobody-gen build the cases and plan came from")
-    ap.add_argument("--parts", default="qa,extraction,journal")
+    ap.add_argument("--parts", default="qa", help="qa by default; extraction and journal are separate optional passes")
     ap.add_argument("--cases", default="", help="comma-separated case ids (default: all, in file order)")
+    ap.add_argument("--smoke", action="store_true", help="30 cases spanning every family, including a complete conversation")
+    ap.add_argument("--dry-run", action="store_true", help="verify source/case hashes and print selection; no HTTP/model calls")
     ap.add_argument("--out", default="", help="default results/<size>")
     ap.add_argument("--no-switch", action="store_true", help="the size is already set up and loaded")
     ap.add_argument("--no-ocr", action="store_true",
@@ -772,10 +845,16 @@ def main() -> None:
     out = Path(args.out) if args.out else RESULTS / label
     out.mkdir(parents=True, exist_ok=True)
     cases = read_jsonl(HERE / "cases.jsonl")
-    if args.cases:
-        wanted = args.cases.split(",")
-        cases = [c for c in cases if c["id"] in wanted]
     plan = json.loads((HERE / "plan.json").read_text(encoding="utf-8"))
+    validate_cases(cases, plan)
+    validate_corpus(corpus, plan)
+    full_manifest = cases
+    cases = select_cases(cases, wanted=args.cases.split(",") if args.cases else None, smoke=args.smoke)
+    if args.dry_run:
+        print(json.dumps({"suite_id": plan["provenance"]["suite_id"], "n": len(cases),
+                          "case_ids": [c["id"] for c in cases], "counts": plan["counts"],
+                          "upstream_audit": plan["provenance"]["audit"]["overall"]}, ensure_ascii=False, indent=2))
+        return
     stamp = time.strftime("%Y%m%d%H%M")
     if args.rescore:
         rescore_saved(out, corpus, plan)
@@ -790,6 +869,12 @@ def main() -> None:
         return
 
     meta = read_json(out / "meta.json", {}) or {}
+    if meta.get("suite_id") and meta["suite_id"] != plan["provenance"]["suite_id"]:
+        raise ValueError("Result directory belongs to a different suite; select a fresh --out directory")
+    if (out / "qa.json").exists() and read_json(out / "qa.json").get("cases_sha256") != plan["cases_sha256"]:
+        raise ValueError("Existing results use a different case manifest; select a fresh --out directory")
+    meta.update({"suite_id": plan["provenance"]["suite_id"], "cases_sha256": plan["cases_sha256"],
+                 "provenance": plan["provenance"]})
     meta.pop("stopped", None)              # a previous pass's; this one says its own
     if not check("before switching"):
         raise SystemExit(STOPPED[-1])
@@ -841,9 +926,13 @@ def main() -> None:
         def save(runs: list[dict]) -> None:
             merged = sorted(kept + runs, key=lambda r: order.get(r["id"], len(order)))
             write_json(out / "qa.json", {"size": label, "agent": meta["agent"], "cases": "cases.jsonl",
+                                         "suite_id": plan["provenance"]["suite_id"],
+                                         "cases_sha256": plan["cases_sha256"], "case_manifest": full_manifest,
+                                         "selected_ids": sorted({r["id"] for r in kept} | {c["id"] for c in cases},
+                                                                key=lambda cid: order[cid]),
                                          "runs": merged, **({"stopped": STOPPED[-1]} if STOPPED else {})})
 
-        save(run_questions(label, cases, args.timeout, plan, ocr=not args.no_ocr, save=save, retries=args.retries))
+        save(run_questions(label, cases, args.timeout, plan, corpus=corpus, ocr=not args.no_ocr, save=save, retries=args.retries))
         usage["qa"] = openrouter_usage_settled() if args.ref else None
         meta["memory_run"] = None if args.ref else sampler.stop()
         meta["passes"][-1]["memory_run"] = meta["memory_run"]

@@ -45,6 +45,22 @@ The 2026-10-21 source run with `[app,test]` and that image recorded
 **645 passed, 106 skipped, 12 xfailed** across the public modules and these
 two evidence modules. This excludes unrelated, untracked local tests.
 
+The thinking/100-question integration has additional synthetic contracts in
+`tests/agent/test_thinking_stream.py`, `tests/agent/test_chat_thinking_policy.py`
+and `tests/agent/test_local_eval_contract.py`. `tests/agent/test_long_context.py`
+triggers at least two genuine automatic DeepAgents summaries through the
+production middleware and checkpoint; its scripted model can only retain
+facts present in the actual summary input. `test_long_context_runner.py`
+checks that the live stress runner rejects an unexercised compaction path.
+These tests exercise the real compiled
+harness with scripted models, provider request construction, source/case
+fingerprints, answer bindings, medication history and SSE latency accounting.
+They call no paid model. The tests use the frozen manifests and invented
+fixtures; `cases.py --corpus <build> --check` separately verifies the actual
+generator build's input hashes. Those checks are not model validation.
+The full 100-question model evaluation and its setup are described in
+[`benchmarks/local_models/README.md`](../benchmarks/local_models/README.md).
+
 They used to abort collection outright rather than skip — first with
 `ModuleNotFoundError: langchain_core`, then with `psycopg_pool` and `mandrill`
 because `mirobody/server/__init__` and `mirobody/user/__init__` import them,

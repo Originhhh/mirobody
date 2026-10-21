@@ -359,7 +359,7 @@ class GenotypeRowGuardTests(unittest.TestCase):
         self.assertEqual(asyncio.run(guard.awrap_tool_call(request, async_handler)).status, "error")
 
     def test_deepagents_summary_and_history_only_receive_redacted_rows(self) -> None:
-        model = FakeListChatModel(responses=["summary"])
+        model = FakeListChatModel(responses=["summary"], profile={"max_input_tokens": 32768})
         guard = GenotypeRowGuardMiddleware()
         middleware = GenotypeSafeSummarizationMiddleware(model, StateBackend(), guard)
         envelope = tools.Envelope(tools.STATUS_OK,
@@ -380,7 +380,7 @@ class GenotypeRowGuardTests(unittest.TestCase):
             seen["history"] = history
             return "/conversation_history/public.md"
 
-        def summarize(_instance, history):
+        def summarize(_instance, history, **_kwargs):
             seen["summary"] = history
             return "Previous query requires a fresh lookup."
 
@@ -391,10 +391,10 @@ class GenotypeRowGuardTests(unittest.TestCase):
         with (patch.object(middleware, "_should_summarize", return_value=True),
               patch.object(middleware, "_determine_cutoff_index", return_value=3),
               patch.object(DeepSummarizationMiddleware, "_offload_to_backend", offload),
-              patch.object(DeepSummarizationMiddleware, "_create_summary", summarize)):
+              patch.object(FakeListChatModel, "_call", summarize)):
             result = middleware.wrap_model_call(request, handler)
         for key in ("history", "summary"):
-            self.assertNotIn("AG", " ".join(str(message.content) for message in seen[key]))
+            self.assertNotRegex(" ".join(str(message.content) for message in seen[key]), r"\bAG\b")
             self.assertTrue(all(getattr(message, "artifact", None) is None for message in seen[key]))
         self.assertEqual(seen["model"][-1].content, current.content)
         summary_message = result.command.update["_summarization_event"]["summary_message"]
@@ -473,7 +473,7 @@ class GenotypeRowGuardTests(unittest.TestCase):
         self.assertEqual(guard._scratch_refusal(old_read).status, "error")
 
     def test_async_summary_and_overflow_recovery_redact_genotypes(self) -> None:
-        model = FakeListChatModel(responses=["summary"])
+        model = FakeListChatModel(responses=["summary"], profile={"max_input_tokens": 32768})
         guard = GenotypeRowGuardMiddleware()
         middleware = GenotypeSafeSummarizationMiddleware(model, StateBackend(), guard)
         envelope = tools.Envelope(tools.STATUS_OK,
@@ -492,7 +492,7 @@ class GenotypeRowGuardTests(unittest.TestCase):
             seen["history"] = history
             return "/conversation_history/public.md"
 
-        async def summarize(_instance, history):
+        def summarize(_instance, history, **_kwargs):
             seen["summary"] = history
             return "A fresh query is needed."
 
@@ -504,12 +504,12 @@ class GenotypeRowGuardTests(unittest.TestCase):
             with (patch.object(middleware, "_should_summarize", return_value=True),
                   patch.object(middleware, "_determine_cutoff_index", return_value=3),
                   patch.object(DeepSummarizationMiddleware, "_aoffload_to_backend", offload),
-                  patch.object(DeepSummarizationMiddleware, "_acreate_summary", summarize)):
+                  patch.object(FakeListChatModel, "_call", summarize)):
                 return await middleware.awrap_model_call(request, handler)
 
         asyncio.run(run())
         for key in ("history", "summary"):
-            self.assertNotIn("AG", " ".join(str(message.content) for message in seen[key]))
+            self.assertNotRegex(" ".join(str(message.content) for message in seen[key]), r"\bAG\b")
         self.assertEqual(seen["model"][-1].content, messages[-1].content)
 
         async def capture_recovery(_instance, recovery_request, _handler, **_kwargs):

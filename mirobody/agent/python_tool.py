@@ -12,11 +12,12 @@ import logging
 from dataclasses import asdict
 
 from langchain.tools import ToolRuntime
-from langchain_core.messages import HumanMessage, ToolMessage
+from langchain_core.messages import ToolMessage
 from langchain_core.tools import tool
 from deepagents.backends.protocol import ExecuteResponse
 
 from mirobody.kernel import tools
+from .models.messages import user_turn_start
 from .python_sandbox import LocalPythonSandbox
 
 logger = logging.getLogger(__name__)
@@ -31,8 +32,7 @@ COMPUTATION_NOTE = (
 
 def source_results(messages: list, *, computation_tool: str = "python_exec") -> list[dict]:
     """Original results in this turn, in call order, including their methodology."""
-    start = next((i + 1 for i in range(len(messages) - 1, -1, -1)
-                  if isinstance(messages[i], HumanMessage)), 0)
+    start = user_turn_start(messages)
     available = [
         {"tool": message.name, "tool_call_id": message.tool_call_id, **asdict(message.artifact)}
         for message in messages[start:]

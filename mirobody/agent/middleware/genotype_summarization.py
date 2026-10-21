@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 from typing import Any
+from contextlib import contextmanager
+from uuid import uuid4
 
 from deepagents.middleware.summarization import (
     SUMMARIZATION_EVENT_KEY,
@@ -10,7 +12,13 @@ from deepagents.middleware.summarization import (
     SummarizationMiddleware as DeepSummarizationMiddleware,
     compute_summarization_defaults,
 )
+from langchain.agents.middleware import ModelRequest
+from langchain.agents.middleware.summarization import _summary_config
+from langchain_core.exceptions import ContextOverflowError
 from langchain_core.messages import HumanMessage
+from langgraph.config import get_stream_writer
+
+from mirobody.agent.wire.blocks import CONTEXT
 
 from mirobody.agent.middleware.genotype_row_guard import (
     GenotypeRowGuardMiddleware,
@@ -24,6 +32,27 @@ _SAFE_MARKER = "genotype_rows_redacted"
 #: A model with at most this input window is a local one (the `local` entry
 #: declares 48000; on a 32k server the agent narrows it to 24576).
 _LOCAL_WINDOW = 65536
+
+
+@contextmanager
+def _summary_activity():
+    """Expose actual work without sending summary contents to the browser."""
+    try:
+        writer = get_stream_writer()
+    except RuntimeError:
+        # Direct library invocations have no graph stream to notify.
+        def writer(event):
+            return None
+    event = {"type": CONTEXT, "phase": "summarization", "id": str(uuid4())}
+    writer({**event, "status": "started"})
+    try:
+        yield
+    except BaseException:
+        writer({**event, "status": "failed"})
+        raise
+    else:
+        # Generation completed; committed cutoffs remain in usage.context.
+        writer({**event, "status": "completed"})
 
 
 def _is_local(model: Any) -> bool:
@@ -58,10 +87,16 @@ def _defaults(model: Any) -> dict:
 
 
 class GenotypeSafeSummarizationMiddleware(DeepSummarizationMiddleware):
-    """Replace the DeepAgents core slot while preserving its normal thresholds."""
+    """Preserve selected history within the summarizer's actual input budget.
+
+    Trigger and keep policies remain DeepAgents' defaults for the model. Its
+    separate 4000-token tail trim discarded early evidence before the summary
+    model could read it. Selected history is now complete or the call fails
+    explicitly; oversized histories are not recursively summarized here.
+    """
 
     def __init__(self, model: Any, backend: Any, guard: GenotypeRowGuardMiddleware) -> None:
-        super().__init__(model=model, backend=backend, **_defaults(model))
+        super().__init__(model=model, backend=backend, trim_tokens_to_summarize=None, **_defaults(model))
         self._genotype_guard = guard
 
     @property
@@ -114,11 +149,49 @@ class GenotypeSafeSummarizationMiddleware(DeepSummarizationMiddleware):
     async def _aoffload_to_backend(self, backend: Any, messages: list[Any], session_id: str) -> str | None:
         return await super()._aoffload_to_backend(backend, redact_genotype_history(messages), session_id)
 
+    def _checked_summary_prompt(self, messages: list[Any]) -> str:
+        prompt = self._lc_helper._format_summary_prompt(redact_genotype_history(messages))
+        request = ModelRequest(model=self.model, messages=[HumanMessage(prompt)], tools=[])
+        budget = self._input_budget(request)
+        if budget is None:
+            raise ContextOverflowError("A bounded summary requires the model's max_input_tokens profile.")
+        tokens = self._count_tokens(request.messages, None, None)
+        if tokens > budget:
+            raise ContextOverflowError(
+                "Complete summary input exceeds the model input budget; no history was omitted. "
+                f"input_tokens={tokens}, input_budget={budget}."
+            )
+        return prompt
+
+    @staticmethod
+    def _summary_text(response: Any) -> str:
+        metadata = getattr(response, "response_metadata", None) or {}
+        finish = str(metadata.get("finish_reason") or metadata.get("stop_reason") or "").lower()
+        if finish in {"length", "max_tokens"} or metadata.get("status") == "incomplete":
+            raise ContextOverflowError("Summary generation reached its output limit; the incomplete summary was not applied.")
+        text = response.text.strip()
+        if not text:
+            raise RuntimeError("Summary generation returned no text; history was not replaced.")
+        return text
+
     def _create_summary(self, messages_to_summarize: list[Any]) -> str:
-        return super()._create_summary(redact_genotype_history(messages_to_summarize))
+        if not messages_to_summarize:
+            return "No previous conversation history."
+        # The upstream overflow fallback omits the middle of this prompt. Keep
+        # its retry wrapper and internal-call metadata, but propagate overflow
+        # instead of turning unexamined source history into a success event.
+        with _summary_activity():
+            prompt = self._checked_summary_prompt(messages_to_summarize)
+            response = self._lc_helper._summary_model.invoke(prompt, config=_summary_config())
+            return self._summary_text(response)
 
     async def _acreate_summary(self, messages_to_summarize: list[Any]) -> str:
-        return await super()._acreate_summary(redact_genotype_history(messages_to_summarize))
+        if not messages_to_summarize:
+            return "No previous conversation history."
+        with _summary_activity():
+            prompt = self._checked_summary_prompt(messages_to_summarize)
+            response = await self._lc_helper._summary_model.ainvoke(prompt, config=_summary_config())
+            return self._summary_text(response)
 
     def _call_with_budget(self, request: Any, handler: Any, *, error: Exception | None = None,
                           rejected: Any = None) -> Any:

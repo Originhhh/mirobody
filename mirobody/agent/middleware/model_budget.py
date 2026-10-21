@@ -23,15 +23,12 @@ or less, the longest after 48 failures and 52 calls, and none recovered.
 
 from __future__ import annotations
 
+from collections.abc import Mapping
 from typing import Any
 
 from langchain.agents.middleware import ModelCallLimitMiddleware, hook_config
 from langchain_core.messages import AIMessage, HumanMessage, ToolMessage
-
-#: `HumanMessage.name` of the instruction: the harness speaking, not the
-#: person, which is how the genotype redaction and the empty-answer repair
-#: tell it from a new question.
-LAST_CALL_NAME = "__last_model_call__"
+from mirobody.agent.models.messages import LAST_CALL_NAME
 
 _LAST_CALL = (
     "This is your last step for this question: no more tools can be called. "
@@ -46,7 +43,8 @@ FAILURE_STREAK = 5
 
 def _failed(message: ToolMessage) -> bool:
     artifact = getattr(message, "artifact", None)
-    return (message.status == "error" or getattr(artifact, "status", None) == "error"
+    status = artifact.get("status") if isinstance(artifact, Mapping) else getattr(artifact, "status", None)
+    return (message.status == "error" or status == "error"
             or str(message.content).lstrip().startswith("<error"))
 
 

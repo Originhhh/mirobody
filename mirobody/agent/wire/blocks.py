@@ -8,11 +8,12 @@ names. What came before was ``reply`` / ``thinking`` / ``queryTitle`` /
 ``queryArguments`` / ``queryDetail`` / ``costStatistics``, invented here, so
 every reader had to learn a private dialect to see the same five things.
 
-Five block types have no LangChain equivalent because they are about the
+Six block types have no LangChain equivalent because they are about the
 stream rather than the model: ``start`` opens it with the id the answer will
 be saved under, ``heartbeat`` keeps a proxy from closing an idle connection,
 ``notice`` is the system talking to the user, ``error`` is a fault the user is
-told about, and ``end`` says why the turn stopped. ``interrupt`` is
+told about, ``context`` reports actual summary-generation activity without
+its contents, and ``end`` says why the turn stopped. ``interrupt`` is
 LangGraph's: a paused run, with the pending call under its own name and
 arguments.
 
@@ -40,6 +41,7 @@ INTERRUPT = "interrupt"
 #: until 1.4.4, where a reader could not tell it from the model's trace;
 #: `kernel.events.Notice` names that as the defect it exists to fix.
 NOTICE = "notice"
+CONTEXT = "context"
 ERROR = "error"
 END = "end"
 HEARTBEAT = "heartbeat"

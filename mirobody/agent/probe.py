@@ -1,10 +1,10 @@
-"""`mirobody doctor --probe`: one real request per surface, through the call the product makes.
+"""`mirobody doctor --probe`: real requests through the call the product makes.
 
 `mirobody doctor` reads configuration and says which entry each surface would
 use. That answers "is a key there", not "can this model do the job": a local
 server can be up and serve a model that cannot call a tool, read an image or
 keep to a schema. Single-round checks are a floor, not a verdict (a model that
-passes all three can still loop in a real multi-round turn), which is why the
+passes a short tool round can still loop in a real multi-round turn), which is why the
 report says PASS rather than "ready".
 
 Sends real requests, so it costs a few tokens on a paid endpoint and minutes on
@@ -63,24 +63,71 @@ class ProbeResult:
 
 
 async def _chat(name: str | None = None, resolve: Any = None, entry: dict | None = None) -> tuple[bool, str]:
-    """One tool call through the chat entry `name`, or the default one;
+    """A streamed tool call and synthetic result through the chat entry `name`;
     `resolve` reads its key and address (`clients.Resolver`) and `entry` is
     the entry itself, when they are not what the environment says, as for a
     key and model the setup page has not saved yet."""
-    from mirobody.agent.models.clients import build_chat_model
+    from langchain_core.messages import HumanMessage, ToolMessage, message_chunk_to_message
+
+    from mirobody.agent.models.clients import build_chat_model, normalize_thinking
+    from mirobody.agent.models.messages import message_reasoning, message_text
+    from mirobody.utils.config import safe_read_cfg
     from mirobody.utils.config.llm import default_model
     from mirobody.utils.config.llm import chat_entries
 
     name = name or default_model()
     if not name:
         return False, "no chat entry is usable"
-    model = build_chat_model(entry or chat_entries()[name], alias=name, resolve=resolve).bind_tools([_TOOL])
-    reply = await model.ainvoke("What was my fasting glucose over the last 90 days? Look it up.")
-    calls = getattr(reply, "tool_calls", None) or []
-    if not calls:
-        return False, f"{name}: answered without calling the tool"
-    call = calls[0]
-    return call.get("name") == "query_health_indicators", f"{name}: {call.get('name')}({json.dumps(call.get('args'), ensure_ascii=False)})"
+    selected = entry or chat_entries()[name]
+    effort = normalize_thinking(selected.get("thinking_level"))
+    if effort in (None, "off"):
+        effort = normalize_thinking(safe_read_cfg("AGENT_THINKING")) or "medium"
+    model = build_chat_model(
+        selected, alias=name, resolve=resolve,
+        thinking=effort,
+        require_thinking=True,
+    ).bind_tools([_TOOL])
+    started = time.monotonic()
+    first_reasoning: float | None = None
+
+    async def streamed(messages):
+        nonlocal first_reasoning
+        reply = None
+        async for chunk in model.astream(messages):
+            if first_reasoning is None and message_reasoning(chunk).strip():
+                first_reasoning = time.monotonic() - started
+            reply = chunk if reply is None else reply + chunk
+        return message_chunk_to_message(reply) if reply is not None else None
+
+    # A native CPU endpoint can spend minutes on prefill. It still needs a
+    # finite probe: setup applies its own shorter deadline; doctor allows ten
+    # minutes for both calls and never retries a model that asks for more tools.
+    async with asyncio.timeout(600):
+        messages = [HumanMessage("What was my fasting glucose over the last 90 days? Look it up once, then answer briefly from the result.")]
+        reply = await streamed(messages)
+        calls = getattr(reply, "tool_calls", None) or []
+        if len(calls) != 1 or getattr(reply, "invalid_tool_calls", None):
+            return False, f"{name}: expected one valid tool call, received {len(calls)}"
+        call = calls[0]
+        args = call.get("args")
+        valid = (
+            call.get("name") == "query_health_indicators" and bool(call.get("id"))
+            and isinstance(args, dict) and isinstance(args.get("keywords"), list)
+            and bool(args["keywords"]) and all(isinstance(word, str) and word.strip() for word in args["keywords"])
+            and ("days" not in args or type(args["days"]) is int and args["days"] > 0)
+        )
+        if not valid:
+            return False, f"{name}: tool name, call id or parsed arguments did not match the probe schema"
+        messages.extend([reply, ToolMessage(
+            content=json.dumps({"readings": [{"value": 5.4, "unit": "mmol/L"}], "count": 1, "complete": True}),
+            tool_call_id=call["id"],
+        )])
+        final = await streamed(messages)
+        if not message_text(final).strip() or getattr(final, "tool_calls", None) or getattr(final, "invalid_tool_calls", None):
+            return False, f"{name}: no final answer after the synthetic tool result"
+    if first_reasoning is None:
+        return False, f"{name}: tool round passed; no native thinking was observed before or after the tool result (endpoint/model capability unverified)"
+    return True, f"{name}: tool round and native thinking passed; first thinking {first_reasoning:.2f}s"
 
 
 async def _text() -> tuple[bool, str]:
@@ -188,7 +235,7 @@ async def probe_surfaces() -> list[ProbeResult]:
 
 
 def format_probes(results: list[ProbeResult]) -> str:
-    lines = ["Probes (one real request each)", "-" * 72]
+    lines = ["Probes (chat: two streamed requests; utilities: one request each)", "-" * 72]
     for r in results:
         lines.append(f"  {r.surface:<6}  {'PASS' if r.passed else 'FAIL'}  {r.seconds:6.1f}s  {r.detail}")
     lines.append("-" * 72)

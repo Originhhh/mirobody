@@ -2,6 +2,11 @@
 
 [English](local-models-roadmap.md) · **中文**
 
+**2026-10-21 评测更新：**日常开发与回归套件调整为 100 道由来源数据导出真值的问题，另选 30 道作冒烟检查。
+本地基因型、药物基因组学和 OCR 辅助照片分析保留在范围内。首个可见 thinking token 计入首 token 延迟，
+首次答案和工具活动分别记录。下文数字属于各自注明日期的历史题集，不是新 100 题的模型成绩。
+训练数据和独立留出的确认集另行建设。
+
 Mirobody 不填任何 API key 也能跑：一个模型回答问题，一个模型读文档，都在同一台机器上
 （怎么跑见 [local-models.md](local-models.md)）。这一页记录从 2026-09-30 起的实测结果、它对「看图」
 意味着什么，以及让整套东西装进一台普通电脑的计划。
@@ -14,7 +19,7 @@ Mirobody 不填任何 API key 也能跑：一个模型回答问题，一个模�
   在 1.5.4 改 harness（[见下](#先改-harness)）之前，24 道题过了 16 道，140 个印刷行存对 45 个，31 条日记条目一条也没写出来。
 - **大号**是 Qwen3.8-27B（GSQ-RCO IQ3_S，13 GB），能看照片。在评测的 24 道题上得 248 分里的 240 分，
   同一台机器上的小号 229 分，云端模型 237–247 分；140 个印刷行存对 139 个，31 条日记条目写出 29 条
-  （[实测](../benchmarks/local_models/README.md#small-and-large-on-one-machine-2026-10-08)，英文）。
+  （[实测](../benchmarks/local_models/HISTORY.md#small-and-large-on-one-machine-2026-10-08)，英文）。
   在 48 GB 的 Apple 芯片主机的 GPU 上每次回答约 2 分钟，要约 20 GB 内存：32 GB 内存的 Mac，或 24 GB 显存的显卡。
 - **1.6.0 交付目标**：把这两个小模型针对 Mirobody 做后训练，作为 Mirobody 自己的模型发布（[再训练](#再训练)），
   合计约 3 GB，和今天的小号一样，16 GB 内存、没有显卡就能跑。是两个模型，不合并成一个。只有通过了和被替换的模型同样的评测，才替换默认。
@@ -45,7 +50,7 @@ Mirobody 不填任何 API key 也能跑：一个模型回答问题，一个模�
 耗时只在同一台机器、同一时段内可比。产出这些数字的评测工具没有发布；取代它的评测是
 [`benchmarks/local_models/`](../benchmarks/local_models/README.md)：通过产品自己的 API 问 24 道题、读 12 份文档和 15 句日记，
 云端参照和本地两种大小一起跑。在它上面、同一台 48 GB 主机上（2026-10-08），大号得 240 分，小号 229 分
-（[同一台机器上的小号和大号](../benchmarks/local_models/README.md#small-and-large-on-one-machine-2026-10-08)，英文）。
+（[同一台机器上的小号和大号](../benchmarks/local_models/HISTORY.md#small-and-large-on-one-machine-2026-10-08)，英文）。
 
 ### MiniCPM5-2B 细看
 
@@ -115,11 +120,12 @@ GLM-OCR 官方只有四种提示：`Text Recognition:`、`Table Recognition:`、
 这就是 1.6.0 要交付的，作为 Mirobody 自己的模型发布（[model-choice.zh-CN.md](model-choice.zh-CN.md#160-预告mirobody-自己的模型)）。
 1.5.4 把 P0 做到了这里：上面的 harness 改动；评测发布在 [`benchmarks/local_models/`](../benchmarks/local_models/README.md) 和
 [`benchmarks/local_ocr/`](../benchmarks/local_ocr/README.md)，MiniCPM5-2B 的基线已记下（2026-10-06），云端参照也一起跑了。
-还没做的：200–500 道题，并分成训练、验证、测试三份。
+当前回归目标是从固定版本语料重新导出真值的 100 道多样化问题。训练样本与独立留出的测试来源另行准备；
+已经用于开发的回归题集不能同时作为未暴露测试集。
 
 | 阶段 | 做什么 | 算通过 |
 | --- | --- | --- |
-| P0 | 上面的 harness 改动。评测从 16 次扩到 200–500 道题（多语言、多个人、各种日期窗口、照片），分成训练、验证、测试三份，测试集留真实报告；并发布到 `benchmarks/` | 记下 MiniCPM5-2B 的基线 |
+| P0 | 上面的 harness 改动。运行覆盖语言、人物、时间窗、文档/OCR、基因/PGx、用药和多轮追问的 100 道来源驱动回归题，另保留 30 道冒烟子集；在 `benchmarks/` 发布生成方法、审计状态和延迟定义 | 新 MiniCPM5-2B 基线同时记录准确率、证据、首个可见 thinking/正文、首次答案和整轮延迟 |
 | P1 | Agent：让大号 27B 模型在真实 harness 里答训练题，只留每项检查都过的运行，用它们对 MiniCPM5-2B 做 LoRA 微调 | 测试集上达到 27B 的水平：每次都通过、没有记录外的数、按报告印的范围判断 |
 | P2 | 文档：用渲染出来的报告加上手机拍摄的畸变（透视、光照、模糊）微调 GLM-OCR，输出「名称、值、单位、范围、标记、日期」的行 | 在留出的真实报告上的字段准确率和漏读行数 |
 | P3 | 对还没修好的问题做强化学习（GRPO），以数字核对作为奖励 | 测试集上没有记录外的数 |

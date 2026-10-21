@@ -10,6 +10,18 @@ Ordered by (value ÷ risk) within each section.
 
 ## Capability gaps
 
+### Explicitly cancel a running chat turn
+
+**Status:** open. The web client's Stop now aborts HTTP reception and isolates
+late callbacks by question ID. `agent/chat/turn.py::stream_with_heartbeat`
+deliberately leaves `_accumulate` running after a client disconnect so an
+answer can still be saved. There is no turn-cancellation endpoint, so this
+does not stop model computation; a history refresh can reveal the answer later.
+An explicit cancellation command needs authenticated turn ownership, cancellation
+of model/tool work, persistence semantics for partial turns and serialization
+with the next turn's checkpoint writes. Do not implement it by treating every
+network disconnect as a user's cancellation request.
+
 ### Genetics beyond the bundled pharmacogene index
 
 **Status:** design questions. The shipped scope and its reasons are in

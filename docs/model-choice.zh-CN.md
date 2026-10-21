@@ -147,7 +147,7 @@ GLM-OCR 只读印刷的文字和表格，别的一概不会。小号看不见图
   表格规则放在前面之后（[见下](#表格规则在前面时)），云端模型的降到 26–41 条。
 - **48 GB 主机上的两行** 是 2026-10-08 在 7372b096 上先后跑的，读的是当时载入的记录（`qa5`），llama.cpp 是较旧的 b11269。
   其余各行所用的 16 GB 机器装不下大号；小号在它旁边一起跑，两者在同一台机器、同一份记录上可比
-  （[评测](../benchmarks/local_models/README.md#small-and-large-on-one-machine-2026-10-08)，英文）。
+  （[评测](../benchmarks/local_models/HISTORY.md#small-and-large-on-one-machine-2026-10-08)，英文）。
 - **记录和提交。** 16 GB 笔记本上那行小号全部在 958fae5 上跑，读的记录（`qa4`）经最终版流水线载入，和今天用户的记录一样。
   云端模型读的是在 490a0e1 上载入的记录（`qa3`，其中两份文档在 321aa2c 上重读过），之后没有重新载入。
   DeepSeek、Sonnet 和 Luna 的文档和日记在 4e3c06f 上读，20 道题在 490a0e1 上答，读那两份重读文档的 4 道题在
@@ -168,7 +168,7 @@ GLM-OCR 只读印刷的文字和表格，别的一概不会。小号看不见图
 
 ### 在 1.5.5 的 harness 上（2026-10-10）
 
-1.5.5 的 harness 改动之后重测（回答引用读数行、医学知识工具、每个模型都在调工具前后思考），共 30 道题：上面那 24 道，加上为新工具写的 6 道。同一台 48 GB Apple 芯片主机、同一份记录、所有模型走同一套服务；24 道题满分 248，新增 6 道满分 60（[基准](../benchmarks/local_models/README.md#sampling-thinking-two-more-models-and-what-post-training-is-for-2026-10-10)）。
+1.5.5 的 harness 改动之后重测（回答引用读数行、医学知识工具、每个模型都在调工具前后思考），共 30 道题：上面那 24 道，加上为新工具写的 6 道。同一台 48 GB Apple 芯片主机、同一份记录、所有模型走同一套服务；24 道题满分 248，新增 6 道满分 60（[基准](../benchmarks/local_models/HISTORY.md#sampling-thinking-two-more-models-and-what-post-training-is-for-2026-10-10)）。
 
 | | 24 道题得分 | 新增 6 道 | 给数字标出处 |
 | --- | ---: | ---: | ---: |
@@ -319,7 +319,7 @@ services:
 ### 隐私优先，一台大内存的机器
 
 大号，32 GB 内存的 Mac 或 24 GB 显存的 NVIDIA 显卡：在同一个页面上选它。48 GB 的主机上每次回答约 2 分钟，
-评分 248 分得 240（同一台机器上小号 229），也是本地唯一能看照片的大小。
+评分 248 分得 240（同一台机器上小号 229），可以直接理解视觉内容。小号也能通过 GLM-OCR-0.9B 读取报告照片、仪表和标签；仅有 OCR 文字不足以确认图像外观相关的事实。
 
 ### 要最好的回答
 
@@ -350,24 +350,33 @@ UTILS_VISION_MODEL=local-utils                           # 没有文字的图片
 这样的文件要么在本机描述，要么不描述。对话里打开的照片会送到能看图的对话模型；上面固定托管方的条目写了
 `supports_image: false`，照片就以 OCR 文字送达。设置页不提供这种方式：`.env` 里有 key 时它不让选本机。
 
-## 调工具前后都先思考
+## 思考过程和最终答案
 
-每个对话模型在调工具前、拿到结果后都会先思考，强度由 `AGENT_THINKING` 决定（`config.llm.yaml` 里是 `medium`），单个条目可用 `thinking_level` 覆盖。同一轮里，每一步的思考会随下一次请求带回去，模型读得到自己想到哪了。2026-10-10 用一个两步查询实测：
+交互式对话对每个支持的模型都请求原生思考。强度由 `AGENT_THINKING` 决定（默认 `medium`），单个条目的正向 `thinking_level` 可以覆盖它：`low`、`medium` 或 `high`。对话会把 `off` 提升为 agent 的强度；两处都关闭时使用 `medium`，并在协议支持时启用可见的思考摘要。这项策略只作用于交互式 harness；文档提取、OCR、标题等工具环节仍保留各自配置，可以关闭思考。
 
-| 条目 | 思考 | 能看到 | 方式 |
-| --- | --- | --- | --- |
-| `local`（MiniCPM5-2B、Qwen3.8-27B） | 是 | 是 | `chat_template_kwargs.enable_thinking` |
-| `deepseek` | 是 | 是 | DeepSeek 默认思考 |
-| `qwen`（DashScope） | 是 | 是 | `enable_thinking` 加预算 |
-| `gpt`（OpenRouter） | 是 | 工具结果之后 | OpenRouter 的 `reasoning.effort` |
-| `claude-sonnet`（OpenRouter） | 否 | 否 | OpenRouter 把它路由到 Google Vertex，不返回思考 |
-| `openai`（直连） | 否 | 否 | GPT-6 Sol 只有在 `reasoning_effort: none` 时才能在 Chat Completions 上调函数工具 |
-| `gemini-flash`、`claude`（直连） | 已设为思考 | 未实测 | 测量机器所在地区被 Gemini API 拒绝；没有 Anthropic key |
+| 对话路由 | 请求的行为 |
+| --- | --- |
+| `local` | `chat_template_kwargs.enable_thinking: true` |
+| `deepseek` | 原生 `thinking.type: enabled` 和受支持的强度；思考随保留的工具历史回传 |
+| DashScope 的 `qwen` | `enable_thinking: true` 加预算 |
+| OpenRouter（`gpt`、`claude-sonnet`） | `reasoning.enabled: true`、`exclude: false`，搭配强度或显式配置的预算 |
+| 直连 `openai` | Responses API，指定思考强度和 `summary: auto`；`store: false`，回传不透明的推理上下文 |
+| 原生 Claude 和 Gemini | 各自的原生思考协议与可见摘要 |
+
+直连 OpenAI 条目改用 Responses，因为 GPT-6 Sol 在这个接口上支持工具与思考同时使用；它的 Chat Completions 工具调用契约要求 `reasoning_effort: none`。OpenAI 返回的是摘要，不是原始推理。显式配置的旧 Chat Completions 条目会保留并报告这一限制，不会发送不受支持的参数组合。[OpenAI 模型契约](https://developers.openai.com/api/docs/models/gpt-6-sol)、[思考摘要](https://developers.openai.com/api/docs/guides/reasoning#reasoning-summaries)。DeepSeek 原生工具接口要求回传保留历史里所有 assistant 轮次的思考；本地模板路径保留当前用户轮次内的思考。[DeepSeek 思考协议](https://api-docs.deepseek.com/guides/thinking_mode/)。
+
+OpenRouter 带签名或加密的推理块按原始顺序跨工具调用保留，只展示文字和摘要。回传只使用隐私保护规则处理后的历史，包括基因数据脱敏；不会为了满足端点协议恢复已移除的内容。[OpenRouter 推理协议](https://openrouter.ai/docs/guides/best-practices/reasoning-tokens#preserving-reasoning)。
+
+请求思考不代表端点一定会流出思考。未知协议不会收到猜测出来的参数。`mirobody doctor --probe` 对聊天执行两次流式请求：先调工具，再基于合成工具结果回答；它检查这两次请求中是否实际出现原生思考片段。工具调用成功但没有可见思考，会判为这项能力检查失败。短探针仍不能代替质量和延迟评测，离线传输测试也不代表新的云端实测结果。2026-10-10 的记录中，OpenRouter 的 GPT 在工具结果之后才流出思考，Claude 路由未流出思考；这些都受实际托管方影响。
+
+流式输出把工作过程和答案分开。原生思考或摘要立即展示；工具活动、伴随工具调用的模型文字进入思考面板。候选最终步骤的正文先暂存，步骤结束后作为答案输出一次；中断或被驳回的步骤不会成为答案。语音客户端可以只读答案正文。这会让最终正文多一层等待，所以首次可见的思考 token 同样是重要的延迟指标；harness 不会编造隐藏思考来填充等待。
+
+评测记录 `first_token_s`，取首次非空思考或答案正文的时间，同时保留 `first_reasoning_s`、`first_tool_s` 和 `first_text_s`。工具状态、心跳、usage 不计作模型生成 token；没有观测到的指标保留为空。首次思考、首次答案和整轮耗时分别报告。
 
 ## 怎么切换
 
 - **设置页。** `./deploy.sh` 会打印它的链接；之后在「设置 › 模型」。粘贴一把 key（旁边显示它会用的模型，
-  可以改成别的名字，用一次真实请求验证），或选**100% 在本机运行**再选大小。选择加密存储，不用重启就生效。
+  可以改成别的名字，用一轮简短的流式工具调用验证），或选**100% 在本机运行**再选大小。选择加密存储，不用重启就生效。
 - **`.env`。** 写 key，再按每个 `config.llm.yaml` 条目的 `model_env` 变量写模型：OpenRouter 的 key 对应
   `OPENROUTER_CHAT_MODEL`（对话）和 `OPENROUTER_UTILS_MODEL`（文档、日记、标题）；本地服务对应
   `LOCAL_MODEL`（`minicpm5-2b` 或 `qwen3.8-27b`）和 `LOCAL_OCR_MODEL`（`glm-ocr`）。`DEFAULT_MODEL`、
@@ -381,8 +390,8 @@ UTILS_VISION_MODEL=local-utils                           # 没有文字的图片
   docker compose exec mirobody mirobody doctor --probe
   ```
 
-  它列出每个环节用的条目，经产品自己的代码给每个条目发一次真实请求（一次工具调用、一次按 schema 的回答、
-  一张图、OCR 的各遍），并检查每个本地服务跑的是不是条目里写的那个模型。
+  它列出每个环节用的条目，用两次请求检查流式聊天的工具调用和可见思考，经产品代码探测提取、视觉和 OCR，
+  并检查每个本地服务跑的是不是条目里写的那个模型。
 
 ## 怎么测的，怎么复现
 
