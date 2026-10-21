@@ -31,6 +31,10 @@
 
 ### Fixed
 
+- **A cut medication log suggested an invalid retry.** The shared character-cut
+  notice recommended `view=stats`, which `query_medications` refuses. The leading
+  cut notice now asks callers to narrow the query using the producing tool's
+  supported filters.
 - **A total over many readings had no direct answer.** `view=stats` gave count, min, max and
   average but no sum, so a total over more rows than the raw view returns (a year of exercise
   logs) had to be rebuilt as average times count. Stats now carry `sum` over the same values
