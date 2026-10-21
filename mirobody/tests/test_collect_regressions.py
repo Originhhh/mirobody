@@ -239,6 +239,11 @@ async def test_a_character_cut_does_not_suggest_an_invalid_medication_view():
     from datetime import UTC, date, timedelta
     from types import SimpleNamespace
 
+    # The tool's configurable clock imports the optional configuration stack.
+    pytest.importorskip("dotenv")
+    pytest.importorskip("ruamel.yaml")
+    pytest.importorskip("cryptography")
+
     from mirobody.agent.tools.medications_service import MedicationsService
     from mirobody.kernel import meds, tools
 
