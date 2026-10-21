@@ -404,15 +404,13 @@ what was eaten.
 - **A reply can be all reasoning.** The agent asks once more when a reply has
   no answer text and no tool call; if the second one is empty too, the chat
   says it has no answer rather than showing a blank message.
-- **Arithmetic runs in Python, not `eval`.** The `local` entry sets
-  `code_tool: python`: `python_exec` runs the code in a local sandbox and the
-  QuickJS `eval`/PTC surface is off. A local 2B model writes Python into a
-  JavaScript REPL even when the tool is `eval`
-  ([the probe](../benchmarks/local_agent/eval_language_results.md)), so the
-  Python path is the one it can use. The default runner is a subprocess with
-  CPU/memory/output limits and no inherited environment; set
-  `PYTHON_SANDBOX_IMAGE=python:3.12-slim` to run it in Docker with no network
-  and a read-only root.
+- **Arithmetic uses local Python for every chat model.** `python_exec` receives
+  original queried rows and metadata automatically, without copying a table.
+  [Local Python analysis](python-analysis.md) explains the local Docker setup.
+  The original QuickJS/`eval`/PTC path was removed. The
+  [language comparison](../benchmarks/local_agent/eval_language_results.md)
+  separates answer accuracy from calculations grounded in the supplied data;
+  a 2B model can still copy numbers even when its final answer looks correct.
 
 ## How a document is read, whichever model reads the rest
 

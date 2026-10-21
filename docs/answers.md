@@ -74,10 +74,13 @@ plans, no `query_medications`; no active genotype set, no `query_genetic_data`
 or `query_pharmacogenomics`. A chat turn gets the four record tools, not the
 three terminology tools: the readings tool already resolves names and units, so
 those serve only a client holding readings of its own
-(`agent/tool_loader.py::_MCP_ONLY_TOOLS`). Beside them, the harness's own: `ls
-read_file write_file edit_file glob grep`, the `eval` REPL, and `ask_user`.
+(`agent/tool_loader.py::_MCP_ONLY_TOOLS`). Beside them: the harness's `ls`,
+`read_file`, `glob`, `grep`, the local `python_exec` calculator, and `ask_user`.
 `ask_user` is never an MCP tool — an MCP client has no widget to answer a
 question with.
+
+The calculator consumes original artifacts rather than display tables;
+[Local Python analysis](python-analysis.md) describes data access and setup.
 
 The local suite asserts both lists exactly.
 
@@ -339,13 +342,13 @@ them, and the `ask_user` pause after):
    `exit_behavior="continue"`: hitting it removes the tool for the rest of
    the turn rather than ending the turn, so the model still writes its answer
    from what it has.
-6. the `eval` interpreter, then the tail: a model that cannot see gets
+6. the tail: a model that cannot see gets
    images as their OCR text, genotype rows are kept to the turn that read
    them, and prompt caching marks the request last.
 
-The data tool itself **never raises**. The `eval` REPL can call it directly
-(PTC), and a PTC call bypasses the tool middleware entirely — there is nothing
-above it to contain a fault.
+The data tool itself **never raises**. MCP and REST invoke the same service
+outside chat's middleware, so the shared record boundary returns an envelope
+on every path. Python is an ordinary bounded tool in that middleware stack.
 
 ---
 

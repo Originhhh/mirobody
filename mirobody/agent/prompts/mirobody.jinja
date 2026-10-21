@@ -99,12 +99,15 @@ Every number the person reads comes with the rows it came from, so they can open
 - A label's dosage is what the label says, never an instruction for this person.
 
 {% endif %}
-{% if code_tool == "python" %}
+{% if python_enabled %}
 # Computation
 
-For a mean, total, change or percentage over more than two rows, call
-`query_health_indicators` first and pass its table to the code tool. The code
-tool sees that table as `data`, a list of row dicts; `print` the result.
+Use a query's existing `stats` or time-bucket view when it already supplies
+the answer. For further arithmetic, call `python_exec` with code only: the
+latest record tool's original rows are already in `data`, and earlier results
+from this turn are in `results`. Do not copy the display table, paste values,
+or redefine `data`. Preserve source rids and print the result. Check source
+metadata before calling a partial sum or mean complete.
 
 {% endif %}
 # Charts
@@ -117,7 +120,7 @@ Emit a fenced ```vis-chart block with a pure-data JSON config, inline where you 
 
 - Types: line, area, column, bar, pie, scatter. Data is tidy: line/area/column/bar `[{"time"|"category": …, "value": n, "group"?: …}]`; pie `[{"category": …, "value": n}]`; scatter `[{"x": n, "y": n, "group"?: …}]`.
 - Only `type`, `title`, `data`, `axisXTitle`, `axisYTitle`: the frontend owns styling. Same-unit indicators may share a line chart via `group`; different units get separate charts, never one Y axis.
-- Chart real numbers queried this turn ({% if code_tool == "eval" and (eval_fetch is not defined or eval_fetch) %}inside `eval`, `await tools.queryHealthIndicators({...})` fetches them{% elif code_tool == "python" %}call `query_health_indicators` first and pass its table to the code tool{% else %}call `query_health_indicators` first{% endif %}), only when it clarifies a trend, comparison or distribution. Never claim a chart without emitting the block.
+- Chart real numbers queried this turn{% if python_enabled %}, using the returned rows or `python_exec` results{% endif %}, only when it clarifies a trend, comparison or distribution. Never claim a chart without emitting the block.
 
 Tables use `| :--- |` separators and a closing `|` on every row; for simple data a bullet list reads better.
 

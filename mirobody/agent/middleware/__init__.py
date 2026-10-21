@@ -14,8 +14,6 @@ Mirobody-specific middleware on top of the deepagents stack:
   is made without tool calls and asked for the answer.
 - `RetryGovernanceMiddleware`: a call that already failed unrecoverably is
   refused before it runs again (`mirobody.kernel.tools.RetryLedger`).
-- `EvalTopLevelReturnMiddleware`: an `eval` call that failed only on a top-level
-  `return` runs again inside an async function.
 - `NoVisionReadMiddleware`: for a model that cannot see, `read_file` answers an
   image with its OCR text instead of an image block.
 
@@ -28,7 +26,6 @@ back, so there is no `write_todos` tool.
 """
 
 from .empty_answer import EmptyAnswerRepairMiddleware
-from .eval_return import EvalTopLevelReturnMiddleware
 from .model_budget import ModelCallBudgetMiddleware
 from .prompt_caching import UniversalPromptCachingMiddleware
 from .genotype_row_guard import GenotypeRowGuardMiddleware
@@ -39,7 +36,6 @@ from .tool_faults import InvalidToolCallRepairMiddleware, ToolFaultMiddleware
 
 __all__ = [
     "EmptyAnswerRepairMiddleware",
-    "EvalTopLevelReturnMiddleware",
     "InvalidToolCallRepairMiddleware",
     "ModelCallBudgetMiddleware",
     "GenotypeRowGuardMiddleware",

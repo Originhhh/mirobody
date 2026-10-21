@@ -1,83 +1,61 @@
-"""Regression: the local model's code tool must be Python.
+"""Require successful Python computation on original data for a selected model.
 
-Runs the two probe cases where the JS `eval` arm failed repeatedly
-(`bp_q2`, `steps_august`) and requires the Python arm to pass every case with
-zero code errors. `--compare` also runs the JS arm and prints the gap without
-asserting on it.
-
-This needs a running llama-server (or any OpenAI-compatible endpoint):
-
-    python benchmarks/local_agent/regress_code_tool.py \
-        --base http://127.0.0.1:8088/v1 --model minicpm5-2b
-
-Exit code 1 means the Python arm regressed; a turn-level failure is printed
-with the failing case, its calls and its answer.
+The gate uses the production Python tool and common harness. Generated code
+is replayed on doubled synthetic values so printing memorized answers cannot
+pass. Optional JavaScript comparison is a benchmark only.
 """
 
 from __future__ import annotations
 
 import argparse
+import asyncio
 import json
 import sys
-import time
 from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).resolve().parent))
-
-from eval_language_probe import JS_TOOL, PY_TOOL, cases, run_case, score
-
-DEFAULT_CASES = ("bp_q2", "steps_august")
-
-
-def run(base: str, model: str, names: tuple[str, ...], tool: dict, tool_name: str,
-        timeout: float, max_rounds: int) -> list[dict]:
-    selected = {c["id"]: c for c in cases()}
-    out = []
-    for name in names:
-        case = selected[name]
-        result = run_case(base, model, case, tool, timeout, max_rounds)
-        result["score"] = score(case, result)
-        mark = "PASS" if result["score"]["passed"] else "fail"
-        print(f"[{tool_name}] {name:18s} {mark}  code={result['score']['code_calls']} "
-              f"errors={result['score']['code_errors']} {result['seconds']}s", flush=True)
-        out.append(result)
-    return out
+from code_tool_probe import cases, replay_case, run_case
+from mirobody.agent.models.clients import build_chat_model
+from mirobody.utils.config import Config
+from mirobody.utils.config.llm import chat_entries
 
 
-def main() -> None:
+async def run(args):
+    Config.load_dotenv(".env")
+    Config(["config.yaml"], read_only=["config.yaml"])
+    entries = chat_entries()
+    entry = {**entries[args.entry], "timeout": 120, "max_retries": 0}
+    if args.entry == "local":
+        entry["base_url"] = args.local_base
+    client = build_chat_model(entry, alias=args.entry, thinking="medium")
+    selected = [case for case in cases() if case["id"] in args.cases.split(",")]
+    if not selected:
+        raise ValueError("no benchmark case was selected")
+    rows = []
+    for arm in (["python", "js"] if args.compare else ["python"]):
+        for case in selected:
+            result = await run_case(client, case, arm)
+            result = await replay_case(result, case)
+            result["entry"] = args.entry
+            rows.append(result)
+            print(f"{arm} {case['id']}: {'PASS' if result['score']['passed'] else 'FAIL'} "
+                  f"code={result['score']['code_calls']} errors={result['score']['code_errors']}", flush=True)
+    if args.out:
+        args.out.write_text(json.dumps(rows, ensure_ascii=False, indent=2), encoding="utf-8")
+    python = [row for row in rows if row["arm"] == "python"]
+    return bool(python) and all(row["score"]["passed"] and row["score"]["code_errors"] == 0 for row in python)
+
+
+def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument("--base", default="http://127.0.0.1:8088/v1")
-    parser.add_argument("--model", required=True)
-    parser.add_argument("--cases", default=",".join(DEFAULT_CASES))
-    parser.add_argument("--compare", action="store_true", help="also run the JS arm")
-    parser.add_argument("--timeout", type=float, default=8.0)
-    parser.add_argument("--max-rounds", type=int, default=6)
+    parser.add_argument("--entry", default="local", help="a MODELS entry: local, deepseek, claude-sonnet or gpt")
+    parser.add_argument("--local-base", default="http://127.0.0.1:8088/v1")
+    parser.add_argument("--cases", default="bp_q2,steps_august")
+    parser.add_argument("--compare", action="store_true")
     parser.add_argument("--out", type=Path)
     args = parser.parse_args()
-    names = tuple(item.strip() for item in args.cases.split(",") if item.strip())
-
-    started = time.monotonic()
-    python_results = run(args.base, args.model, names, PY_TOOL, "python",
-                         args.timeout, args.max_rounds)
-    compare_results = []
-    if args.compare:
-        compare_results = run(args.base, args.model, names, JS_TOOL, "js",
-                              args.timeout, args.max_rounds)
-
-    passed = sum(r["score"]["passed"] for r in python_results)
-    errors = sum(r["score"]["code_errors"] for r in python_results)
-    print(f"python: {passed}/{len(python_results)} passed, {errors} code errors, "
-          f"{round(time.monotonic() - started, 1)}s")
-    if compare_results:
-        js_passed = sum(r["score"]["passed"] for r in compare_results)
-        js_errors = sum(r["score"]["code_errors"] for r in compare_results)
-        print(f"js: {js_passed}/{len(compare_results)} passed, {js_errors} code errors")
-    if args.out:
-        args.out.write_text(json.dumps({"python": python_results, "js": compare_results},
-                                       ensure_ascii=False, indent=2), encoding="utf-8")
-    if passed != len(python_results) or errors:
-        print("REGRESSION: the Python code tool did not pass every case with zero errors")
-        raise SystemExit(1)
+    if not asyncio.run(run(args)):
+        print("REGRESSION: Python must query, calculate and pass changed-data replay without errors")
+        sys.exit(1)
 
 
 if __name__ == "__main__":

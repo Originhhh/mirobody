@@ -1,64 +1,105 @@
-"""The chat agent's Python tool: arithmetic on rows it already queried.
+"""Python on original tool artifacts, with runtime injection instead of row copying.
 
-The tool is chat-only. It is not in `mirobody/agent/tools/`, so the MCP
-loader never publishes it to external clients: a caller that holds its own
-readings has no use for a code runner, and the sandbox is for the chat
-surface's own arithmetic.
+This tool belongs to chat, outside the directory scanned for the public MCP
+surface. Authentication and database access remain in the existing record
+tools; the calculator gets only results those tools already returned.
 """
 
 from __future__ import annotations
 
 import asyncio
 import logging
+from dataclasses import asdict
 
+from langchain.tools import ToolRuntime
+from langchain_core.messages import HumanMessage, ToolMessage
 from langchain_core.tools import tool
+from deepagents.backends.protocol import ExecuteResponse
 
-from .python_sandbox import default_sandbox
+from mirobody.kernel import tools
+from .python_sandbox import LocalPythonSandbox
 
 logger = logging.getLogger(__name__)
 
+COMPUTATION_NOTE = (
+    "The original rows from this call are already available as data in the code tool. "
+    "Use data directly; do not redefine it or copy the numbers. "
+    "Inside the computation, /workspace/data.json also contains the original JSON object "
+    "with data and results. Earlier lookups are available in results as full original envelopes."
+)
 
-def parse_table(table: str) -> list[dict]:
-    """A `query_health_indicators` table as row dicts.
 
-    The first pipe-separated line is the header; later lines with the same
-    number of cells become rows. A markdown separator, a `notes:` line or the
-    metadata line the query tool appends is skipped rather than parsed into a
-    bogus row.
+def source_results(messages: list, *, computation_tool: str = "python_exec") -> list[dict]:
+    """Original results in this turn, in call order, including their methodology."""
+    start = next((i + 1 for i in range(len(messages) - 1, -1, -1)
+                  if isinstance(messages[i], HumanMessage)), 0)
+    available = [
+        {"tool": message.name, "tool_call_id": message.tool_call_id, **asdict(message.artifact)}
+        for message in messages[start:]
+        if isinstance(message, ToolMessage) and isinstance(message.artifact, tools.Envelope)
+        and message.name != computation_tool
+    ]
+    if not available:
+        raise ValueError("Call a record tool before computing; no original result exists in this turn")
+    if available[-1]["status"] == tools.STATUS_ERROR:
+        raise ValueError("A source lookup failed; obtain a successful result before computing")
+    if not available[-1]["data"]:
+        raise ValueError("The source returned no rows; missing readings must not become a zero result")
+    return [result for result in available if result["status"] != tools.STATUS_ERROR]
+
+
+@tool(response_format="content_and_artifact")
+async def python_exec(code: str, runtime: ToolRuntime, timeout_s: int = 15) -> tuple[str, dict]:
+    """Compute in local Python on original results from record tools.
+
+    Query first, then provide only Python code; do not copy a table or its
+    numbers. data contains the original rows of the most recent record tool
+    result, with numeric types, all columns and citation rids preserved.
+    results contains all successful envelopes from this turn, including data,
+    meta, tool and tool_call_id; use results to combine earlier lookups. This works for
+    health indicators, medications, genetics and pharmacogenomics alike.
+    Inspect results[i]['meta']['truncated'] before interpreting a total or
+    mean as complete. Preserve the source rows' rids with computed numbers.
+    Use print(...) to return results. The Python standard library is
+    available; execution has no network, host files or application credentials.
+    Inside Python, /workspace/data.json is the original JSON object with data
+    and results; you may load that file instead of using the injected variables.
+    For example: values = [float(row['value']) for row in data]; print(sum(values) / len(values)).
     """
-    rows: list[dict] = []
-    header: list[str] | None = None
-    for raw in table.splitlines():
-        line = raw.strip()
-        if not line or "|" not in line:
-            continue
-        cells = [cell.strip() for cell in line.split("|")]
-        if header is None:
-            header = cells
-            continue
-        if len(cells) != len(header):
-            continue
-        if all(set(cell) <= {"-", ":", " "} for cell in cells):
-            continue
-        rows.append(dict(zip(header, cells, strict=True)))
-    return rows
-
-
-@tool
-async def python_exec(code: str, table: str = "", timeout_s: int = 15) -> str:
-    """Run Python for arithmetic on readings you already queried.
-
-    Pass the exact table `query_health_indicators` returned as `table`; it is
-    parsed into `data`, a list of dicts with the table's columns (`indicator`,
-    `date`, `value`, `unit`, ...); values are strings, so cast with
-    `float(row["value"])` before arithmetic. Use `print(...)` for the result. The Python
-    standard library is available. Do not use this for anything but
-    computation: it has no record access and no inherited environment; with
-    `PYTHON_SANDBOX_IMAGE` it also has no network and a read-only root.
-    """
-    data = parse_table(table)
+    results = source_results(runtime.state.get("messages", []))
+    inputs = {"data": results[-1]["data"], "results": results}
     seconds = max(1, min(int(timeout_s or 15), 30))
-    result = await asyncio.to_thread(default_sandbox().run, code, data, seconds)
-    if result.timed_out:
-        logger.warning("python sandbox timed out after %ss", seconds)
-    return result.output
+    try:
+        sandbox = await asyncio.to_thread(LocalPythonSandbox, timeout=seconds)
+    except Exception as exc:
+        logger.warning("local Python executor unavailable: error_type=%s", type(exc).__name__)
+        return ("error: local Python execution is unavailable. The queried readings remain valid; "
+                "this is an executor setup problem, not missing data."), {
+            "status": tools.STATUS_ERROR, "error_class": tools.ERROR_UNRECOVERABLE,
+            "error_kind": "unavailable", "exception_type": type(exc).__name__,
+        }
+    task = asyncio.create_task(asyncio.to_thread(sandbox.run, code, inputs))
+    try:
+        result = await asyncio.wait_for(asyncio.shield(task), seconds + 10)
+    except TimeoutError:
+        await asyncio.shield(asyncio.to_thread(sandbox.close))
+        task.add_done_callback(lambda completed: completed.exception() if not completed.cancelled() else None)
+        result = ExecuteResponse("error: Python computation timed out", 124)
+    except asyncio.CancelledError:
+        await asyncio.shield(asyncio.to_thread(sandbox.close))
+        task.add_done_callback(lambda completed: completed.exception() if not completed.cancelled() else None)
+        raise
+    text = result.output.strip() or "(no output; use print(...))"
+    if result.exit_code in (124, 137):
+        logger.warning("python computation timed out: duration_limit_s=%s", seconds)
+        text = "error: Python computation timed out"
+    elif result.exit_code != 0:
+        text = f"error (exit {result.exit_code}): {text}"
+    if result.truncated:
+        text += "\n[Output truncated; print fewer rows or a smaller summary.]"
+    partial = any(r["meta"]["truncated"] or r["status"] == tools.STATUS_PARTIAL for r in results)
+    if partial:
+        text = "[Source data is partial; check each result's metadata before describing a complete aggregate.]\n" + text
+    return text, {"status": tools.STATUS_ERROR if result.exit_code != 0 else tools.STATUS_OK,
+                  "exit_code": result.exit_code, "truncated": result.truncated, "source_partial": partial,
+                  "source_tool_call_ids": [r["tool_call_id"] for r in results]}

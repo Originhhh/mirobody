@@ -1,159 +1,215 @@
-"""A local Python sandbox for the chat agent's arithmetic tool.
+"""The local Docker transport for Deep Agents' sandbox interface.
 
-Two runners, one contract. The default is a subprocess with a clean
-environment, a temporary working directory, CPU/address-space/file-size
-limits and a timeout. It is a resource boundary, not a security boundary: the
-code can still read world-readable files and open sockets. Set
-``PYTHON_SANDBOX_IMAGE`` to run the same script in a Docker container with no
-network, a read-only root and a tmpfs instead.
-
-The subprocess runner starts Python with ``-I -S``: no environment, no user
-site, no third-party packages and no ``mirobody`` import, so code that runs
-here cannot read the app's config or credentials.
+The SDK owns container transport; BaseSandbox owns filesystem helpers.
+Each calculation has a disposable, networkless container with no application
+mounts or credentials. Only a Unix-socket Docker daemon is admitted, so a
+remote Docker context cannot move computation off this machine.
 """
 
 from __future__ import annotations
 
+import io
 import json
 import logging
 import os
-import signal
+import socket
 import subprocess
-import sys
-import tempfile
-from dataclasses import dataclass
-from functools import lru_cache
-from pathlib import Path
+import tarfile
+import threading
+from pathlib import Path, PurePosixPath
+from uuid import uuid4
+
+import docker
+from docker.utils.socket import frames_iter
+from deepagents.backends.protocol import ExecuteResponse, FileDownloadResponse, FileUploadResponse
+from deepagents.backends.sandbox import BaseSandbox
 
 logger = logging.getLogger(__name__)
 
-
-@dataclass(frozen=True)
-class SandboxResult:
-    """What one run returned, already capped for the model."""
-
-    output: str
-    exit_code: int | None = None
-    timed_out: bool = False
-    truncated: bool = False
-
-
-_RUNNER = """\
-import json
-import resource
-import runpy
-
-
-def _limit(which, soft, hard=None):
-    try:
-        resource.setrlimit(which, (soft, hard if hard is not None else soft))
-    except (AttributeError, OSError, ValueError):
-        pass
-
-
-_limit(resource.RLIMIT_CPU, %(cpu)d, %(cpu)d + 1)
-_limit(resource.RLIMIT_AS, %(memory)d)
-_limit(resource.RLIMIT_FSIZE, 8 * 1024 * 1024)
-_limit(resource.RLIMIT_NOFILE, 64)
-_limit(resource.RLIMIT_NPROC, 32)
-
-with open("data.json", encoding="utf-8") as handle:
-    data = json.load(handle)
-
-runpy.run_path("main.py", run_name="__main__", init_globals={"data": data})
+_WORKSPACE = PurePosixPath("/workspace")
+_FILE_LIMIT = 8 * 1024 * 1024
+_RUNNER = b"""import json, runpy
+with open('/workspace/data.json', encoding='utf-8') as handle:
+    inputs = json.load(handle)
+runpy.run_path('/workspace/main.py', run_name='__main__', init_globals=inputs)
 """
 
 
-class PythonSandbox:
-    """Run model-written Python with a timeout, a clean environment and caps.
+def _local_endpoint() -> str:
+    host = os.environ.get("PYTHON_SANDBOX_DOCKER_HOST") or os.environ.get("DOCKER_HOST")
+    if not host:
+        if Path("/var/run/docker.sock").is_socket():
+            host = "unix:///var/run/docker.sock"
+        else:
+            host = subprocess.check_output(
+                ["docker", "context", "inspect", "--format", "{{.Endpoints.docker.Host}}"],
+                text=True, timeout=5,
+            ).strip()
+    if not host.startswith("unix:///"):
+        raise ValueError("Python computation requires a local Unix-socket Docker daemon")
+    return host
 
-    ``image`` selects Docker. Empty means the local subprocess. A Docker run
-    needs the app's host to have the ``docker`` command and access to its
-    daemon; the compose stack does not mount the daemon by default.
-    """
 
-    def __init__(self, *, image: str = "", timeout: float = 15.0, max_output: int = 4000) -> None:
-        self.image = image.strip()
-        self.timeout = float(timeout)
-        self.max_output = int(max_output)
+class LocalPythonSandbox(BaseSandbox):
+    """One local calculation, with standard Deep Agents execution results."""
 
-    def run(self, code: str, data: list[dict] | None = None,
-            timeout: float | None = None) -> SandboxResult:
-        seconds = float(timeout if timeout is not None else self.timeout)
-        with tempfile.TemporaryDirectory(prefix="mirobody-python-") as tmp:
-            Path(tmp, "data.json").write_text(
-                json.dumps(data or [], ensure_ascii=False), encoding="utf-8")
-            Path(tmp, "main.py").write_text(code, encoding="utf-8")
-            Path(tmp, "runner.py").write_text(
-                _RUNNER % {"cpu": max(1, int(seconds)), "memory": 512 * 1024 * 1024},
-                encoding="utf-8")
-            if self.image:
-                return self._docker(tmp, seconds)
-            return self._subprocess(tmp, seconds)
+    def __init__(self, *, image: str | None = None, timeout: int = 15, max_output: int = 40_000) -> None:
+        self.image = image or os.environ.get("PYTHON_SANDBOX_IMAGE") or "python:3.12-slim"
+        self.timeout = max(1, min(int(timeout), 30))
+        self.max_output = max(1, int(max_output))
+        self._name = f"mirobody-python-{uuid4().hex}"
+        self._client = docker.DockerClient(base_url=_local_endpoint(), timeout=self.timeout + 5)
+        self._container = None
+        self._closed = threading.Event()
+        self._active_stream = None
 
-    def _result(self, stdout: str | None, stderr: str | None,
-                exit_code: int | None) -> SandboxResult:
-        if exit_code == -getattr(signal, "SIGXCPU", 24):
-            return SandboxResult("error: timed out", exit_code, timed_out=True)
-        text = ((stdout or "") + (stderr or "")).strip()
-        truncated = len(text) > self.max_output
-        text = text[: self.max_output]
-        if exit_code not in (0, None):
-            text = f"error (exit {exit_code}): {text or '(no output)'}"
-        return SandboxResult(text or "(no output; use print(...))", exit_code, truncated=truncated)
+    @property
+    def id(self) -> str:
+        return self._name
 
-    def _subprocess(self, tmp: str, timeout: float) -> SandboxResult:
-        env = {
-            "PATH": os.environ.get("PATH", "/usr/bin:/bin"),
-            "HOME": tmp,
-            "TMPDIR": tmp,
-            "LANG": "C.UTF-8",
-            "PYTHONIOENCODING": "utf-8",
-        }
-        try:
-            proc = subprocess.Popen(
-                [sys.executable, "-I", "-S", "runner.py"],
-                cwd=tmp, env=env, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
-                text=True, start_new_session=True,
-            )
-        except OSError as exc:
-            return SandboxResult(f"error: could not start Python ({type(exc).__name__})")
-        try:
-            stdout, stderr = proc.communicate(timeout=timeout + 2)
-        except subprocess.TimeoutExpired:
+    def start(self) -> None:
+        self._container = self._client.containers.run(
+            self.image, ["sleep", str(self.timeout + 60)], name=self._name, detach=True, auto_remove=True,
+            user="65534:65534", network_disabled=True, read_only=True,
+            use_config_proxy=False,
+            tmpfs={"/workspace": "rw,noexec,nosuid,size=64m,uid=65534,gid=65534",
+                   "/tmp": "rw,noexec,nosuid,size=64m,uid=65534,gid=65534"},
+            working_dir=str(_WORKSPACE), cap_drop=["ALL"],
+            security_opt=["no-new-privileges"], pids_limit=64,
+            mem_limit="512m", nano_cpus=1_000_000_000,
+            labels={"mirobody.python_sandbox": "true"},
+        )
+        # Cancellation can arrive while the SDK is creating the container.
+        if self._closed.is_set():
+            self.close()
+            raise RuntimeError("Python execution was cancelled")
+
+    def close(self) -> None:
+        self._closed.set()
+        if self._active_stream is not None:
             try:
-                os.killpg(proc.pid, signal.SIGKILL)
-            except (ProcessLookupError, PermissionError):
+                self._active_stream.close()
+            except OSError:
                 pass
-            stdout, stderr = proc.communicate()
-            return SandboxResult("error: timed out", timed_out=True)
-        return self._result(stdout, stderr, proc.returncode)
-
-    def _docker(self, tmp: str, timeout: float) -> SandboxResult:
-        command = [
-            "docker", "run", "--rm", "--network", "none", "--read-only",
-            "--tmpfs", "/tmp:rw,noexec,nosuid,size=64m",
-            "--cap-drop", "ALL", "--security-opt", "no-new-privileges",
-            "--pids-limit", "64", "--memory", "512m", "--cpus", "1",
-            "-v", f"{tmp}:/workspace:rw", "-w", "/workspace",
-            self.image, "python", "-I", "-B", "runner.py",
-        ]
         try:
-            proc = subprocess.run(command, capture_output=True, text=True,
-                                  timeout=timeout + 10)
-        except FileNotFoundError:
-            return SandboxResult("error: docker is not installed")
-        except subprocess.TimeoutExpired:
-            return SandboxResult("error: timed out", timed_out=True)
-        return self._result(proc.stdout, proc.stderr, proc.returncode)
+            self._client.containers.get(self._name).remove(force=True)
+        except docker.errors.NotFound:
+            pass
+        except Exception as exc:
+            logger.warning("python container cleanup failed: error_type=%s", type(exc).__name__)
 
+    def _command(self, command: list[str], *, timeout: int | None = None,
+                 stdin: bytes | None = None, limit: int | None = None) -> tuple[bytes, int | None, bool]:
+        seconds = self.timeout if timeout is None else max(1, min(int(timeout), 30))
+        budget = self.max_output if limit is None else limit
+        stream = None
+        connection = None
+        try:
+            if self._closed.is_set():
+                raise RuntimeError("Python execution was cancelled")
+            call = self._client.api.exec_create(
+                self._container.id,
+                ["timeout", "--kill-after=1", str(seconds), *command],
+                user="65534:65534", workdir=str(_WORKSPACE), stdin=stdin is not None,
+            )
+            if stdin is None:
+                stream = self._client.api.exec_start(call["Id"], stream=True)
+            else:
+                connection = self._client.api.exec_start(call["Id"], socket=True)
+                connection._sock.sendall(stdin)
+                connection._sock.shutdown(socket.SHUT_WR)
+                stream = (chunk for _, chunk in frames_iter(connection, tty=False))
+            self._active_stream = connection if connection is not None else stream
+            output = bytearray()
+            truncated = False
+            for chunk in stream:
+                remaining = budget - len(output)
+                output.extend(chunk[:remaining])
+                truncated |= len(chunk) > remaining
+            code = self._client.api.exec_inspect(call["Id"])["ExitCode"]
+            return bytes(output), code, truncated
+        finally:
+            self._active_stream = None
+            if stream is not None:
+                try:
+                    stream.close()
+                except OSError:
+                    pass
+            if connection is not None:
+                connection.close()
 
-@lru_cache(maxsize=1)
-def default_sandbox() -> PythonSandbox:
-    """The configured sandbox. ``PYTHON_SANDBOX_IMAGE`` selects Docker."""
-    image = os.environ.get("PYTHON_SANDBOX_IMAGE", "")
-    timeout = float(os.environ.get("PYTHON_SANDBOX_TIMEOUT", "") or 15)
-    max_output = int(os.environ.get("PYTHON_SANDBOX_MAX_OUTPUT", "") or 4000)
-    if not image:
-        logger.info("python sandbox runs as a local subprocess; set PYTHON_SANDBOX_IMAGE for container isolation")
-    return PythonSandbox(image=image, timeout=timeout, max_output=max_output)
+    def execute(self, command: str, *, timeout: int | None = None) -> ExecuteResponse:
+        try:
+            output, code, truncated = self._command(["/bin/sh", "-c", command], timeout=timeout)
+            return ExecuteResponse(output.decode("utf-8", errors="replace"), code, truncated)
+        except Exception as exc:
+            logger.warning("python container execution failed: error_type=%s", type(exc).__name__)
+            return ExecuteResponse(f"error: local Python executor unavailable ({type(exc).__name__})", 1)
+
+    @staticmethod
+    def _relative(path: str) -> str:
+        target = PurePosixPath(path)
+        if ".." in target.parts or not target.is_relative_to(_WORKSPACE) or target == _WORKSPACE:
+            raise ValueError("file path is outside the calculation workspace")
+        return str(target.relative_to(_WORKSPACE))
+
+    def upload_files(self, files: list[tuple[str, bytes]]) -> list[FileUploadResponse]:
+        responses = []
+        for path, content in files:
+            try:
+                relative = self._relative(path)
+                if len(content) > _FILE_LIMIT:
+                    raise ValueError("input file exceeds the calculation budget")
+                archive = io.BytesIO()
+                with tarfile.open(fileobj=archive, mode="w") as bundle:
+                    info = tarfile.TarInfo(relative)
+                    info.size, info.mode, info.uid, info.gid = len(content), 0o600, 65534, 65534
+                    bundle.addfile(info, io.BytesIO(content))
+                # Docker's archive API cannot see a live tmpfs on a read-only
+                # rootfs (Docker 29 returns 400); exec writes into the actual mount.
+                _, code, _ = self._command(["tar", "-xf", "-", "-C", str(_WORKSPACE)], stdin=archive.getvalue())
+                if code != 0:
+                    raise OSError("input transfer failed")
+                responses.append(FileUploadResponse(path))
+            except Exception as exc:
+                responses.append(FileUploadResponse(path, error=type(exc).__name__))
+        return responses
+
+    def download_files(self, paths: list[str]) -> list[FileDownloadResponse]:
+        responses = []
+        for path in paths:
+            try:
+                relative = self._relative(path)
+                output, code, truncated = self._command(
+                    ["tar", "-cf", "-", "-C", str(_WORKSPACE), relative], limit=_FILE_LIMIT + 64 * 1024,
+                )
+                if code != 0 or truncated:
+                    raise OSError("output transfer failed or exceeded its budget")
+                archive = io.BytesIO(output)
+                with tarfile.open(fileobj=archive) as bundle:
+                    member = next(m for m in bundle if m.isfile())
+                    with bundle.extractfile(member) as handle:
+                        content = handle.read(_FILE_LIMIT + 1)
+                if len(content) > _FILE_LIMIT:
+                    raise ValueError("output file exceeds the calculation budget")
+                responses.append(FileDownloadResponse(path, content))
+            except docker.errors.NotFound:
+                responses.append(FileDownloadResponse(path, error="file_not_found"))
+            except Exception as exc:
+                responses.append(FileDownloadResponse(path, error=type(exc).__name__))
+        return responses
+
+    def run(self, code: str, inputs: dict) -> ExecuteResponse:
+        try:
+            self.start()
+            uploads = self.upload_files([
+                ("/workspace/data.json", json.dumps(inputs, ensure_ascii=False, default=str).encode()),
+                ("/workspace/main.py", code.encode()),
+                ("/workspace/runner.py", _RUNNER),
+            ])
+            if any(result.error for result in uploads):
+                return ExecuteResponse("error: calculation inputs could not be transferred", 1)
+            return self.execute("python -I -B /workspace/runner.py")
+        finally:
+            self.close()
+            self._client.close()

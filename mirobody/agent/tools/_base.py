@@ -31,9 +31,8 @@ CITATION_SESSION: ContextVar[str] = ContextVar("citation_session", default="")
 class RecordTool:
     """A tool that reads one person's record.
 
-    It never raises. The `eval` REPL can call these directly (PTC), and a PTC
-    call bypasses the tool middleware, so there is nothing above it to contain
-    a fault: every path returns an envelope, including the ones that failed.
+    MCP and REST callers run outside chat's fault middleware, so the shared
+    boundary returns an envelope on every path, including failed lookups.
     """
 
     #: The tool's name, for the log line. The subclass sets it.

@@ -32,8 +32,18 @@ is what the package counts are for.
 
 <sub>Measured 2026-10-15 on a clone-shaped tree, each install in a fresh
 venv: packages are `uv pip freeze` lines, tests `pytest -q mirobody/tests`
-(731 collected with `[app]`). `pytest` in a checkout that also has the
-maintainers' local suite collects more; these are the numbers a clone sees.</sub>
+(731 collected with `[app]`). This table predates the published Python-analysis
+checks below. `pytest` in a checkout with the remaining maintainers' local
+suite collects additional tests.</sub>
+
+The published Python-analysis evidence adds 24 tests in
+[`tests/test_code_tool_capability.py`](../tests/test_code_tool_capability.py)
+and [`tests/agent/test_code_tool_probe.py`](../tests/agent/test_code_tool_probe.py).
+Collection skips them when the agent/Docker SDK dependencies are absent;
+three execution cases also need a local daemon and prepared Python image.
+The 2026-10-21 source run with `[app,test]` and that image recorded
+**645 passed, 106 skipped, 12 xfailed** across the public modules and these
+two evidence modules. This excludes unrelated, untracked local tests.
 
 They used to abort collection outright rather than skip — first with
 `ModuleNotFoundError: langchain_core`, then with `psycopg_pool` and `mandrill`
@@ -52,9 +62,9 @@ two trees, and a third that is neither:
   `scripts/check_wheel_data.py` fails if another test member turns up there.
 - `tests/` at the repo root — the maintainers' regression suite, one module per
   package module (`mirobody/kernel/series.py`, `mirobody/translate/` and
-  `mirobody/collect/observations.py` each have one). It is gitignored, so it is
-  simply absent from a clone, and pytest skips a testpath that does not exist.
-  Nothing in this document names a file inside it: a clone cannot open one.
+  `mirobody/collect/observations.py` each have one). It is gitignored except
+  for the two published Python-analysis evidence modules above. A clone
+  contains those two modules; the remaining regression tests stay local.
 - `benchmarks/`: three runnable suites (`health_records/`, `genomics/`,
   `local_agent/`) plus `run_eval.py`, the resolver scoring harness that runs
   against a test set you supply. None is library code: nothing imports it.
@@ -63,7 +73,8 @@ two trees, and a third that is neither:
 
 ## Where tests live
 
-**Two roots; `mirobody/tests/` is the public evidence suite.**
+**Two roots; the public evidence is in `mirobody/tests/` and the two published
+Python-analysis modules under `tests/`.**
 
 `mirobody/tests/test_engine_coverage.py` is the gate that ships. It is
 *evidence* for a number the README prints and links: a benchmark nobody can run
