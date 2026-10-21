@@ -128,7 +128,7 @@ def render_compact(envelope: tools.Envelope, columns: Sequence[str] | None = Non
         # read as complete and a model summed the rows it could see.
         shown = body[:MAX_RENDER_CHARS].count("\n")
         cut.append(f"cut: only the first {shown} lines of the table fit in {MAX_RENDER_CHARS} characters; "
-                   "narrow the dates or ask view=stats for totals and averages")
+                   "narrow the query using this tool's supported filters")
         body = body[:MAX_RENDER_CHARS] + f"\n… cut at {MAX_RENDER_CHARS} characters"
     # A cut answer says so before its rows: said after them, among the notes,
     # it was missed (`tools.Meta.cut`).

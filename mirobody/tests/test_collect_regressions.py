@@ -232,3 +232,40 @@ def test_a_rendering_cut_by_characters_says_so_before_its_rows():
     # The cut used to be said only after the rows, with a meta line that read complete.
     assert text.splitlines()[0].startswith("cut: only the first")
     assert "truncated" in text.splitlines()[-1]
+
+
+async def test_a_character_cut_does_not_suggest_an_invalid_medication_view():
+    import re
+    from datetime import UTC, date, timedelta
+    from types import SimpleNamespace
+
+    from mirobody.agent.tools.medications_service import MedicationsService
+    from mirobody.kernel import meds, tools
+
+    names = [f"Synthetic compounded formula {suffix}: " + "ingredient " * 32 for suffix in ("alpha", "beta")]
+    assert max(map(len, names)) <= 500
+    plans = [meds.MedicationPlan(
+        plan_id=f"synthetic-plan-{i}", concept=meds.MedicationConcept(text=name),
+        schedule=(meds.DoseInstruction(),), start=date(2026, 1, 1),
+    ) for i, name in enumerate(names)]
+    events = [meds.DoseEvent(
+        event_id=f"synthetic-event-{i}", plan_id=plans[i % 2].plan_id, status="taken",
+        taken_at_ms=int((datetime(2026, 1, 1, tzinfo=UTC) + timedelta(hours=12 * i)).timestamp() * 1000),
+        tz="UTC",
+    ) for i in range(meds.MAX_ROWS)]
+    service = MedicationsService(
+        store=SimpleNamespace(list=lambda _: plans), dose_log=SimpleNamespace(list=lambda _subject, _window: events),
+        tz=lambda _: "UTC", now=lambda: datetime(2026, 6, 1, tzinfo=UTC),
+    )
+
+    result = await service.query_medications(
+        {"user_id": "synthetic-subject"}, view="log", start="2026-01-01", end="2026-04-30",
+    )
+
+    warning = result["result"].splitlines()[0]
+    assert warning.startswith("cut: only the first")
+    for view in re.findall(r"\bview=(\w+)", warning):
+        assert not meds.validate_query({"view": view})
+    # A display cut must not discard the complete original result used by Python.
+    assert "truncated" in result["result"]
+    assert (result["status"], result["row_count"], result["truncated"]) == (tools.STATUS_OK, meds.MAX_ROWS, False)
