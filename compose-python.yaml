@@ -1,0 +1,11 @@
+# Opt-in local container management; calculation containers get no host socket.
+# PYTHON_DOCKER_SOCKET is a path on the daemon host, not the app container.
+services:
+  mirobody:
+    environment:
+      PYTHON_SANDBOX_DOCKER_HOST: unix:///run/python-docker.sock
+      PYTHON_SANDBOX_IMAGE: ${PYTHON_SANDBOX_IMAGE:-python:3.12-slim}
+    volumes:
+      - ${PYTHON_DOCKER_SOCKET:-/var/run/docker.sock}:/run/python-docker.sock
+    group_add:
+      - "${PYTHON_DOCKER_GID:-0}"

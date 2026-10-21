@@ -230,19 +230,18 @@ entry point is looked at first, then these, and the first class with
 agent with its own — see `mirobody/agent/README.md`. There is no second agent
 and no switching.
 
-## 🧪 Code Execution (QuickJS)
+## Code execution: local Python
 
-The agent computes with an **in-process JS/TS interpreter** —
-[langchain-quickjs](https://pypi.org/project/langchain-quickjs/)'
-`CodeInterpreterMiddleware`, which adds a persistent `eval` REPL tool. No API
-key, no network, no external sandbox service, nothing to provision.
+Every chat model uses `python_exec`, with original record artifacts injected
+as data. [Local Python analysis](../../../docs/python-analysis.md) describes
+the local Docker image, daemon connection, data access and limits. The
+original QuickJS/`eval` interpreter and PTC bridge were removed.
 
-Nothing to configure — it is on whenever the `[app]` extra is installed. To
-turn it off, block the tool:
+To hide the calculator:
 
 ```yaml
 DISALLOWED_TOOLS:
-  - eval
+  - python_exec
 ```
 
 ## 📚 Medical knowledge (`KNOWLEDGE_INDEX` / `KNOWLEDGE_ONLINE`)
@@ -362,11 +361,9 @@ ever defined, so `pytest -m mcp` reported *0 tests collected*. The
 
 ### What the Tests Cover
 
-For this module: config parsing, provider wiring and the one-key defaults. The
-agent's PostgreSQL-backed filesystem tools (`write_file` / `read_file` / `ls` /
-`glob` / `grep`) have no dedicated suite yet; the bullet list that used to sit
-here described upstream tests that never shipped with this repository.
-
-There is no external code-execution sandbox to test: QuickJS (see the section
-above) runs in-process, needs no key, and only reshapes already-fetched
-numbers into chart JSON — no sandbox lifecycle, no shell, no remote state.
+For this module: config parsing, provider wiring and the one-key defaults.
+The local regression suite also checks filesystem projections, original
+artifact transfer and local Python lifecycle. Run
+`pytest -q tests/test_code_tool_capability.py tests/agent/test_code_tool_probe.py`
+for calculations and the language-probe gate; Docker checks require the local
+image and daemon. Model comparisons use only synthetic readings.

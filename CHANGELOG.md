@@ -1,5 +1,23 @@
 ## Unreleased
 
+### Added
+
+- **Local Python calculation on original record results, for every chat model.**
+  Reconstructing compact display tables lost constant columns, singleton
+  readings and nested values. `python_exec` now consumes authenticated
+  `ToolMessage.artifact` envelopes through injected `ToolRuntime`; code receives
+  original rows, metadata and rids without copying a table. Execution uses a
+  local Docker SDK backend extending Deep Agents `BaseSandbox`, with no app
+  mounts or network, bounded streaming output and explicit container cleanup.
+  The QuickJS/`eval`/PTC path, return-repair middleware and per-model
+  `code_tool`/`eval_fetch` switches were removed. Disable calculation through
+  `DISALLOWED_TOOLS: [python_exec]`; [setup](docs/python-analysis.md) documents
+  the local daemon and opt-in Compose connection. The revised synthetic
+  [comparison](benchmarks/local_agent/eval_language_results.md) checks named
+  cloud models and changes input values before replaying generated code.
+  It distinguishes a plausible answer from calculation on the supplied data;
+  MiniCPM5-2B still fails that stronger origin check.
+
 ### Changed
 
 - **The hosted way to use your own records is named.** The READMEs offered

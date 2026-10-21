@@ -99,7 +99,7 @@ def _as_coroutine(func, is_async: bool):
     return run
 
 
-def _envelope_wrapper(bound_method, user_info: dict):
+def _envelope_wrapper(bound_method, user_info: dict, result_note: str = ""):
     """An envelope-returning tool as LangChain's `(text, artifact)` pair.
 
     `bound_method` is the loaded MCP tool: a bound method of the service
@@ -125,7 +125,10 @@ def _envelope_wrapper(bound_method, user_info: dict):
 
     async def wrapper(**kwargs):
         envelope = await service.envelope(user_info, **kwargs)
-        return render_compact(envelope, columns_of(kwargs) if columns_of else None), envelope
+        text = render_compact(envelope, columns_of(kwargs) if columns_of else None)
+        if result_note and envelope.status != "error" and envelope.data:
+            text += "\n" + result_note
+        return text, envelope
 
     return wrapper
 
@@ -135,6 +138,7 @@ async def load_global_tools(
     allowed_tools: list[str] | None = None,
     disallowed_tools: list[str] | None = None,
     session_id: str = "",
+    result_note: str = "",
 ) -> list[StructuredTool]:
     """
     Load global tools and properly handle async functions.
@@ -216,7 +220,7 @@ async def load_global_tools(
                 # harness may truncate is not a way to know it.
                 envelope_tool = False
                 if tool_name in _ENVELOPE_TOOLS:
-                    wrapped = _envelope_wrapper(original_func, user_info)
+                    wrapped = _envelope_wrapper(original_func, user_info, result_note)
                     if wrapped is not None:
                         tool_func, envelope_tool = wrapped, True
 

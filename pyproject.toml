@@ -175,6 +175,9 @@ parse = [
 # deepagents agent installs this and nothing else — no HTTP server, no object
 # stores, no mail. `mirobody.mcp.service` (serving those tools over HTTP) is [app].
 agent = [
+    # Local calculation containers, through the maintained Docker SDK. Code
+    # never runs in the app process or uses a remote sandbox provider.
+    "docker>=7.1.0",
     # The checkpointer (langgraph-checkpoint-postgres) and the file-system
     # projections talk to Postgres directly.
     "psycopg[binary]",
@@ -226,10 +229,6 @@ agent = [
     # (`create_deep_agent`, `HarnessProfile`, the backends, `get_model_provider`)
     # is byte-identical across 0.7.5..0.7.14, and 0.7.14 pulls langchain 1.4.
     "deepagents>=0.7.19",
-    # In-process JS/TS interpreter middleware — the agent's code sandbox, with
-    # no external sandbox service or key. 0.3.7 is deepagents 0.7.14's floor
-    # for its own `quickjs` extra.
-    "langchain-quickjs>=0.3.7",
     # Conversation memory: the agent graph is compiled with an AsyncPostgresSaver
     # keyed on thread_id = session_id, so LangGraph replays the real message
     # objects. This replaced a hand-rolled rebuild of history from persisted UI
@@ -453,7 +452,6 @@ forbidden_modules = [
     "langchain_google_genai",
     "langgraph",
     "deepagents",
-    "langchain_quickjs",
 ]
 # (The former router seam is gone: pulse/router moved to server/routers, where
 # importing the agent layer is legal. The engine list needs no exemptions here.)
@@ -553,6 +551,7 @@ forbidden_modules = [
     "cryptography",
     "deepagents",
     "docx",
+    "docker",
     "dotenv",
     "fastapi",
     "google",
@@ -564,7 +563,6 @@ forbidden_modules = [
     "langchain_anthropic",
     "langchain_google_genai",
     "langchain_openai",
-    "langchain_quickjs",
     "langgraph",
     "mandrill",
     "mcp",

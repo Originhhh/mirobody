@@ -74,6 +74,7 @@ _HAS_PARSE = _installed("dotenv", "ruamel.yaml", "pypdfium2")
 _AGENT_ONLY = [
     "tests/agent/*",
     "tests/agent/**/*",
+    "tests/test_code_tool_capability.py",
     "tests/test_plugin_entry_points.py",
     "tests/server/test_htdoc.py",
 ]
@@ -116,6 +117,8 @@ _PARSE_ONLY = [
 ]
 
 collect_ignore_glob: list[str] = []
+if not _installed("deepagents", "docker"):
+    collect_ignore_glob += ["tests/test_code_tool_capability.py", "tests/agent/test_code_tool_probe.py"]
 if not _HAS_AGENTS:
     collect_ignore_glob += _AGENT_ONLY
 if not _HAS_SERVER:

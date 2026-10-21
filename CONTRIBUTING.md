@@ -17,8 +17,9 @@ We love new ideas! Please open an issue to discuss your feature idea before impl
 
 mirobody ships **one** agent — `MirobodyAgent` in `mirobody/agent/agent.py`,
 built on [deepagents](https://github.com/langchain-ai/deepagents), which is the
-most complete Python harness of the coding-agent kind (virtual filesystem,
-in-process REPL, human-in-the-loop, checkpointed memory). It is the
+Python harness providing a virtual filesystem, tool governance,
+human-in-the-loop and checkpointed memory. The data-analysis calculator uses
+original tool artifacts and local Python containers ([setup](docs/python-analysis.md)). It is the
 reference implementation of the answer layer, not a menu entry: there is no
 switching between agents at request time and no per-agent configuration.
 
@@ -91,12 +92,11 @@ the mail client.
     `[app]` for the server and agent layers. What each install pulls in is in
     [docs/testing.md](docs/testing.md).
 
-    A clone collects **731** tests with `[app]` in thirteen gate modules: 620
-    pass, 12 are strict xfails, and the 99 database cases skip until
-    `MIROBODY_TEST_POSTGRES_DSN` names a database. On `[test]` alone the
-    modules that need FastAPI skip too, which leaves 409 passing. The maintainers'
-    regression suite is gitignored, so the extras buy you the ability to RUN the
-    layer you are changing, not more tests. Write new tests under `tests/` at
+    A clone runs the public resolver/security gates and the two published
+    Python-analysis evidence modules. Those modules add 24 synthetic checks;
+    three need a local Docker daemon and the calculation image. Database
+    cases skip until `MIROBODY_TEST_POSTGRES_DSN` names a database. The
+    remaining maintainers' regression suite is gitignored. Write new tests under `tests/` at
     the repo root and say in the PR what you ran. Everything there is dropped at
     COLLECTION time when an extra is missing rather than aborting the run: a
     module-level `importorskip` is too late, because importing a test module

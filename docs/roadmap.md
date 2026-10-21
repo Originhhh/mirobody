@@ -980,3 +980,15 @@ affected.
 by OCR, and a Markdown file is read as text only when the client declares
 `text/markdown`. `th_files.file_content` is updated read-modify-write, so two
 writers at once can lose a key.
+
+**Small-model calculation origin remains open (2026-10-21).** The local Python
+tool now receives original record envelopes instead of reparsing compact
+tables, and all chat models share it. In eight synthetic questions with two
+repetitions per language, DeepSeek Flash, Claude Sonnet 5.5 and GPT-6 Luna
+passed all original-input and changed-input calculations. MiniCPM5-2B produced
+plausible answers but neither its Python nor JavaScript code passed the
+changed-data replay (0/16 per arm): it repeatedly copied literal readings.
+Do not treat the older 16/16 number-matching probe as proof that this model
+computes the record. Prefer the engine's existing statistics/bucket views
+and keep the strict source-calculation gate when evaluating the small model.
+Evidence: [code-tool comparison](../benchmarks/local_agent/eval_language_results.md).

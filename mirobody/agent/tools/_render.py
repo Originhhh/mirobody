@@ -183,8 +183,7 @@ def _meta_line(meta: tools.Meta) -> str:
 
 
 def envelope_meta(envelope: tools.Envelope) -> dict[str, Any]:
-    """The machine-readable half a PTC caller sees next to the rendering: it
-    has no middleware above it to read the artifact."""
+    """MCP's metadata beside the rendering; chat carries the complete artifact."""
     return {
         "status": envelope.status,
         "row_count": envelope.meta.row_count,
