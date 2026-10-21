@@ -312,6 +312,56 @@ references"), with a timer. When the answer starts, the panel folds to one
 line ("Thought for 12s · 4 steps") that opens again on a click. Which models
 stream their reasoning is in [model-choice.md](model-choice.md).
 
+The first visible reasoning token counts as time to first token. The local
+evaluation also measures the first answer token and first tool activity
+separately; a heartbeat or loading notice is not a generated token.
+
+`wire.stream.TurnStream` keeps one presentation state per turn. Native
+reasoning streams immediately. Ordinary text is held until its model message
+completes, because some endpoints send prose before revealing a tool call.
+Text from a tool step belongs to reasoning; only a completed non-tool reply
+becomes `text`. This delays the start of the final answer until that model
+step finishes, while preserving the early thinking feedback. It also prevents
+lookup narration from entering saved answer text or a future speech consumer.
+Tools keep their structured `tool_call` / `tool_result` blocks, including
+multimodal content. The renderer never synthesizes a model's private reasoning
+when an endpoint does not return it.
+
+Calculation sources follow the person's turn, not the most recent message of
+type `HumanMessage`: the named harness repair and last-call instructions do
+not erase results already obtained by the record tools.
+
+Automatic context summarization retains DeepAgents' model-derived trigger and
+recent-history policy. The complete selected history is redacted and checked
+against the summarizer's input budget, including its instructions and output
+reserve. It is not first trimmed to a fixed 4,000-token tail. Unknown input
+budgets, oversized prompts and empty/truncated summaries fail explicitly;
+recursive chunk summarization is not implemented. Genotype protection applies
+before both summarization and history offloading.
+
+Each turn's `usage.context` receipt carries numeric summary-call counts,
+committed advancing cutoffs and the declared input window. It never carries
+summary text. The long-conversation evaluation requires both committed events
+and completed summarizer calls, so a persisted event seen twice cannot satisfy
+the two-summary gate. Token fields remain absent when the endpoint reports no
+usage; context observability does not manufacture zero token counts.
+
+Summary generation also emits a content-free activity block for the web work
+panel: `{"type":"context","phase":"summarization","id":"…","status":"started"}`,
+followed by the same operation ID with `completed` or `failed`. These events
+come from the actual summarization middleware, via LangGraph's
+[custom stream](https://docs.langchain.com/oss/python/langgraph/streaming#custom-data).
+`completed` means generation and validation succeeded; it is not evidence of a
+committed cutoff. The numeric `usage.context` receipt remains the evaluation
+authority. Neither activity nor summary output counts as a visible model token.
+
+The web client flushes its first visible reasoning/answer block immediately,
+then batches subsequent tokens. Tool failures and partial results remain in the
+work panel, and copy reads only final answer text. Stopping reception aborts the
+browser request; the server's existing background-turn persistence still runs
+after disconnect. An explicit server-side generation-cancellation API is separate
+work, not provided by aborting an HTTP stream.
+
 ---
 
 ## Governance: what stops a loop

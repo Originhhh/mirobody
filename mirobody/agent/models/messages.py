@@ -15,8 +15,21 @@ from __future__ import annotations
 
 import re
 
-_THINK_RE = re.compile(r"(?s)<think\b[^>]*>.*?</think>")
+_THINK_RE = re.compile(r"(?s)<think\b[^>]*>.*?(?:</think>|\Z)")
 _REASONING_BLOCKS = ("thinking", "reasoning")
+
+# These messages are appended by the harness, not by the person. Keeping their
+# names beside the boundary rule prevents a repair from dropping tool evidence
+# or the reasoning that the endpoint requires back with that evidence.
+NUDGE_NAME = "__empty_answer__"
+LAST_CALL_NAME = "__last_model_call__"
+
+
+def user_turn_start(messages: list) -> int:
+    """Index after the last actual user message, ignoring named harness nudges."""
+    return next((i + 1 for i in range(len(messages) - 1, -1, -1)
+                 if getattr(messages[i], "type", None) == "human"
+                 and getattr(messages[i], "name", None) not in (NUDGE_NAME, LAST_CALL_NAME)), 0)
 
 
 def message_reasoning(msg) -> str:
@@ -28,7 +41,10 @@ def message_reasoning(msg) -> str:
     content = getattr(msg, "content", None)
     if isinstance(content, list):
         return "".join(
-            block.get("thinking") or block.get("reasoning") or block.get("text") or ""
+            block.get("thinking") or block.get("reasoning") or block.get("text") or "".join(
+                item.get("text", "") for item in (block.get("summary") or [])
+                if isinstance(item, dict) and item.get("type") == "summary_text"
+            )
             for block in content
             if isinstance(block, dict) and block.get("type") in _REASONING_BLOCKS
         )

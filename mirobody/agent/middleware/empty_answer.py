@@ -24,13 +24,9 @@ import logging
 from langchain.agents.middleware import AgentMiddleware, hook_config
 from langchain_core.messages import AIMessage, HumanMessage, RemoveMessage
 
-from mirobody.agent.middleware.model_budget import LAST_CALL_NAME
-from mirobody.agent.models.messages import message_reasoning, message_text
+from mirobody.agent.models.messages import LAST_CALL_NAME, NUDGE_NAME, message_reasoning, message_text
 
 logger = logging.getLogger(__name__)
-
-#: `HumanMessage.name` of the nudge, so the counter below finds its own messages.
-NUDGE_NAME = "__empty_answer__"
 
 _NUDGE = (
     "Your last reply had no answer text. Write the answer to the person now, "

@@ -18,8 +18,7 @@ from typing import Any
 from langchain.agents.middleware import AgentMiddleware
 from langchain_core.messages import AIMessage, HumanMessage, ToolMessage
 
-from mirobody.agent.middleware.empty_answer import NUDGE_NAME
-from mirobody.agent.middleware.model_budget import LAST_CALL_NAME
+from mirobody.agent.models.messages import LAST_CALL_NAME, NUDGE_NAME, user_turn_start
 from mirobody.agent.tools.genetic_service import TOOL_NAME
 from mirobody.kernel import tools
 
@@ -129,8 +128,8 @@ class GenotypeRowGuardMiddleware(AgentMiddleware):
         visible_rows = redacted = redacted_answers = 0
         seen: set[str] = set()
         guarded = []
-        last_user = max((i for i, message in enumerate(messages) if isinstance(message, HumanMessage)),
-                        default=len(messages))
+        boundary = user_turn_start(list(messages))
+        last_user = boundary - 1 if boundary else len(messages)
         genetic_ids = _genetic_call_ids(messages)
         prior_genetic_result = False
         for index, message in enumerate(messages):

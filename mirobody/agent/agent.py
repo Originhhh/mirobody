@@ -40,8 +40,8 @@ from .knowledge import tools as medical_knowledge
 from .models.clients import build_llm_clients, unavailable_reason
 from .models.usage import usage_block
 from .prompt import attachment_reminder, build_system_prompt, deployment_facts, question_language, turn_note
-from .wire.blocks import ERROR, NOTICE, TEXT
-from .wire.stream import TokenUsageCallback, stream_blocks
+from .wire.blocks import ERROR, NOTICE, TEXT, USAGE
+from .wire.stream import TokenUsageCallback, TurnStream
 from .middleware import (
     GenotypeRowGuardMiddleware,
     GenotypeSafeSummarizationMiddleware,
@@ -598,6 +598,7 @@ class MirobodyAgent:
         messages: list[dict[str, Any]] | list[BaseMessage],
         config: dict,
         resume: str | None = None,
+        presentation: TurnStream | None = None,
     ) -> AsyncGenerator[dict[str, Any], None]:
         """Stream one run of the graph as `wire.blocks`.
 
@@ -607,6 +608,7 @@ class MirobodyAgent:
         """
         logger.info("Starting agent stream")
         trace_id = get_req_ctx("trace_id") or str(uuid.uuid4())
+        presentation = presentation if presentation is not None else TurnStream()
         if resume is not None:
             from langgraph.types import Command
             graph_input: Any = Command(resume={"decisions": [{"type": "respond", "message": resume}]})
@@ -617,7 +619,7 @@ class MirobodyAgent:
             # No `subgraphs=True`: the graph has none (`harness.assemble`
             # disables the general-purpose subagent and passes `subagents=[]`).
             async for stream_type, stream_event in agent.astream(
-                graph_input, stream_mode=["messages", "updates"], config=config,
+                graph_input, stream_mode=["messages", "updates", "custom"], config=config,
             ):
                 # An `ask_user` call: the middleware paused the graph after the
                 # model step. Hand the pending question to the client and end
@@ -627,8 +629,7 @@ class MirobodyAgent:
                     if pending:
                         yield pending
                     return
-                # `stream_blocks` logs and drops an item it cannot read.
-                async for block in stream_blocks(stream_type, stream_event, trace_id=trace_id):
+                for block in presentation.blocks(stream_type, stream_event, trace_id=trace_id):
                     yield block
 
             logger.info("agent stream completed")
@@ -719,6 +720,7 @@ class MirobodyAgent:
             )
 
             token_counter = TokenUsageCallback()
+            presentation = TurnStream()
             stream_config = self._create_stream_config(token_counter, session_id)
 
             # A thread paused on `ask_user` takes this message as the answer;
@@ -735,12 +737,13 @@ class MirobodyAgent:
                 messages=final_messages,
                 config=stream_config,
                 resume=resume,
+                presentation=presentation,
             ):
                 yield event
 
-            usage = usage_block(token_counter.usage, model_name)
-            if usage:
-                yield usage
+            usage = usage_block(token_counter.usage, model_name) or {"type": USAGE, "model": model_name}
+            usage["context"] = token_counter.context(presentation, llm_client)
+            yield usage
 
         except AgentError as e:
             # An AgentError's message is ours (configuration, no model…) and
@@ -757,4 +760,4 @@ class MirobodyAgent:
         """The registry's hook: one chat model per `MODELS` entry, each thinking
         at `AGENT_THINKING` (medium unless configured) between its tool calls."""
         thinking = safe_read_cfg("AGENT_THINKING") or DEFAULT_THINKING
-        return build_llm_clients(llm_client_config, owner=cls.__name__, thinking=thinking)
+        return build_llm_clients(llm_client_config, owner=cls.__name__, thinking=thinking, require_thinking=True)

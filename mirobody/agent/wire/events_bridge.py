@@ -39,7 +39,11 @@ def content_text(content: Any) -> str:
     if isinstance(content, str):
         return content
     if isinstance(content, list):
-        return "".join(part.get("text", "") for part in content if isinstance(part, dict))
+        return "".join(
+            part if isinstance(part, str) else part.get("text", "")
+            for part in content
+            if isinstance(part, str) or (isinstance(part, dict) and part.get("type") in ("text", "output_text"))
+        )
     return ""
 
 
@@ -51,15 +55,17 @@ def result_status(message: Any) -> dict:
     envelope makes no claim; one that RAISED (LangChain sets ``status="error"``
     on the message) still does."""
     artifact = getattr(message, "artifact", None)
-    status = getattr(artifact, "status", None)
+    status = artifact.get("status") if isinstance(artifact, Mapping) else getattr(artifact, "status", None)
     if not isinstance(status, str):
         raw = getattr(message, "status", None)
         return {"status": raw} if isinstance(raw, str) and raw != "success" else {}
     out: dict = {"status": status}
-    kind = getattr(artifact, "error_kind", None)
+    kind = artifact.get("error_kind") if isinstance(artifact, Mapping) else getattr(artifact, "error_kind", None)
     if isinstance(kind, str):
         out["error_kind"] = kind
-    if getattr(getattr(artifact, "meta", None), "truncated", False):
+    truncated = (artifact.get("truncated", False) if isinstance(artifact, Mapping)
+                 else getattr(getattr(artifact, "meta", None), "truncated", False))
+    if truncated:
         out["truncated"] = True
     return out
 

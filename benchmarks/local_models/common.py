@@ -205,7 +205,9 @@ def bench_email(kind: str, name: str) -> str:
 #: qa5: the same plan at 7372b096 on a second machine (Apple silicon, 48 GB), for
 #: large and small side by side; `BENCH_QA_GENERATION=qa5` selects it. qa6: the
 #: same plan at 338d54f4 (cited answers, the knowledge tools), the same machine.
-QA_GENERATION = os.environ.get("BENCH_QA_GENERATION", "qa4")
+#: harness100-20261021 is the current eight-person generator record; its
+#: source/loading identity is verified separately from the question hash.
+QA_GENERATION = os.environ.get("BENCH_QA_GENERATION", "harness100-20261021")
 
 
 def qa_email(person: str) -> str:
@@ -228,6 +230,7 @@ class Corpus:
         self.devices = {d["person_id"]: d for d in read_jsonl(self.dir / "devices.jsonl")}
         self.genomics = {g["person_id"]: g for g in read_jsonl(self.dir / "genomics.jsonl")}
         self.journal = read_jsonl(self.dir / "journal.jsonl")
+        self.medications = {m["person_id"]: m for m in read_jsonl(self.dir / "medications.jsonl")}
 
     def path(self, rel: str) -> Path:
         return self.dir / rel

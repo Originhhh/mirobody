@@ -2,6 +2,31 @@
 
 ### Added
 
+- **Real progress during long-conversation summarization.** The web client
+  previously had no signal while the summary model worked. Actual middleware
+  execution now emits content-free `context` start/completion/failure events,
+  which the frontend source renders in the thinking panel. Summary contents
+  stay internal; committed cutoffs remain separate in `usage.context`.
+
+- **A reproducible 100-question harness regression.** The former 24+6 cases
+  covered too few task types and depended on old generator filenames. The
+  current suite derives its answers from pinned mirobody-gen sources for
+  eight synthetic people: 60 English, 30 Simplified Chinese, five Japanese
+  and five Traditional Chinese questions, matching the four frontend locales.
+  Tasks include OCR/handwriting, genetics/PGx, medication history and follow-ups.
+  A 30-question smoke selection keeps quick checks bounded. Source and case
+  hashes, audit outcomes, session dependencies and a fixed evaluation clock
+  accompany each run. First visible reasoning counts as first token; first
+  reasoning, tool activity, answer and completion are also reported separately.
+  Archived scores remain historical, and unpassed source audits remain explicit.
+- **A long-context gate that requires two automatic summaries.** One scored
+  follow-up uses distinct source-backed device batches to grow the same real
+  conversation, within a 16-request pressure budget. It requires two advancing
+  DeepAgents summary events and completed summary-model calls before checking
+  the earlier comparison label, dates and values. Pressure cost is retained;
+  unexercised contexts fail rather than count as passed. Fast smoke runs exclude
+  this heavy case.
+
 - **Local Python calculation on original record results, for every chat model.**
   Reconstructing compact display tables lost constant columns, singleton
   readings and nested values. `python_exec` now consumes authenticated
@@ -20,6 +45,25 @@
 
 ### Changed
 
+- **The bundled web client follows the harness's work and answer channels.**
+  First visible reasoning/answer blocks now reach the interface immediately,
+  while subsequent tokens stay batched. The work panel tracks concurrent
+  calls, partial results and unfinished steps, preserves the reader's scroll
+  position and shows real summary activity in all four languages. Stop aborts
+  reception, and question-bound callbacks cannot close a newer response.
+  Copy includes final text only and acknowledges successful clipboard writes.
+  The refreshed static bundle comes from `mirobody-web` commit `937eb1b`
+  (`feat/harness-thinking-experience`).
+
+- **Chat work stays in the thinking panel.** A model could narrate a lookup
+  before emitting its tool call, and that prose became part of the final
+  answer. Native reasoning now streams immediately while ordinary text waits
+  for its model step to complete: tool-step narration is reasoning, and only
+  final replies become answer text. History and future speech consumers read
+  that answer channel. Chat models request thinking through their supported
+  transport; utility extraction keeps its separate policy. Endpoint probes
+  report whether reasoning is actually visible.
+
 - **The hosted way to use your own records is named.** The READMEs offered
   self-hosting and a synthetic demo, but nowhere to go with your own records
   without running anything, and `demo/README.md` still promised a free-trial
@@ -35,6 +79,26 @@
   notice recommended `view=stats`, which `query_medications` refuses. The leading
   cut notice now asks callers to narrow the query using the producing tool's
   supported filters.
+- **Early facts could disappear before the summarizer saw them.** DeepAgents'
+  inherited 4,000-token tail trim removed early evidence even when its full
+  selected history fit the model. Summarization now receives the complete
+  redacted input after a budget check, preserving the existing automatic
+  trigger and keep settings. Oversized, empty or truncated summaries fail
+  explicitly instead of silently dropping history. A real compiled-graph
+  contract triggers at least two automatic summaries and checks retained
+  early facts, corrections, dates, units and missingness.
+- **A repair instruction could hide the calculation's source.** The Python
+  tool treated the harness's empty-answer or last-call nudge as a new user
+  question and rejected results already fetched in the same turn. Those
+  named instructions now preserve the source boundary; a real new question
+  still starts a fresh boundary. The same boundary keeps current genotype
+  work available during repair while earlier-turn genotype work stays redacted.
+- **Python failures now count toward the failure budget.** Its structured
+  dictionary artifact was ignored by readers expecting an Envelope object,
+  so the work panel lost error/truncation status and consecutive calculation
+  failures did not trigger the early final-answer step. Both readers now
+  consume the calculator's declared status.
+
 - **A total over many readings had no direct answer.** `view=stats` gave count, min, max and
   average but no sum, so a total over more rows than the raw view returns (a year of exercise
   logs) had to be rebuilt as average times count. Stats now carry `sum` over the same values

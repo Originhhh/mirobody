@@ -2,6 +2,14 @@
 
 **English** · [中文](local-models-roadmap.zh-CN.md)
 
+**2026-10-21 evaluation update:** the recurring development/regression suite
+is now 100 source-derived questions, with a 30-question smoke selection. It
+retains local genotype/PGx queries and OCR-assisted photographs. First visible
+thinking counts as time to first token; first answer and tool activity are
+measured separately. The measurements below describe their dated historical
+sets, not scores on the new 100 questions. Training data and an independently
+held-out confirmation set remain separate work.
+
 Mirobody can run with no API key: one model answers questions, another reads
 documents, both on the same machine ([local-models.md](local-models.md) is how
 to run them). This page records what was measured from 2026-09-30, what it means
@@ -21,7 +29,7 @@ for photos, and the plan for the whole thing to fit on an ordinary computer.
   photos. On the evaluation's 24 questions it scored 240 of 248, against 229
   for the small size on the same machine and 237–247 for the hosted models,
   and it stored 139 of 140 printed rows and 29 of 31 journal entries
-  ([measured](../benchmarks/local_models/README.md#small-and-large-on-one-machine-2026-10-08)).
+  ([measured](../benchmarks/local_models/HISTORY.md#small-and-large-on-one-machine-2026-10-08)).
   It takes about 2 minutes an answer on a 48 GB Apple-silicon machine's GPU and about
   20 GB of memory: a Mac with 32 GB, or a GPU with 24 GB.
 - **1.6.0 ships the goal**: the same two small models post-trained for
@@ -67,7 +75,7 @@ produced these was never published; the evaluation that replaced it is
 questions, 12 documents and 15 journal sentences through the product's own
 API, with cloud references run beside the local sizes. On it, on the same
 48 GB machine (2026-10-08), the large size scored 240 of 248 and the small size 229
-([small and large on one machine](../benchmarks/local_models/README.md#small-and-large-on-one-machine-2026-10-08)).
+([small and large on one machine](../benchmarks/local_models/HISTORY.md#small-and-large-on-one-machine-2026-10-08)).
 
 ### MiniCPM5-2B, in detail
 
@@ -171,11 +179,14 @@ where 1.5.4 leaves it: the harness changes above; the evaluation published in
 [`benchmarks/local_models/`](../benchmarks/local_models/README.md) and
 [`benchmarks/local_ocr/`](../benchmarks/local_ocr/README.md), with
 MiniCPM5-2B's baseline recorded (2026-10-06) and the cloud references beside
-it. Still to come: 200–500 questions split into train, dev and test.
+it. The current regression target is 100 diverse questions, regenerated from
+the pinned source corpus. Training examples and independent held-out test
+families must be assembled separately; an exposed regression set is not a
+training-free test set.
 
 | Phase | Work | Passes when |
 | --- | --- | --- |
-| P0 | The harness changes above. The evaluation grows from 16 runs to 200–500 questions (languages, several people, date windows, photos), split into train, dev and test, with real reports held out for test, and is published under `benchmarks/` | MiniCPM5-2B's baseline is recorded |
+| P0 | The harness changes above. Run 100 source-derived regression questions spanning languages, people, windows, documents/OCR, genetics/PGx, medications and multi-turn use; keep a 30-question smoke subset. Publish the recipe, audit outcomes and timing definitions under `benchmarks/` | A new MiniCPM5-2B baseline records accuracy, evidence, first visible thinking/text, first answer and full-turn latency |
 | P1 | Agent: the large 27B model answers the training questions through the real harness; only runs that pass every check are kept; LoRA fine-tuning of MiniCPM5-2B on them | the test split at the 27B model's level: every run passes, no number outside the record, judged against printed ranges |
 | P2 | Documents: GLM-OCR fine-tuned on rendered reports with phone-photo distortions (perspective, light, blur) to write rows of name, value, unit, range, flag and date | field accuracy and missed rows on the held-out real reports |
 | P3 | Reinforcement learning (GRPO) on what still fails, with the number check as the reward | no number outside the record on the test split |

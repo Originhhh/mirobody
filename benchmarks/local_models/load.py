@@ -1,7 +1,7 @@
 """Load one person of a mirobody-gen build into an account, through the
 same HTTP API the web client and a phone client use.
 
-    # the three accounts every size's questions read (once, before any run):
+    # the eight accounts every size's questions read (once, before any run):
     python benchmarks/local_models/load.py --corpus <build> --qa
     # one person into an account of your choosing:
     python benchmarks/local_models/load.py --corpus <build> --person p004 --email me@example.org \\
@@ -47,6 +47,7 @@ from common import (
     psql_exec, psql_json, qa_email, read_json, read_jsonl, router_status, sign_in, wait_tasks_drained, write_json,
 )
 from score import score_document
+from provenance import medication_versions, record_identity, validate_cases, validate_corpus
 
 LOAD_STATE = RESULTS / "load.json"
 UPLOAD_TIMEOUT = 1800
@@ -210,11 +211,51 @@ def journal_entries(account: Account, sentences: list[dict], log=print) -> dict:
     return {"written": written, "skipped": skipped}
 
 
+def medication_body(version: dict) -> dict:
+    value, unit = version["strength"].split()
+    dose = {"value": float(value), "unit": unit}
+    frequency = version["frequency"]
+    if frequency not in {"qd", "bid", "prn"}:
+        raise ValueError(f"Unsupported generated medication frequency: {frequency}")
+    schedule = {"dose": dose, "text": version["dose_text_en"] + " / " + version["dose_text_zh"],
+                "as_needed": frequency == "prn", "doses_per_day": 2 if frequency == "bid" else 1 if frequency == "qd" else 0}
+    if frequency == "prn":
+        match = re.search(r"up to (\d+|three) times daily", version["dose_text_en"])
+        if match:
+            count = 3 if match[1] == "three" else int(match[1])
+            schedule["max_dose_per_day"] = {"value": dose["value"] * count, "unit": unit}
+    return {"name": version["name_en"] + " / " + version["name_zh"], "strength": version["strength"],
+            "schedule": [schedule], "start_date": version["start"], "end_date": version["end"], "confirmed": True}
+
+
+def load_medications(account: Account, corpus: Corpus, person: str, log=print) -> dict:
+    existing = account.get("/api/v1/medications")["data"]["items"]
+    out = []
+    for plan in corpus.medications.get(person, {}).get("plans", []):
+        for version in medication_versions(plan):
+            body = medication_body(version)
+            same = [p for p in existing if all(p.get(k) == body[k] for k in
+                    ("name", "strength", "start_date", "end_date"))]
+            if same:
+                stored = same[0]
+            else:
+                stored = account.post("/api/v1/medications", body)["data"]
+                existing.append(stored)
+            out.append({"source_version": version["version_id"], "plan_id": stored["plan_id"]})
+    log(f"  medications: {len(out)} dated schedule versions; no intake events created")
+    return {"versions": out, "intake_events": 0}
+
+
 def load_person(corpus: Corpus, person: str, email: str, *, tz: str, lang: str, documents: list[str],
-                genomics: bool, devices: bool = True, journal: bool = True, replace: tuple[str, ...] = (),
+                genomics: bool, devices: bool = True, journal: bool = True, medications: bool = False,
+                record_sha256: str | None = None, replace: tuple[str, ...] = (),
                 log=print) -> dict:
     state = read_json(LOAD_STATE, {})
     entry = state.setdefault(email, {"person": person})
+    if entry.get("steps") and record_sha256 and entry.get("record_sha256") != record_sha256:
+        raise ValueError("Loaded account belongs to a different manifest; use a new BENCH_QA_GENERATION")
+    if record_sha256:
+        entry["record_sha256"] = record_sha256
     account = sign_in(email, tz=tz, lang=lang)
     entry.update({"user_id": account.user_id, "tz": tz, "lang": lang})
     entry.setdefault("mirobody_commit", git_head(ROOT))
@@ -264,6 +305,9 @@ def load_person(corpus: Corpus, person: str, email: str, *, tz: str, lang: str, 
         save()
     if journal and "journal" not in steps:
         steps["journal"] = journal_entries(account, corpus.journal_of(person), log=log)
+        save()
+    if medications and "medications" not in steps:
+        steps["medications"] = load_medications(account, corpus, person, log=log)
         save()
     entry["loaded_at"] = now_iso()
     save()
@@ -384,13 +428,14 @@ def verify(corpus: Corpus, email: str, cases_path: Path, log=print) -> dict:
 def main() -> None:
     ap = argparse.ArgumentParser(description="Load a mirobody-gen person into an account.")
     ap.add_argument("--corpus", required=True)
-    ap.add_argument("--qa", action="store_true", help="load the three Q&A accounts of plan.json")
+    ap.add_argument("--qa", action="store_true", help="load the eight Q&A accounts of plan.json")
     ap.add_argument("--person")
     ap.add_argument("--email")
     ap.add_argument("--tz", default="Asia/Shanghai")
     ap.add_argument("--lang", default="zh")
     ap.add_argument("--documents", nargs="*", default=[])
     ap.add_argument("--genomics", action="store_true")
+    ap.add_argument("--medications", action="store_true", help="load explicit medication schedule versions, without dose logs")
     ap.add_argument("--no-devices", action="store_true")
     ap.add_argument("--no-journal", action="store_true")
     ap.add_argument("--keep-profile", action="store_true",
@@ -403,12 +448,14 @@ def main() -> None:
     here = Path(__file__).resolve().parent
     if args.qa:
         plan = json.loads((here / "plan.json").read_text(encoding="utf-8"))
+        validate_cases(read_jsonl(here / "cases.jsonl"), plan)
+        validate_corpus(corpus, plan)
         targets = [(p, qa_email(p), cfg) for p, cfg in plan["qa_people"].items()]
     else:
         if not (args.person and args.email):
             ap.error("--person and --email, or --qa")
         targets = [(args.person, args.email, {"tz": args.tz, "lang": args.lang, "documents": args.documents,
-                                              "genomics": args.genomics})]
+                                              "genomics": args.genomics, "medications": args.medications})]
     if args.verify:
         reports = {email: verify(corpus, email, here / "cases.jsonl") for _, email, _ in targets}
         state = read_json(LOAD_STATE, {})
@@ -420,6 +467,8 @@ def main() -> None:
     for person, email, cfg in targets:
         entry = load_person(corpus, person, email, tz=cfg["tz"], lang=cfg["lang"], documents=cfg["documents"],
                             genomics=cfg["genomics"], devices=not args.no_devices, journal=not args.no_journal,
+                            medications=cfg.get("medications", False),
+                            record_sha256=record_identity(plan) if args.qa else None,
                             replace=tuple(args.replace))
         ids.append(entry["user_id"])
     if args.qa and not args.keep_profile:

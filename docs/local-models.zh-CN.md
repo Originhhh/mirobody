@@ -170,7 +170,7 @@ LOCAL_MODEL=qwen3.8-27b        # 大号：回答问题、写标题和摘要
 LOCAL_OCR_MODEL=glm-ocr        # 读报告照片和扫描页
 ```
 
-`local` 条目发送 `temperature: 0`。MiniCPM5-2B 的模型卡给思考模式的是 `temperature 1.0, top_p 0.95, min_p 0`；在评测上按它跑三次得 182 到 200 分（满分 248），temperature 0 两次是 194 和 212，丢的分在工具没给过的数字和医学说法上（[基准](../benchmarks/local_models/README.md#sampling-thinking-two-more-models-and-what-post-training-is-for-2026-10-10)）。你加进来的模型也用这个温度；它的模型卡里其余的参数写进它在预设里的小节。
+`local` 条目发送 `temperature: 0`。MiniCPM5-2B 的模型卡给思考模式的是 `temperature 1.0, top_p 0.95, min_p 0`；在评测上按它跑三次得 182 到 200 分（满分 248），temperature 0 两次是 194 和 212，丢的分在工具没给过的数字和医学说法上（[基准](../benchmarks/local_models/HISTORY.md#sampling-thinking-two-more-models-and-what-post-training-is-for-2026-10-10)）。你加进来的模型也用这个温度；它的模型卡里其余的参数写进它在预设里的小节。
 
 要运行别的模型，把它的小节加进预设（或者用别的方式提供服务），然后在设置页上选它（页面会列出服务提供的模型），或者在 `.env` 里写上它的名字。这样选出来的模型也会被同样地检查：服务必须真的提供它。挑出这两个模型之前测过的候选都在 [local-models-roadmap.zh-CN.md](local-models-roadmap.zh-CN.md) 里。看不了图的模型会从它的服务那里被检测出来，照片会以文字的形式发给它，而不是图片本身。
 

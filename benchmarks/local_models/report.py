@@ -22,6 +22,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 from common import HERE, RESULTS, ROOT, SIZES, now_iso, read_json, read_jsonl, write_json
 from run import summarize
 from score import answer_of
+from provenance import comparison_identity, saved_manifest
 
 CRITERIA = ("correct", "grounded", "range", "language", "useful", "chart")
 ORDER = ["tiny", "small", "large"]
@@ -46,13 +47,23 @@ def measured() -> list[str]:
     newer code (`small-v2`) and on other machines (`small-48gb`), then the
     references (`results/ref-*`, a model the stack was pointed at by
     configuration)."""
-    sizes = [d.name for s in ORDER
-             for d in [RESULTS / s, *sorted(RESULTS.glob(f"{s}-v*")),
-                       *sorted(p for p in RESULTS.glob(f"{s}-*") if not p.name.startswith(f"{s}-v"))]
-             if (d / "meta.json").exists()]
-    # `-rules` runs are extraction only (README.md, "Cloud models with the rules in front"); they have their own table.
-    return sizes + sorted(p.name for p in RESULTS.glob("ref-*") if (p / "meta.json").exists() and p.name not in DROPPED
-                          and not p.name.endswith("-rules"))
+    names = [p.name for p in RESULTS.iterdir() if p.is_dir() and (p / "meta.json").exists()
+             and p.name not in DROPPED and not p.name.endswith("-rules")]
+    return sorted(names, key=lambda name: (next((i for i, prefix in enumerate(ORDER)
+                                               if name == prefix or name.startswith(prefix + "-")), len(ORDER)), name))
+
+
+def comparison_cases(directories: list[Path]) -> dict[str, dict]:
+    qa = [read_json(directory / "qa.json", {"runs": []}) for directory in directories]
+    measured_qa = [q for q in qa if q.get("runs") or q.get("case_manifest")]
+    if len({comparison_identity(q) for q in measured_qa}) > 1:
+        raise ValueError("Cannot compare different question manifests or selections; use a separate --results directory per suite")
+    return {c["id"]: c for c in saved_manifest(measured_qa[0])} if measured_qa else {}
+
+
+def latency_cell(summary: dict, key: str) -> str:
+    row = summary["latency"][key]
+    return f"{row['p50']} / {row['p90']} (n={row['n']}, missing={row['missing']})"
 
 
 def agent_of(label: str) -> str:
@@ -60,9 +71,11 @@ def agent_of(label: str) -> str:
 
 
 def grade_totals(grades: dict, cases: dict[str, dict]) -> dict:
-    """Points and maximum per case, per criterion, per domain. `points`,
-    `max` and `criteria` are the first 24 cases', comparable across runs;
-    `new` is the cases added since (`added` in cases.jsonl)."""
+    """Points by case, criterion and domain for the saved manifest.
+
+    Historical runs separate the original 24 and six `added` cases. The
+    current 100-question manifest has one scored set, with no `added` split.
+    """
     out = {"points": 0, "max": 0, "new": [0, 0], "criteria": defaultdict(lambda: [0, 0]),
            "domains": defaultdict(lambda: [0, 0]), "cases": {}}
     for g in grades.get("grades", []):
@@ -91,8 +104,8 @@ def grade_totals(grades: dict, cases: dict[str, dict]) -> dict:
 
 
 def summary() -> str:
-    cases = {c["id"]: c for c in read_jsonl(HERE / "cases.jsonl")}
     sizes = measured()
+    cases = comparison_cases([RESULTS / size for size in sizes])
     rows = {s: summarize(RESULTS / s) for s in sizes}
     grades = {s: read_json(RESULTS / s / "grades.json") for s in sizes}
     totals = {s: grade_totals(g, cases) for s, g in grades.items() if g}
@@ -106,12 +119,26 @@ def summary() -> str:
 
     row("Questions, Claude Code grade (points)", lambda s: f"{totals[s]['points']}/{totals[s]['max']} "
         f"({100 * totals[s]['points'] / totals[s]['max']:.0f}%)" if s in totals else "not graded")
-    row("Questions, automatic pass", lambda s: f"{rows[s]['qa_pass']}/{rows[s]['qa_n']}")
+    row("Questions, automatic pass", lambda s: f"{rows[s]['qa_pass']}/{rows[s]['requested_n']}")
     row("… answered / right tool / facts / language / chart",
         lambda s: " / ".join(str(rows[s]["qa_checks"][k]) for k in ("answered", "tool", "facts", "language", "chart")))
     row("… numbers in no tool result (answers with any)",
         lambda s: f"{rows[s]['qa_unsupported_numbers']} ({rows[s]['qa_answers_with_unsupported']})")
     row("… seconds per answer, median / p90", lambda s: f"{rows[s]['qa_median_s']} / {rows[s]['qa_p90_s']}")
+    for key, label in (("first_token_s", "first visible token (thinking or text)"),
+                       ("first_reasoning_s", "first reasoning"), ("first_tool_s", "first tool"),
+                       ("first_text_s", "first final text")):
+        row(f"… {label}, p50 / p90 seconds", lambda s, key=key: latency_cell(rows[s], key))
+    for language in sorted({language for result in rows.values() for language in result["languages"]}):
+        row(f"… {language} automatic pass", lambda s, language=language:
+            f"{rows[s]['languages'][language]['pass']}/{rows[s]['languages'][language]['n']}"
+            if language in rows[s]["languages"] else "not measured")
+    row("… context stress exercised / passed / requested", lambda s:
+        f"{rows[s]['long_context']['exercised']}/{rows[s]['long_context']['passed']}/{rows[s]['long_context']['requested']} "
+        f"(unexercised={rows[s]['long_context']['not_exercised']}, blocked={rows[s]['long_context']['blocked']})")
+    row("… extra context pressure requests", lambda s: str(rows[s]["long_context"]["pressure_requests"]))
+    row("… context setup / final-request seconds", lambda s:
+        f"{rows[s]['long_context']['setup_seconds']} / {rows[s]['long_context']['final_request_seconds']}")
     row("… timeouts", lambda s: str(rows[s]["qa_timeouts"]))
     row("… tool calls, total (median per answer)",
         lambda s: f"{rows[s]['qa_tool_calls']} ({rows[s]['qa_median_calls']})")
@@ -163,14 +190,14 @@ def summary() -> str:
                 cells.append("")
                 continue
             g = totals.get(s, {}).get("cases", {}).get(cid)
-            cells.append(f"{'✓' if r['score']['pass'] else '✗'} {f'{g[0]}/{g[1]}' if g else ''} · {r['seconds']:.0f} s")
+            cells.append(f"{'✓' if r['score']['pass'] else '✗'} {f'{g[0]}/{g[1]}' if g else ''} · {r.get('seconds')} s")
         L.append(f"| {cid} | " + " | ".join(cells) + " |")
     return "\n".join(L) + "\n"
 
 
 def results_json() -> dict:
     """Everything summary.md says, as data, with where it was measured."""
-    cases = {c["id"]: c for c in read_jsonl(HERE / "cases.jsonl")}
+    cases = comparison_cases([RESULTS / size for size in measured()])
     run = read_json(RESULTS / "run.json", {}) or {}
     out = {"generated": now_iso(), "environment": {k: v for k, v in run.items() if k != "sizes"}, "sizes": {}}
     for size in measured():
@@ -192,6 +219,8 @@ def results_json() -> dict:
                 "criteria": {k: list(v) for k, v in totals["criteria"].items()}},
             "answers": [{"id": r["id"], "pass": r["score"]["pass"], "seconds": r["seconds"],
                          "first_text_s": r.get("first_text_s"),
+                         "first_token_s": r.get("first_token_s"), "first_reasoning_s": r.get("first_reasoning_s"),
+                         "first_tool_s": r.get("first_tool_s"),
                          "points": (totals or {}).get("cases", {}).get(r["id"])} for r in runs],
             "memory": [{"parts": p["parts"], "loaded": p.get("loaded"), "resources": p.get("resources"),
                         "processes": [{k: x.get(k) for k in ("alias", "role", "rss_mb", "footprint_mb")}
@@ -272,7 +301,7 @@ def _gb(mb):
 
 
 def show(size: str, only: str = "") -> None:
-    cases = {c["id"]: c for c in read_jsonl(HERE / "cases.jsonl")}
+    cases = comparison_cases([RESULTS / size])
     for r in read_json(RESULTS / size / "qa.json")["runs"]:
         if only and r["id"] != only:
             continue
@@ -301,6 +330,7 @@ def show(size: str, only: str = "") -> None:
 
 
 def diff(a: Path, b: Path) -> None:
+    comparison_cases([a, b])
     ra = {r["id"]: r for r in read_json(a / "qa.json", {"runs": []})["runs"]}
     rb = {r["id"]: r for r in read_json(b / "qa.json", {"runs": []})["runs"]}
     print(f"| Case | {a} | {b} |\n| --- | --- | --- |")
@@ -313,12 +343,14 @@ def diff(a: Path, b: Path) -> None:
             s = r["score"]
             failed = ",".join(k for k, v in s["checks"].items() if not v)
             cells.append(f"{'pass' if s['pass'] else 'FAIL ' + failed} · {len(s['unsupported_numbers'])} unsupported"
-                         f" · {r['seconds']:.0f} s")
+                         f" · {r.get('seconds')} s · visible token {r.get('first_token_s')}")
         mark = "" if cells[0].split(" ")[0] == cells[1].split(" ")[0] else " **changed**"
         print(f"| {cid}{mark} | {cells[0]} | {cells[1]} |")
     sa, sb = summarize(a), summarize(b)
     for k in ("qa_pass", "qa_unsupported_numbers", "qa_median_s", "ext_found", "ext_extra", "jnl_found", "jnl_extra"):
         print(f"{k}: {sa.get(k)} -> {sb.get(k)}")
+    for key in ("first_token_s", "first_reasoning_s", "first_tool_s", "first_text_s"):
+        print(f"{key}: {latency_cell(sa, key)} -> {latency_cell(sb, key)}")
 
 
 def tables() -> str:

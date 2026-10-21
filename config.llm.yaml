@@ -55,18 +55,18 @@
 #                   OpenAI-compatible endpoint a PDF is served as extracted text
 #                   no matter what this says (measured — claude-sonnet over
 #                   OpenRouter answers 400 to the block, and reads the text fine)
-#   reasoning_effort sent only when declared. `none` is how a reasoning model is
-#                   told to stop reasoning — required on OpenAI's GPT-6 Sol and Luna,
-#                   which take a function tool or a `temperature` only at `none`
+#   reasoning_effort sent only when declared; utility entries may use `none`.
+#                   OpenAI chat uses Responses so reasoning and tools work together
 #   response_format json_schema (default) | json_object | none — what the endpoint
 #                   accepts. Below json_schema the schema is written into the prompt
 #   chat            false = utility surfaces only, hidden from the chat picker
 #   profile         raw ModelProfile fields over the model's own profile; `max_input_tokens`
 #                   sets when the agent compacts and when it pages out a large tool result
-#   thinking_level  off | low | medium | high: this entry's thinking, over AGENT_THINKING
+#   thinking_level  low | medium | high for chat, over AGENT_THINKING; chat promotes
+#                   `off` to the agent level. Utility entries may still disable thinking
 #   thinking_style  the thinking dialect when the name and URL do not tell it:
-#                   qwen | openai | anthropic | gemini | openrouter | chat_template (llama.cpp)
-#   extra_body      forwarded as-is (vendor thinking switches etc.)
+#                   qwen | deepseek | openai | anthropic | gemini | openrouter | chat_template (llama.cpp)
+#   extra_body      vendor settings; chat overrides switches that hide/disable thinking
 #
 # The chat picker shows the entries whose key is present, in this order; the
 # FIRST is the default (or set DEFAULT_MODEL).
@@ -120,17 +120,17 @@ MODELS:
     llm_type: openai
     api_key: OPENAI_API_KEY
     base_url: https://api.openai.com/v1
-    model: gpt-6-sol              # not gpt-6.1-sol: OpenAI's model page says "Use the Responses
-                                  # API for tool calling. Chat Completions is supported without
-                                  # tool calling", and the agent speaks Chat Completions
+    model: gpt-6-sol
     model_env: OPENAI_CHAT_MODEL
-    temperature: 0.1
     supports_image: true
-    reasoning_effort: none        # REQUIRED for an agent. OpenAI's GPT-6 guide: GPT-6 Sol and
-                                  # Luna take "function calling in Chat Completions only with
-                                  # reasoning_effort: none", and temperature only at `none`.
-                                  # gpt-5.6-terra 400ed the same way (measured 2026-09-10).
-                                  # Without this the picker's OpenAI entry cannot call a tool.
+    # GPT-6 Sol requires Responses for tools with reasoning (OpenAI model docs).
+    # A summary is opt-in; encrypted reasoning carries context across tool
+    # rounds when store is false, without relying on server-side response state.
+    use_responses_api: true
+    output_version: responses/v1
+    reasoning: {summary: auto}
+    store: false
+    include: [reasoning.encrypted_content]
   claude:
     llm_type: anthropic           # the vendor's own API, not its OpenAI-compatible layer:
                                   # prompt caching and the thinking channel are only there
@@ -398,9 +398,10 @@ UTILS_OCR_MODEL: [local-ocr]
 #     empty = ~/.mirobody/knowledge/medref.sqlite3. No file, no offline tier.
 #   KNOWLEDGE_ONLINE — also search PubMed (Europe PMC) and ClinicalTrials.gov; each
 #     search sends its words to those hosts, never record data
-#   AGENT_THINKING — every chat model thinks between its tool calls at this level
-#                    (off | low | medium | high; medium when unset); an entry's
-#                    thinking_level overrides it
+#   AGENT_THINKING — request native thinking for every chat model at this level
+#                    (low | medium | high; off/unset becomes medium). A positive
+#                    thinking_level overrides it. doctor --probe checks whether
+#                    the endpoint actually streams thinking; utility routes are unchanged
 
 ALLOWED_TOOLS:
 

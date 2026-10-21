@@ -15,7 +15,8 @@ Families, chosen by `llm_type`:
 
 * `openai` / `openrouter`: any OpenAI-compatible endpoint (base_url +
   api_key), built on `ReasoningChatOpenAI` so DashScope/DeepSeek
-  `reasoning_content` reaches `additional_kwargs`; `auth_type: azure_wif`
+  `reasoning_content` and OpenRouter reasoning details survive the tool loop;
+  `auth_type: azure_wif`
   swaps the key for an Entra bearer-token provider.
 * `google_anthropic_vertex`: Claude on Vertex through `init_chat_model`; the
   prompt-cache breakpoint and the extended-thinking budget travel in
@@ -33,7 +34,7 @@ means the same thing by "high". Only the families the shipped configuration
 uses are declared dependencies; `init_chat_model` names the missing package
 for any other.
 
-What an entry DECLARES, this module keeps (#70). An entry's own `thinking`
+By default, what an entry DECLARES, this module keeps (#70). An entry's own `thinking`
 block, `reasoning` dict or `output_config` is never overwritten by the
 translation of an effort level: the level fills in what the entry left
 unsaid (`setdefault`, the way `cache_control` was always applied). Before
@@ -41,6 +42,11 @@ this, `_vertex_anthropic_kwargs` assigned `thinking` unconditionally, so an
 entry that declared the adaptive shape for Claude Opus 4.7+ had it replaced
 with `{"type": "enabled", "budget_tokens": N}` (which those models reject
 with a 400) and no configuration could avoid it.
+
+The interactive harness opts into `require_thinking`: native thinking and its
+visible summaries are requested even when an entry disables them. Utility
+entries retain their own settings. This is a request policy, not a promise that
+an endpoint emits reasoning; `doctor --probe` checks the actual stream.
 """
 
 from __future__ import annotations
@@ -49,13 +55,16 @@ import inspect
 import logging
 import os
 import re
+from copy import deepcopy
 from functools import lru_cache
 from collections.abc import Callable
 from typing import Any
+from urllib.parse import urlparse
 
 from mirobody.kernel.ops import is_driver_exception
 from mirobody.utils.config import safe_read_cfg
 from mirobody.utils.config.llm import is_endpoint_name, vertex_host, vertex_location
+from .messages import user_turn_start
 
 logger = logging.getLogger(__name__)
 
@@ -126,6 +135,8 @@ def thinking_dialect(entry: dict | None, model_name: str, base_url: str = "") ->
     host = (base_url or "").lower()
     if "openrouter.ai" in host:
         return "openrouter"
+    if urlparse(host).hostname == "api.deepseek.com":
+        return "deepseek"
     if "claude" in model:
         return "anthropic"
     if "gemini" in model:
@@ -211,7 +222,7 @@ def _openai_thinking_kwargs(entry: dict, model_name: str, base_url: str, effort:
         reasoning = dict(body.get("reasoning") or {})
         if effort == "off":
             reasoning.setdefault("enabled", False)
-        else:
+        elif "max_tokens" not in reasoning:
             reasoning.setdefault("effort", effort)
         body["reasoning"] = reasoning
         return {"extra_body": body}
@@ -222,6 +233,13 @@ def _openai_thinking_kwargs(entry: dict, model_name: str, base_url: str, effort:
         template_kwargs.setdefault("enable_thinking", effort != "off")
         body["chat_template_kwargs"] = template_kwargs
         return {"extra_body": body}
+    if dialect == "deepseek":
+        body = dict(entry.get("extra_body") or {})
+        body.setdefault("thinking", {"type": "disabled" if effort == "off" else "enabled"})
+        kwargs = {"extra_body": body}
+        if effort != "off":
+            kwargs["reasoning_effort"] = entry.get("reasoning_effort") or ("low" if effort == "low" else "high")
+        return kwargs
     if dialect == "qwen":
         body = dict(entry.get("extra_body") or {})
         if effort == "off":
@@ -259,30 +277,56 @@ def _openai_thinking_kwargs(entry: dict, model_name: str, base_url: str, effort:
 
 def _reasoning_text(message: Any) -> str | None:
     """A response message's or delta's reasoning text: `reasoning_content`
-    (DeepSeek, DashScope, llama.cpp) or `reasoning` (OpenRouter)."""
+    (DeepSeek, DashScope, llama.cpp), or OpenRouter's text/summary. Encrypted
+    details and signatures are transport state, never display text."""
     if not isinstance(message, dict):
         return None
     text = message.get("reasoning_content") or message.get("reasoning")
-    return text if isinstance(text, str) and text else None
+    if isinstance(text, str) and text:
+        return text
+    parts = []
+    for detail in message.get("reasoning_details") or []:
+        if isinstance(detail, dict):
+            key = {"reasoning.text": "text", "reasoning.summary": "summary"}.get(detail.get("type"))
+            if key and isinstance(detail.get(key), str):
+                parts.append(detail[key])
+    return "".join(parts) or None
 
 
-def resend_reasoning(messages: list, wire: Any) -> None:
+def _capture_reasoning(message: Any, extra: dict) -> None:
+    if not isinstance(message, dict):
+        return
+    if reasoning := _reasoning_text(message):
+        extra["reasoning_content"] = (extra.get("reasoning_content") or "") + reasoning
+    if isinstance(details := message.get("reasoning_details"), list) and details:
+        # LangChain merges indexed dicts and concatenates repeated `format`
+        # strings. A nested list retains OpenRouter's exact fragment order,
+        # signatures and encrypted data for the required tool continuation.
+        extra["_reasoning_detail_chunks"] = [deepcopy(details)]
+
+
+def resend_reasoning(messages: list, wire: Any, *, all_turns: bool = False) -> None:
     """Copy each assistant message's captured `reasoning_content` onto its wire
     dict, for the messages after the last human one only: the current turn.
 
-    Without it a thinking model starts every tool round of a turn from blank
-    thinking. llama.cpp renders the field back into the MiniCPM5 template's
-    `<think>` block (checked with /apply-template, 2026-10-10); DeepSeek and
-    DashScope accept it (200). Earlier turns are left out: the templates and
-    DeepSeek both drop them, and they answered another question. Nothing is
-    sent when the two lists do not line up one to one.
+    llama.cpp renders the field back into the MiniCPM5 template's `<think>`
+    block (checked with /apply-template, 2026-10-10). DeepSeek's tool protocol
+    requires reasoning from all retained assistant turns, even those without
+    calls (api-docs.deepseek.com/guides/thinking_mode, 2026-10-21); that endpoint
+    sets `all_turns`. Other endpoints retain the current-turn behavior. Nothing
+    is sent when the two lists do not line up one to one.
     """
     if not isinstance(wire, list) or len(wire) != len(messages):
         return
-    last_human = max((i for i, m in enumerate(messages) if m.type == "human"), default=-1)
-    for message, sent in zip(messages[last_human + 1:], wire[last_human + 1:], strict=True):
-        reasoning = (getattr(message, "additional_kwargs", None) or {}).get("reasoning_content")
-        if message.type == "ai" and isinstance(reasoning, str) and reasoning and isinstance(sent, dict):
+    start = 0 if all_turns else user_turn_start(messages)
+    for message, sent in zip(messages[start:], wire[start:], strict=True):
+        extra = getattr(message, "additional_kwargs", None) or {}
+        if message.type != "ai" or not isinstance(sent, dict):
+            continue
+        details = [item for chunk in extra.get("_reasoning_detail_chunks") or [] if isinstance(chunk, list) for item in chunk]
+        if details:
+            sent["reasoning_details"] = deepcopy(details)
+        elif isinstance(reasoning := extra.get("reasoning_content"), str) and reasoning:
             sent["reasoning_content"] = reasoning
 
 
@@ -290,34 +334,39 @@ _REASONING_CHAT_OPENAI: type | None = None
 
 
 def reasoning_chat_openai() -> type:
-    """``ChatOpenAI`` that keeps DashScope/DeepSeek/llama.cpp ``reasoning_content``.
+    """``ChatOpenAI`` that keeps compatible endpoints' reasoning and tool state.
 
     langchain-openai drops this non-OpenAI field both ways: it keeps the
     reasoning TOKEN COUNT in usage but not the TEXT, and its request converter
-    sends only OpenAI's own assistant fields. This subclass captures the field
+    sends only OpenAI's own assistant fields. This subclass captures the fields
     from the streaming delta and the non-stream message, where
     `messages.message_reasoning` finds it, and sends it back within a turn
-    (`resend_reasoning`). Built lazily so langchain-openai is imported only
-    when a client is.
+    (`resend_reasoning`). OpenRouter's signed/encrypted reasoning details stay
+    intact; only their text or summary is exposed. Built lazily so
+    langchain-openai is imported only when a client is.
     """
     global _REASONING_CHAT_OPENAI
     if _REASONING_CHAT_OPENAI is None:
         from langchain_openai import ChatOpenAI
+        from pydantic import PrivateAttr
 
         class ReasoningChatOpenAI(ChatOpenAI):
+            _reasoning_all_turns: bool = PrivateAttr(default=False)
+
             def _get_request_payload(self, input_, *, stop=None, **kwargs):
                 payload = super()._get_request_payload(input_, stop=stop, **kwargs)
-                resend_reasoning(self._convert_input(input_).to_messages(), payload.get("messages"))
+                all_turns = bool(payload.get("tools")) and (
+                    self._reasoning_all_turns or urlparse(str(self.openai_api_base or "")).hostname == "api.deepseek.com"
+                )
+                resend_reasoning(self._convert_input(input_).to_messages(), payload.get("messages"), all_turns=all_turns)
                 return payload
 
             def _convert_chunk_to_generation_chunk(self, chunk, default_chunk_class, base_generation_info):
                 gen = super()._convert_chunk_to_generation_chunk(chunk, default_chunk_class, base_generation_info)
                 try:
                     choices = (chunk or {}).get("choices") or []
-                    reasoning = _reasoning_text(choices[0].get("delta")) if choices else None
-                    if gen is not None and reasoning:
-                        extra = gen.message.additional_kwargs
-                        extra["reasoning_content"] = (extra.get("reasoning_content") or "") + reasoning
+                    if gen is not None and choices:
+                        _capture_reasoning(choices[0].get("delta"), gen.message.additional_kwargs)
                 except Exception as exc:  # reasoning capture must never break generation
                     logger.debug("reasoning capture (stream) skipped: %s", type(exc).__name__)
                 return gen
@@ -327,9 +376,8 @@ def reasoning_chat_openai() -> type:
                 try:
                     payload = response if isinstance(response, dict) else response.model_dump()
                     choice = (payload.get("choices") or [{}])[0]
-                    reasoning = _reasoning_text(choice.get("message"))
-                    if reasoning and result.generations:
-                        result.generations[0].message.additional_kwargs.setdefault("reasoning_content", reasoning)
+                    if result.generations:
+                        _capture_reasoning(choice.get("message"), result.generations[0].message.additional_kwargs)
                 except Exception as exc:
                     logger.debug("reasoning capture (non-stream) skipped: %s", type(exc).__name__)
                 return result
@@ -756,12 +804,100 @@ def _generic_kwargs(alias: str, entry: dict, resolve: Resolver) -> dict[str, Any
     return kwargs
 
 
+def _chat_thinking_entry(
+    entry: dict[str, Any], thinking: str | None, resolve: Resolver, alias: str,
+) -> tuple[dict[str, Any], str | None]:
+    """Apply the interactive contract without changing the utility entry or dialect.
+
+    Explicit shapes and positive budgets remain meaningful (#70); disabling
+    thinking or hiding a supported summary conflicts with the chat contract.
+    Unknown transports receive no guessed parameter. An explicit legacy
+    Chat Completions `reasoning_effort: none` remains intact because GPT-6
+    function calling requires it there; Responses is the shipped chat route.
+    """
+    if entry.get("chat") is False:
+        return entry, normalize_thinking(entry.get("thinking_level"))
+    entry = deepcopy(entry)
+    effort = normalize_thinking(thinking)
+    if effort in (None, "off"):
+        effort = "medium"
+    family = _llm_type(entry)
+    model = str(entry["model"])
+    base = _base_url_override(entry, resolve) or _resolve_ref(entry.get("base_url"), resolve) or ""
+    dialect = thinking_dialect(entry, model, str(base))
+
+    if family in ANTHROPIC_VERTEX_TYPES or family == "anthropic":
+        request = entry.setdefault("model_kwargs", {}) if family in ANTHROPIC_VERTEX_TYPES else entry
+        block = dict(request.get("thinking") or {})
+        if block.get("type") == "disabled":
+            request.pop("thinking", None)
+        elif block.get("type") == "adaptive":
+            block["display"] = "summarized"
+            request["thinking"] = block
+        elif block.get("type") == "enabled" and block.get("budget_tokens") == 0:
+            block["budget_tokens"] = THINKING_BUDGET_TOKENS[effort]
+            request["thinking"] = block
+        output = dict(request.get("output_config") or {})
+        if output.get("effort") in ("none", "off"):
+            output["effort"] = effort
+            request["output_config"] = output
+        return entry, effort
+    if family in GEMINI_TYPES:
+        return entry, effort  # _gemini_kwargs requests both the budget and thoughts
+    if family in OPENAI_COMPATIBLE_TYPES:
+        body = entry.setdefault("extra_body", {})
+        if dialect == "openrouter":
+            reasoning = dict(body.get("reasoning") or {})
+            reasoning.update(enabled=True, exclude=False)
+            if reasoning.get("effort") in ("none", "off"):
+                reasoning.pop("effort")
+            if reasoning.get("max_tokens") == 0:
+                reasoning.pop("max_tokens")
+            body["reasoning"] = reasoning
+            return entry, effort
+        if dialect == "chat_template":
+            body.setdefault("chat_template_kwargs", {})["enable_thinking"] = True
+            return entry, effort
+        if dialect == "qwen":
+            body["enable_thinking"] = True
+            return entry, effort
+        if dialect == "deepseek":
+            body["thinking"] = {"type": "enabled"}
+            if entry.get("reasoning_effort") in ("none", "off"):
+                entry.pop("reasoning_effort")
+            return entry, effort
+        if dialect == "openai":
+            responses = entry.get("use_responses_api") is True or (
+                isinstance(entry.get("reasoning"), dict) and entry.get("use_responses_api") is not False
+            )
+            if responses:
+                reasoning = dict(entry.get("reasoning") or {})
+                if reasoning.get("effort") in (None, "none", "off"):
+                    reasoning["effort"] = effort
+                reasoning["summary"] = "auto"
+                entry["reasoning"] = reasoning
+                entry.pop("reasoning_effort", None)
+                for field in ("temperature", "top_p"):
+                    entry.pop(field, None)
+                return entry, effort
+            if entry.get("reasoning_effort") == "none":
+                logger.warning("model %s: Chat Completions thinking is disabled by its tool-call contract; use a Responses entry", alias)
+                return entry, None
+            known_host = not base or urlparse(str(base)).hostname == "api.openai.com" or entry.get("auth_type") == "azure_wif"
+            known_model = model.lower().startswith(("gpt-5", "gpt-6", "o1", "o3", "o4"))
+            if (known_host and known_model) or entry.get("thinking_style") == "openai":
+                return entry, effort
+    logger.warning("model %s: native thinking is unverified for llm_type=%s dialect=%s; run mirobody doctor --probe", alias, family, dialect)
+    return entry, None
+
+
 def build_chat_model(
     entry: dict[str, Any],
     *,
     alias: str = "",
     thinking: str | None = None,
     resolve: Resolver | None = None,
+    require_thinking: bool = False,
 ):
     """One `MODELS` entry → one LangChain chat model.
 
@@ -779,10 +915,13 @@ def build_chat_model(
     family = llm_type = _llm_type(entry)
     if thinking is None:
         thinking = normalize_thinking(entry.get("thinking_level"))
+    if require_thinking:
+        entry, thinking = _chat_thinking_entry(entry, thinking, resolve, alias)
     thinking_level = thinking or "-"
 
     if family in OPENAI_COMPATIBLE_TYPES:
         client = reasoning_chat_openai()(**_openai_kwargs(alias, entry, thinking, resolve), model=model)
+        client._reasoning_all_turns = thinking_dialect(entry, model, str(client.openai_api_base or "")) == "deepseek"
     elif family in ANTHROPIC_VERTEX_TYPES:
         from langchain.chat_models import init_chat_model
 
@@ -849,9 +988,11 @@ def build_llm_clients(
     *,
     resolve: Resolver | None = None,
     thinking: str | None = None,
+    require_thinking: bool = False,
 ) -> dict[str, Any]:
     """One chat model per `MODELS` entry, thinking at `thinking` unless the
-    entry names its own `thinking_level`.
+    entry names its own `thinking_level`. `require_thinking` applies the
+    interactive policy to chat entries; utility entries keep their settings.
 
     An entry whose key is not set becomes a `_PlaceholderClient` rather than
     an error, so a zero-key deployment still boots and the model picker can
@@ -872,7 +1013,15 @@ def build_llm_clients(
             continue
         try:
             level = None if "thinking_level" in entry else normalize_thinking(thinking)
-            clients[model] = build_chat_model(entry, alias=model, thinking=level, resolve=resolve)
+            if require_thinking and entry.get("chat") is not False:
+                level = normalize_thinking(entry.get("thinking_level"))
+                if level in (None, "off"):
+                    level = normalize_thinking(thinking)
+                clients[model] = build_chat_model(entry, alias=model, thinking=level, resolve=resolve, require_thinking=True)
+            else:
+                if require_thinking:
+                    level = None
+                clients[model] = build_chat_model(entry, alias=model, thinking=level, resolve=resolve)
         except MissingKeyError as exc:
             logger.warning("[%s] model %s: %s %s not set — placeholder", class_name, model, exc.field, exc.key)
             hint = "Set it in .env to the URL of the model server (…/v1)." if isinstance(exc, MissingEndpointError) else ""
