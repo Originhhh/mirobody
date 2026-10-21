@@ -71,6 +71,19 @@
   device samples (an intraday heart-rate stream, a burst of uploads) were shown
   at one instant. They now keep the stored microseconds, trailing zeros trimmed;
   whole-second times and bucket periods read as before.
+- **A tool directory configured by path could lose its tools.** Given an
+  absolute path to an importable package, the loader fell back to loading files
+  by location whenever the server ran outside the checkout, and every module
+  with a relative import was skipped: 4 of the 9 built-in tools, including
+  `query_health_indicators`. The directory's own package is now found from its
+  ancestry and the existing import roots; the agent and task loaders share it.
+  Logical import names survive symlinked package directories and import roots,
+  so their modules still load relative helpers outside the checkout.
+  When Python imports that package from somewhere else (a source checkout
+  beside a non-editable install), the directory resolves as before, so the
+  default `mirobody/agent/tools` still reaches the installed copy, and a
+  warning names both locations. This also works for a regular package below a
+  namespace parent that has no `__init__.py`.
 
 ## 1.5.7
 

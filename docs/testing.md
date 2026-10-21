@@ -93,6 +93,7 @@ a clone can re-run it.
 | `test_postgres_regressions.py` | actual schema, writer, confirmation, statistics, Apple import/re-import and citation lifecycle | needs `[app,test]` and `MIROBODY_TEST_POSTGRES_DSN`; CI supplies PostgreSQL 17 |
 | `test_extraction_regressions.py` | signed values, range endpoints, unreadable exponents and unverified answer provenance | application tests; the database gate additionally checks all nine views, windows and elected inputs |
 | `test_citations.py` | every number in an answer traced to the rows it cites (`kernel.citations`) | library-only; the agent, the benchmark and the training judge run the same check |
+| `test_plugin_dir_regressions.py` | configured directories retain relative imports through symlinked packages and import roots; a checkout beside a non-editable install still reaches the installed copy, including below a namespace parent; plain directories keep their own files | library-only; toy packages under `tmp_path` |
 | `test_local_model_contract.py` | the GPU and CPU presets agree on weights, context and the chat template | reads `docker/*.ini` and `docker/minicpm5-2b.jinja`; no model download |
 | `test_windows_probe_regressions.py` | the Windows benchmark's speed probes fail on HTTP errors, unfinished streams and timeouts | synthetic local HTTP server; CI also runs it on `windows-latest` |
 | `test_windows_scripts_regressions.py` | the Windows benchmark's shell orchestration, against stubbed commands | runs the scripts under `bash` with a stubbed `docker`; skips on Windows |
