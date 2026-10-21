@@ -109,6 +109,11 @@ class EphemeralStore:
 
     @staticmethod
     def _hash(key: str) -> bytes:
+        """Stable index for encrypted state, never a password verifier.
+
+        Garmin OAuth request tokens form these keys. Salting this index per
+        request would make server and worker lose the same persisted state.
+        """
         return hashlib.sha256(key.encode("utf-8")).digest()
 
     def _seal(self, value: str) -> str:

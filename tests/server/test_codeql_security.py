@@ -131,6 +131,7 @@ def test_storage_failure_log_never_includes_vendor_exception_text(caplog):
             answer = storage_failure("download", "synthetic-key", exc)
     assert message not in caplog.text
     assert answer == "download failed (ValueError)"
+    assert "synthetic-key" not in caplog.text
 
 
 def test_standardize_error_cannot_echo_an_arbitrary_extraction_exception(monkeypatch):
@@ -149,3 +150,40 @@ def test_standardize_error_cannot_echo_an_arbitrary_extraction_exception(monkeyp
     assert response.status_code == 400
     assert "synthetic-private-report-content" not in response.text
     assert response.json()["error"]["code"] == "extraction_failed"
+
+
+def test_failed_provider_decryption_logs_only_ciphertext_fingerprint(monkeypatch, caplog):
+    service_module = importlib.import_module("mirobody.collect.providers._platform.database_service")
+    monkeypatch.setattr(service_module, "decrypt_string_aes_gcm", lambda value: None)
+    with caplog.at_level(logging.ERROR):
+        assert service_module.ProviderDatabaseService()._decrypt("synthetic-ciphertext", "7") is None
+    assert "synthetic-ciphertext" not in caplog.text
+    assert secret_fingerprint("synthetic-ciphertext") in caplog.text
+
+
+def test_unavailable_model_diagnostic_contains_metadata_not_key_value(monkeypatch, caplog):
+    from mirobody.utils.config import llm
+    from mirobody.utils.llm import utils
+
+    spec = llm.RouteSpec(alias="synthetic", model="synthetic", api_key_env="SYNTHETIC_API_KEY", base_url="")
+    monkeypatch.setattr(llm, "route_candidates", lambda surface: [spec])
+    monkeypatch.setattr(llm, "read_api_key", lambda name: "synthetic-private-value")
+    monkeypatch.setattr(llm, "_fits", lambda surface, candidate: True)
+    monkeypatch.setattr(utils, "resolve_route", lambda surface: None)
+    with caplog.at_level(logging.ERROR):
+        assert utils._route(None, None, "text") is None
+    assert "SYNTHETIC_API_KEY" in caplog.text
+    assert "synthetic-private-value" not in caplog.text
+
+
+@pytest.mark.asyncio
+async def test_existing_provider_link_never_regenerates_internal_email(monkeypatch):
+    module = importlib.import_module("mirobody.user.platform")
+
+    async def existing(**kwargs):
+        return [{"user_id": "7", "is_del": False, "reconnect": 0}]
+
+    monkeypatch.setattr(module, "execute_query", existing)
+    service = module.PlatformUserService()
+    monkeypatch.setattr(service, "_generate_unique_email", lambda *args: pytest.fail("existing link must retain its account"))
+    assert await service.find_or_create_user_by_provider_id("theta_garmin", "102", "UTC") == "7"
