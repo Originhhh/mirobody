@@ -50,3 +50,29 @@ named by model, quantization, prompt version and case set, taken on
 2026-09-28 on a 48 GB Apple-silicon machine with `llama-server --reasoning on --jinja
 -c 16384 -ngl 99` at temperature 0. The models' reasoning text was removed
 from them. They are single runs on synthetic tasks, not success rates.
+
+## Code-tool capability
+
+`eval_language_probe.py` asks the same eight aggregation questions of the
+same local model with only the code tool changed: JavaScript `eval` (QuickJS,
+the runtime `CodeInterpreterMiddleware` uses) or `python_exec`. The prompt is
+neutral about language. Method, results and caveats are in
+[eval_language_results.md](eval_language_results.md).
+
+`regress_code_tool.py` is the short regression: it runs the two cases where
+the JS arm failed repeatedly (`bp_q2`, `steps_august`) and requires the Python
+arm to pass both with zero code errors. Run it before changing the code tool:
+
+```bash
+python benchmarks/local_agent/regress_code_tool.py \
+  --base http://127.0.0.1:8088/v1 --model minicpm5-2b --compare
+```
+
+`--compare` also runs the JS arm and prints the gap; only the Python arm is
+asserted. The full eight-case probe is the slower, wider version:
+
+```bash
+python benchmarks/local_agent/eval_language_probe.py \
+  --base http://127.0.0.1:8088/v1 --model minicpm5-2b \
+  --tool python --out /tmp/eval-python.json
+```

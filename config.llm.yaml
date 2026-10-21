@@ -188,7 +188,10 @@ MODELS:
     temperature: 0                # MiniCPM5-2B Q4_K_M graded 194-212 of 248 at 0 and 182-200 at
                                   # its card's 1.0/0.95/min_p 0 (benchmarks/local_models, 2026-10-10)
     thinking_style: chat_template # thinking on/off reaches the model's chat template
-    eval_fetch: false             # one path for a 2B model: query first, then arithmetic in eval
+    code_tool: python             # python_exec, no eval/PTC: MiniCPM5 writes Python
+                                  # into a JS REPL (benchmarks/local_agent). `eval`
+                                  # keeps the QuickJS REPL for cloud models.
+    eval_fetch: false             # ignored when code_tool is not eval
     supports_image: true          # the server says whether the model sees (/props)
     stream_chunk_timeout: 600     # nothing streams while a local model reads the prompt:
                                   # 80 s for the first 8k tokens on a 48 GB Apple-silicon machine; on 4 CPU

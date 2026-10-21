@@ -2,8 +2,8 @@
 
 `MirobodyAgent.generate_response` runs a turn: the chat model of the
 requested `MODELS` entry, the four record tools an external MCP client also
-sees (plus the harness's own filesystem tools, the `eval` REPL and
-`ask_user`), a Postgres-backed virtual filesystem that projects the person's uploads, library and
+sees (plus the harness's own filesystem tools, a code tool (`eval` or
+`python_exec`) and `ask_user`), a Postgres-backed virtual filesystem that projects the person's uploads, library and
 health profile read-only, a LangGraph checkpointer that holds the conversation
 per session, and the middleware that keeps a turn bounded (model-call budget,
 tool-call cap, fault containment, retry governance). Every moving part is
@@ -93,6 +93,14 @@ def eval_fetch(entry: dict[str, Any] | None) -> bool:
     first and then arithmetic on the numbers it returned, as MCP clients do."""
     value = (entry or {}).get("eval_fetch", True)
     return value if isinstance(value, bool) else str(value).strip().lower() not in ("false", "0", "no", "off")
+
+
+def code_tool_for(entry: dict[str, Any] | None) -> str:
+    """The arithmetic surface of a `MODELS` entry: `eval` (the QuickJS REPL),
+    `python` (the local sandbox tool), or `none`. Unknown values fall back to
+    `eval`, the behaviour before the key existed."""
+    value = str((entry or {}).get("code_tool") or "eval").strip().lower()
+    return value if value in ("eval", "python", "none") else "eval"
 
 
 def _latest_question(messages: list) -> str:
@@ -230,6 +238,7 @@ class MirobodyAgent:
         model: str = "",
         knowledge: dict[str, str] | None = None,
         fetch_in_eval: bool = True,
+        code_tool: str = "eval",
     ) -> str:
         """Build system prompt with tools, time, user context, health-profile core
         and where `model` and the document readers run."""
@@ -249,6 +258,7 @@ class MirobodyAgent:
                 knowledge=knowledge,
                 deployment_facts=deployment_facts(model),
                 eval_fetch=fetch_in_eval,
+                code_tool=code_tool,
             )
             logger.info("Built system prompt successfully")
             return system_prompt
@@ -521,6 +531,7 @@ class MirobodyAgent:
         supports_file_block: bool = False,
         supports_image: bool = True,
         fetch_in_eval: bool = True,
+        code_tool: str = "eval",
     ) -> tuple[Any, Any]:
         """The compiled graph and the backend it reads through."""
         try:
@@ -536,8 +547,19 @@ class MirobodyAgent:
 
             # The stack itself (fault containment → retry governance → invalid-call
             # repair → empty-answer repair → model-call budget → per-tool caps →
-            # interpreter) is `harness.standard_middleware`.
-            from langchain_quickjs import CodeInterpreterMiddleware
+            # interpreter) is `harness.standard_middleware`. deepagents'
+            # interpreter is QuickJS with PTC, which its docs call a scoped
+            # runtime, not a sandbox; a local 2B model writes Python into it.
+            # A `code_tool: python` entry gets no REPL and no PTC: its
+            # arithmetic is `python_exec`, a chat-only tool.
+            interpreter = None
+            if code_tool == "eval" and "eval" not in self.disallowed_tools:
+                from langchain_quickjs import CodeInterpreterMiddleware
+
+                interpreter = CodeInterpreterMiddleware(
+                    ptc=list(self._PTC_TOOLS) if fetch_in_eval else [],
+                    max_ptc_calls=self._MAX_PTC_CALLS,
+                )
 
             # What this agent adds at the tail: the genotype guard and, last so
             # its decision wins, cross-provider prompt caching. The genotype-safe
@@ -553,22 +575,20 @@ class MirobodyAgent:
                 from .middleware import NoVisionReadMiddleware
                 tail.insert(0, NoVisionReadMiddleware())
 
+            tool_call_limits = {
+                query.TOOL_NAME: self._QUERY_CALL_LIMIT,
+                **{t.name: medical_knowledge.CALL_LIMITS[t.name]
+                   for t in tools if t.name in medical_knowledge.CALL_LIMITS},
+            }
+            if code_tool == "python":
+                tool_call_limits["python_exec"] = 8
             middleware = harness.standard_middleware(
                 retry_limit=self._RETRY_LIMIT,
                 model_call_limit=self.model_call_limit,
                 # A cap on ONE tool rather than on the loop: the health-data tool
                 # is the one a confused model can spin on.
-                tool_call_limits={query.TOOL_NAME: self._QUERY_CALL_LIMIT,
-                                  **{t.name: medical_knowledge.CALL_LIMITS[t.name]
-                                     for t in tools if t.name in medical_knowledge.CALL_LIMITS}},
-                # In-process JS/TS REPL (`eval`). The read-only data tool is
-                # exposed inside it as `tools.<name>`; PTC calls bypass the tool
-                # middleware, so the data tool guards itself.
-                # `DISALLOWED_TOOLS: [eval]` turns the REPL off, as the agent
-                # README says it does: it only ever reached the MCP tool list,
-                # and the interpreter was added regardless.
-                interpreter=None if "eval" in self.disallowed_tools else CodeInterpreterMiddleware(
-                    ptc=list(self._PTC_TOOLS) if fetch_in_eval else [], max_ptc_calls=self._MAX_PTC_CALLS),
+                tool_call_limits=tool_call_limits,
+                interpreter=interpreter,
                 tail=tail,
             )
 
@@ -711,12 +731,22 @@ class MirobodyAgent:
             # `_build_backend` projects them into /uploads/ by file_key
             # (ThFilesBackend over th_files, no byte copy) and the prompt tells
             # the model to read_file them on demand.
+            entry = chat_entries().get(model)
+            code_tool = code_tool_for(entry)
             loaded_tools = await self._load_tools(user_id, session_id)
+            if code_tool == "python":
+                if "python_exec" in (self.disallowed_tools or ()):
+                    code_tool = "none"
+                else:
+                    from .python_tool import python_exec
+
+                    loaded_tools = [*loaded_tools, python_exec]
             scopes = medical_knowledge.scopes() if any(t.name == medical_knowledge.SEARCH for t in loaded_tools) else []
-            fetch_in_eval = eval_fetch(chat_entries().get(model))
+            fetch_in_eval = eval_fetch(entry) if code_tool == "eval" else False
             system_prompt = await self._build_system_prompt(
                 self._get_base_prompt(prompt_name), user_id, loaded_tools, _latest_question(messages), model,
-                knowledge={s: medical_knowledge.SCOPES[s] for s in scopes}, fetch_in_eval=fetch_in_eval)
+                knowledge={s: medical_knowledge.SCOPES[s] for s in scopes}, fetch_in_eval=fetch_in_eval,
+                code_tool=code_tool)
 
             supports_file_block = self._supports_file_block(llm_client)
             supports_image = await asyncio.to_thread(self._supports_image, llm_client, model)
@@ -732,6 +762,7 @@ class MirobodyAgent:
                 supports_file_block=supports_file_block,
                 supports_image=supports_image,
                 fetch_in_eval=fetch_in_eval,
+                code_tool=code_tool,
             )
 
             token_counter = TokenUsageCallback()

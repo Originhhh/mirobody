@@ -126,6 +126,7 @@ async def build_system_prompt(
     knowledge: Mapping[str, str] | None = None,
     deployment_facts: str = "",
     eval_fetch: bool = True,
+    code_tool: str = "eval",
 ) -> str:
     """Render `base_prompt` with tool descriptions, the current time in
     `timezone`, and the user context the template may reference.
@@ -156,6 +157,7 @@ async def build_system_prompt(
         knowledge=dict(knowledge or {}),
         deployment_facts=deployment_facts,
         eval_fetch=eval_fetch,
+        code_tool=code_tool,
     )
 
 

@@ -1,5 +1,17 @@
 ## Unreleased
 
+### Added
+
+- **A local Python sandbox for the chat agent's arithmetic.** Local models
+  (`code_tool: python` on a `MODELS` entry) now get `python_exec` instead of
+  the QuickJS `eval` REPL and its PTC bridge: the tool runs model-written code
+  in a clean subprocess with CPU/memory/file-size limits, a timeout, a
+  temporary directory and no inherited environment. Set
+  `PYTHON_SANDBOX_IMAGE` to run the same code in a Docker container with no
+  network and a read-only root. The local MiniCPM5 entry uses it, because that
+  model writes Python into a JavaScript interpreter
+  (`benchmarks/local_agent/eval_language_results.md`).
+
 ### Changed
 
 - **The hosted way to use your own records is named.** The READMEs offered
