@@ -148,11 +148,9 @@ async def standardize(body: StandardizeRequest, user_id: str = Depends(verify_to
 
     try:
         readings = await parse_text(body.text)
-    except ExtractionError as e:
-        # A fixed sentence (no provider key, or an answer that was not a JSON
-        # array): the caller's to act on, not a server fault. Any other
-        # RuntimeError may quote what it was sent, so it is not echoed.
-        return _error(400, str(e), "extraction_failed", "text")
+    except ExtractionError:
+        # Exception text can grow to include model output or configuration.
+        return _error(400, "Check the configured text model and the document format.", "extraction_failed", "text")
     except Exception as e:
         logger.error("standardize failed: error_type=%s", type(e).__name__, exc_info=not is_driver_exception(e))
         return _error(500, "This extraction could not complete.", "internal_error")

@@ -536,14 +536,14 @@ def create_email_validator(
     Factory function to create the appropriate email validator based on configuration.
     
     Priority:
-    1. Mandrill via SMTP config (if smtp_host contains 'mandrillapp.com', use smtp_pass as API key)
+    1. Mandrill via its exact SMTP hostname, using smtp_pass as the API key
     2. SMTP configuration (if smtp_host, smtp_user, smtp_pass are provided)
     3. Mandrill configuration (if mandrill_api_key is provided)
     4. DummyEmailCodeValidator (fallback)
     """
     
-    # Priority 1: Auto-detect Mandrill from smtp_host
-    if smtp_host and "mandrillapp.com" in smtp_host.lower() and smtp_pass and from_email and template:
+    # A substring also matched attacker-controlled lookalike hostnames.
+    if smtp_host.rstrip(".").lower() == "smtp.mandrillapp.com" and smtp_pass and from_email and template:
         return MandrillEmailValidator(
             apiKey          = smtp_pass,  # Use smtp_pass as Mandrill API key
             template        = template,

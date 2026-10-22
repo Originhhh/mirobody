@@ -669,13 +669,8 @@ class Config:
 
     @staticmethod
     def to_masked_str(s: str) -> str:
-        n = len(s)
-        if n <= 0:
-            return ""
-        if n < 6:
-            return "************"
-
-        return f"{s[:3]}******{s[n-3:]}"
+        """Report presence without exposing even a short credential fragment."""
+        return "[configured]" if s else ""
 
     #-------------------------------------------------------------------------
 

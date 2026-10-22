@@ -12,23 +12,20 @@ from .req_ctx import get_req_ctx
 
 #-----------------------------------------------------------------------------
 
+# A process-local key prevents offline guessing of names and short credentials.
+_fingerprint_key = secrets.token_bytes(32)
+
+
 def secret_fingerprint(secret: str | None) -> str:
-    """A stable, non-reversible handle for a credential, safe to log.
+    """A keyed log handle that correlates only within this process.
 
-    Bearer tokens, ID tokens and OAuth client secrets were being logged whole,
-    and in one case returned to the caller in an HTTP 401 body. Truncation
-    (`token[:50]`, used elsewhere in this repo) is not a fix for a JWT: the
-    first 50 characters are the header plus the start of the *payload*, which
-    is base64 of the claims: email, subject, issuer. It hides the signature,
-    which is the one part that is not sensitive on its own.
-
-    A digest prefix keeps what logging a token is actually for (correlating
-    "this same token failed here and here" across lines) while carrying none
-    of the claims.
+    Plain SHA-256 prefixes let a log reader test guesses for file keys or
+    short credentials. The random key never leaves this process, so logs
+    expose neither a credential fragment nor a reusable unkeyed digest.
     """
     if not secret or not isinstance(secret, str):
         return "<none>"
-    return "sha256:" + hashlib.sha256(secret.encode("utf-8")).hexdigest()[:12]
+    return "hmac-sha256:" + hmac.digest(_fingerprint_key, secret.encode("utf-8"), "sha256").hex()[:12]
 
 #-----------------------------------------------------------------------------
 

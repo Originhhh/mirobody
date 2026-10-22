@@ -333,7 +333,8 @@ class PlatformUserService:
             return []
 
     def _generate_unique_email(self, provider_slug: str, provider_user_id: str) -> str:
-        provider_hash = hashlib.md5(f"{provider_slug}_{provider_user_id}".encode()).hexdigest()[:8]
+        # A 32-bit prefix could map distinct provider accounts to one email.
+        provider_hash = hashlib.sha256(f"{provider_slug}_{provider_user_id}".encode()).hexdigest()[:32]
         return f"{provider_slug}_{provider_hash}@theta.local"
 
 
