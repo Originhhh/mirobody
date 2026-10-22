@@ -18,6 +18,9 @@ on:
     branches: [ main ]
   pull_request:
 
+permissions:
+  contents: read
+
 jobs:
   test-build:
     runs-on: ubuntu-latest
@@ -231,6 +234,7 @@ jobs:
         python -c "import mirobody; print(f'Mirobody {mirobody.__version__} works on ${{ matrix.os }}')"
 
   summary:
+    permissions: {}
     needs: [test-build, test-import, windows-benchmark]
     runs-on: ubuntu-latest
     if: always()

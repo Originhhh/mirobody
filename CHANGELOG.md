@@ -75,6 +75,21 @@
 
 ### Fixed
 
+- **Security diagnostics could retain credentials and report content.** HTTP
+  helpers now log only response status and error codes, configuration output
+  shows credential presence without fragments, and storage failures omit vendor
+  exception text. Credential/file correlation handles use a process-local keyed
+  digest, so a log reader cannot test guesses against an unkeyed fingerprint.
+  Extraction errors return a fixed public sentence. Local file checks retain
+  resolved-path containment with an explicit directory boundary. Synthetic
+  regression cases exercise traversal, symlinks and diagnostic redaction.
+- **Provider account addresses used only 32 bits of MD5.** Distinct provider
+  identities could share an internal email and therefore reuse one account.
+  New addresses use a 128-bit SHA-256 prefix; existing provider links are still
+  resolved before address generation. A regression pins two invented ids that
+  collided previously. Mandrill detection now matches its exact SMTP hostname,
+  and the test workflow explicitly limits its token to repository reads.
+
 - **A cut medication log suggested an invalid retry.** The shared character-cut
   notice recommended `view=stats`, which `query_medications` refuses. The leading
   cut notice now asks callers to narrow the query using the producing tool's
