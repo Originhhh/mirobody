@@ -1,8 +1,10 @@
 # Documentation
 
-These guides are also published, in English and Chinese, at
-[docs.mirobody.ai](https://docs.mirobody.ai/en/self-host). The site renders the
-files here, so this directory is where they are edited.
+User guides are published in English and Chinese at
+[docs.mirobody.ai](https://docs.mirobody.ai/en/self-host). Short public guides
+live in `docs/site/`; the longer references below document implementation
+details for contributors. The site renders only the files selected in its
+`oss-map.json`, rather than publishing every engineering reference.
 
 ## Start here
 
@@ -10,7 +12,7 @@ files here, so this directory is where they are edited.
 | --- | --- |
 | Run the whole product and see a first answer | [quickstart.md](quickstart.md) ([中文](quickstart.zh-CN.md)) · [walkthrough.md](walkthrough.md) ([中文](walkthrough.zh-CN.md)) |
 | Keep every model on your own machine | [local-models.md](local-models.md) ([中文](local-models.zh-CN.md)) |
-| Choose a model by privacy, quality and cost | [model-choice.md](model-choice.md) ([中文](model-choice.zh-CN.md)) · [local-models-roadmap.md](local-models-roadmap.md) ([中文](local-models-roadmap.zh-CN.md)) |
+| Choose local, cloud or hybrid models | [model-choice.md](model-choice.md) ([中文](model-choice.zh-CN.md)) |
 | Back up and restore a deployment | [backup-restore.md](backup-restore.md) |
 
 ## How it works

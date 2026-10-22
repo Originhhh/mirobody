@@ -174,7 +174,7 @@ Also in 1.5.4, and not on the list (each in the [CHANGELOG](../CHANGELOG.md)):
 ### Then, training
 
 This is what 1.6.0 ships, as Mirobody's own model
-([model-choice.md](model-choice.md#coming-in-160-a-mirobody-model)). P0 is
+([model-choice.md](model-choice.md)). P0 is
 where 1.5.4 leaves it: the harness changes above; the evaluation published in
 [`benchmarks/local_models/`](../benchmarks/local_models/README.md) and
 [`benchmarks/local_ocr/`](../benchmarks/local_ocr/README.md), with

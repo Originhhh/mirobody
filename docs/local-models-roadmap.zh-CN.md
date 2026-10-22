@@ -117,7 +117,7 @@ GLM-OCR 官方只有四种提示：`Text Recognition:`、`Table Recognition:`、
 
 ### 再训练
 
-这就是 1.6.0 要交付的，作为 Mirobody 自己的模型发布（[model-choice.zh-CN.md](model-choice.zh-CN.md#160-预告mirobody-自己的模型)）。
+这就是 1.6.0 要交付的，作为 Mirobody 自己的模型发布（[model-choice.zh-CN.md](model-choice.zh-CN.md)）。
 1.5.4 把 P0 做到了这里：上面的 harness 改动；评测发布在 [`benchmarks/local_models/`](../benchmarks/local_models/README.md) 和
 [`benchmarks/local_ocr/`](../benchmarks/local_ocr/README.md)，MiniCPM5-2B 的基线已记下（2026-10-06），云端参照也一起跑了。
 当前回归目标是从固定版本语料重新导出真值的 100 道多样化问题。训练样本与独立留出的测试来源另行准备；

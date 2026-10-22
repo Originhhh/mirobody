@@ -53,6 +53,11 @@
 
 ### Changed
 
+- **Public guides were too dense and read like translations.** English and
+  Chinese setup and model guides now focus on the reader’s task. Concise
+  bilingual guides cover data import, tools, device integration and backups;
+  detailed engineering and benchmark records remain linked references.
+
 - **The bundled web client follows the harness's work and answer channels.**
   First visible reasoning/answer blocks now reach the interface immediately,
   while subsequent tokens stay batched. The work panel tracks concurrent

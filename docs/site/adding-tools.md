@@ -1,0 +1,47 @@
+# Adding a tool
+
+Add Python tools without changing the installed Mirobody package. The engine
+discovers configured modules and exposes their tools to the agent and MCP clients.
+
+## Create a module
+
+Save a function with type hints and a descriptive docstring in your tool directory:
+
+```python
+# my_tools/arithmetic.py
+__tools__ = ("add_numbers",)
+
+
+def add_numbers(a: float, b: float) -> dict:
+    """Add two numbers.
+
+    Args:
+        a: First number.
+        b: Second number.
+    """
+    return {"sum": a + b}
+```
+
+Register the directory in your configuration overlay, retaining the built-in path:
+
+```yaml
+MCP_TOOL_DIRS:
+  - mirobody/agent/tools
+  - my_tools
+```
+
+Restart the application to load it, then inspect `tools/list` with an MCP client.
+Files beginning with `_` are ignored. For classes, use a name ending in
+`Service`; `__tools__` explicitly limits which public methods are exposed.
+
+## Identity and access
+
+A tool needing the authenticated record context can declare `user_info`.
+The engine injects it and does not expose it as a model-supplied argument.
+Enforce record ownership and permissions before reading or changing data;
+never accept a model-provided user ID as authorization.
+
+Use the shared observation writer and query authority when handling health
+records. Keep personal values and vendor exception messages out of logs.
+For package entry points, citations and full examples, see the
+[tool development reference](../../mirobody/agent/tools/README.md).
