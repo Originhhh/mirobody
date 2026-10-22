@@ -107,9 +107,14 @@ LIST=$(curl -s -X POST "$BASE/mcp" -H 'Content-Type: application/json' \
 NAMES=$(echo "$LIST" | jqp "','.join(sorted(t['name'] for t in d['result']['tools']))")
 EXPECT="convert_unit,normalize_unit,query_genetic_data,query_health_indicators,query_medications,query_pharmacogenomics,resolve_indicator"
 # The optional knowledge pair is advertised only while a source is available.
-# Read availability independently of tools/list so missing registration fails.
+# Load the server's YAML overlays before checking availability independently
+# of tools/list, so configured tiers and missing registration are both checked.
 KNOWLEDGE_AVAILABLE=$(docker exec "$CONTAINER" python -c \
-  'from mirobody.agent.tools.knowledge_service import MedicalKnowledgeService; print(int(MedicalKnowledgeService.available()))' \
+  'import asyncio
+from mirobody.utils.config import Config
+from mirobody.agent.tools.knowledge_service import MedicalKnowledgeService
+asyncio.run(Config.init())
+print(int(MedicalKnowledgeService.available()))' \
   2>/dev/null | tail -1)
 if [ "$KNOWLEDGE_AVAILABLE" = "1" ]; then
   EXPECT="convert_unit,normalize_unit,query_genetic_data,query_health_indicators,query_medications,query_pharmacogenomics,read_medical_source,resolve_indicator,search_medical_knowledge"

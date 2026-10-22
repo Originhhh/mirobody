@@ -88,7 +88,9 @@
   pass the configuration diagnostic; misspelled settings remain reported.
 - **The Docker smoke check confused authenticated and anonymous discovery.**
   Anonymous tool discovery now omits the Bearer token, and the expected tool
-  set includes the optional knowledge pair only when its source is available.
+  set includes the optional knowledge pair only when its source is available,
+  using the same YAML configuration overlays and environment precedence as
+  the server.
 
 - **A cut medication log suggested an invalid retry.** The shared character-cut
   notice recommended `view=stats`, which `query_medications` refuses. The leading
