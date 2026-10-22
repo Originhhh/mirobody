@@ -1,6 +1,14 @@
 ## Unreleased
 
+## 1.5.8
+
 ### Added
+
+- **Local Python analysis setup in English and Chinese.** The guide now
+  explains the original-result inputs, container isolation, opt-in Docker
+  socket access and executor failure behavior in both languages. Start with
+  [the setup guide](docs/python-analysis.md) or its
+  [Chinese edition](docs/python-analysis.zh-CN.md).
 
 - **Real progress during long-conversation summarization.** The web client
   previously had no signal while the summary model worked. Actual middleware
@@ -45,6 +53,11 @@
 
 ### Changed
 
+- **Public guides were too dense and read like translations.** English and
+  Chinese setup and model guides now focus on the reader’s task. Concise
+  bilingual guides cover data import, tools, device integration and backups;
+  detailed engineering and benchmark records remain linked references.
+
 - **The bundled web client follows the harness's work and answer channels.**
   First visible reasoning/answer blocks now reach the interface immediately,
   while subsequent tokens stay batched. The work panel tracks concurrent
@@ -74,6 +87,15 @@
   drops the retired platform.mirobody.ai from its hosted-products list.
 
 ### Fixed
+
+- **The model doctor mislabelled Responses settings as unused.** The shipped
+  OpenAI entry's transport, output, storage and reasoning-context fields now
+  pass the configuration diagnostic; misspelled settings remain reported.
+- **The Docker smoke check confused authenticated and anonymous discovery.**
+  Anonymous tool discovery now omits the Bearer token, and the expected tool
+  set includes the optional knowledge pair only when its source is available,
+  using the same YAML configuration overlays and environment precedence as
+  the server.
 
 - **Security diagnostics could retain credentials and report content.** HTTP
   helpers now log only response status and error codes, configuration output

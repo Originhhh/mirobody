@@ -2,7 +2,7 @@
 
 [English](local-models-roadmap.md) · **中文**
 
-**2026-10-21 评测更新：**日常开发与回归套件调整为 100 道由来源数据导出真值的问题，另选 30 道作冒烟检查。
+**2026-10-21 评测更新：** 日常开发与回归套件调整为 100 道由来源数据导出真值的问题，另选 30 道作冒烟检查。
 本地基因型、药物基因组学和 OCR 辅助照片分析保留在范围内。首个可见 thinking token 计入首 token 延迟，
 首次答案和工具活动分别记录。下文数字属于各自注明日期的历史题集，不是新 100 题的模型成绩。
 训练数据和独立留出的确认集另行建设。
@@ -117,7 +117,7 @@ GLM-OCR 官方只有四种提示：`Text Recognition:`、`Table Recognition:`、
 
 ### 再训练
 
-这就是 1.6.0 要交付的，作为 Mirobody 自己的模型发布（[model-choice.zh-CN.md](model-choice.zh-CN.md#160-预告mirobody-自己的模型)）。
+这就是 1.6.0 要交付的，作为 Mirobody 自己的模型发布（[model-choice.zh-CN.md](model-choice.zh-CN.md)）。
 1.5.4 把 P0 做到了这里：上面的 harness 改动；评测发布在 [`benchmarks/local_models/`](../benchmarks/local_models/README.md) 和
 [`benchmarks/local_ocr/`](../benchmarks/local_ocr/README.md)，MiniCPM5-2B 的基线已记下（2026-10-06），云端参照也一起跑了。
 当前回归目标是从固定版本语料重新导出真值的 100 道多样化问题。训练样本与独立留出的测试来源另行准备；

@@ -1,0 +1,51 @@
+# 连接设备服务
+
+Mirobody 提供 Garmin、Oura 和 WHOOP 集成。每套部署都需要向厂商申请自己的开发者凭据。
+Apple Health 使用独立的[文件导入与客户端推送方式](apple-health.zh-CN.md)。
+
+## 接入步骤
+
+1. 在厂商开发者平台中注册应用。
+2. 为部署配置可公开访问的 HTTPS 回调地址。
+3. 将凭据写入生效的配置覆盖文件，不修改随包提供的默认配置。
+4. 应用配置后，在 Web 客户端中完成账号授权。
+
+回调地址格式：
+
+```text
+https://your-host/api/v1/pulse/theta/<provider_slug>/callback
+```
+
+| 厂商 | Provider slug | 凭据配置 |
+| --- | --- | --- |
+| Oura | `theta_oura` | `OURA_CLIENT_ID`、`OURA_CLIENT_SECRET`、`OURA_REDIRECT_URL` |
+| WHOOP | `theta_whoop` | `WHOOP_CLIENT_ID`、`WHOOP_CLIENT_SECRET`、`WHOOP_REDIRECT_URL` |
+| Garmin | `theta_garmin` | `GARMIN_CLIENT_ID`、`GARMIN_CLIENT_SECRET`、`GARMIN_REDIRECT_URL` |
+
+厂商平台登记的回调地址必须与配置完全一致。Oura、WHOOP 使用 OAuth 2.0，
+当前 Garmin 集成使用 OAuth 1.0a。
+
+## 配置示例
+
+```yaml
+OURA_CLIENT_ID: your-client-id
+OURA_CLIENT_SECRET: your-client-secret
+OURA_REDIRECT_URL: https://your-host/api/v1/pulse/theta/theta_oura/callback
+```
+
+Docker 部署应将配置写入由 `ENV` 和 `MIROBODY_CONFIG_FILE` 选定、并已挂载的覆盖文件。
+修改仓库中的 `config.devices.yaml` 不会改变已有镜像里的配置，详见[配置说明](https://docs.mirobody.ai/zh/configuration)。
+
+<a id="troubleshooting"></a>
+
+## 检查同步
+
+运行 `docker compose up -d` 应用修改，再查看应用和 worker 的日志：
+
+```bash
+docker compose logs --tail 80 mirobody mirobody_worker
+```
+
+缺少凭据时，相应 provider 不会启用。授权失败先核对回调地址和凭据；
+授权成功却没有数据时，检查 worker 状态与数据库连接。
+开发者平台、可选参数和厂商差异见[完整接入参考](../provider-setup.zh-CN.md)。

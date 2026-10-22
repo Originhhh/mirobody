@@ -1,0 +1,43 @@
+# 添加工具
+
+将 Python 工具放在自己的目录中，再通过配置加载，无需修改已安装的 Mirobody 包。
+加载后的工具可供内置 agent 和 MCP 客户端调用。
+
+## 编写与注册
+
+为函数添加类型标注和清楚的参数说明：
+
+```python
+# my_tools/arithmetic.py
+__tools__ = ("add_numbers",)
+
+
+def add_numbers(a: float, b: float) -> dict:
+    """计算两个数的和。
+
+    Args:
+        a: 第一个数。
+        b: 第二个数。
+    """
+    return {"sum": a + b}
+```
+
+在配置覆盖文件中加入目录，同时保留内置路径：
+
+```yaml
+MCP_TOOL_DIRS:
+  - mirobody/agent/tools
+  - my_tools
+```
+
+重启应用后，通过 MCP 客户端的 `tools/list` 检查是否加载成功。
+以下划线开头的文件不会被加载；使用类时，类名需以 `Service` 结尾。
+通过 `__tools__` 可以明确限制公开的方法。
+
+## 身份与权限
+
+需要访问用户记录的工具可声明 `user_info`，由引擎注入登录上下文，模型不能自行填写。
+读写前仍需核对记录归属和访问权限，不能把模型传入的用户 ID 当作授权。
+
+健康记录应使用已有的观测写入入口和统一查询接口。日志不要包含个人数值或厂商异常中的原始内容。
+包入口点、引用及完整示例见[工具开发参考](../../mirobody/agent/tools/README.md)。
