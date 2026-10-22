@@ -112,9 +112,6 @@ docker compose exec mirobody mirobody doctor --probe
 
 ## 评测资料
 
-已有评测比较了本地配置，以及 DeepSeek V4.1 Flash、Claude Sonnet 5.5、Claude Opus 5.5、
-Gemini 3.8 Flash 和 GPT-6 Luna。测试使用合成记录，结果对应当时的应用版本、硬件和托管方，
-其中的分数和费用不代表当前价格或普遍排名。
-
-测试方法、完整结果、适用范围和复现命令见[评测说明](../benchmarks/local_models/README.md)、
+测试方法、完整结果与复现命令见[评测说明](../benchmarks/local_models/README.md)、
 [历史结果](../benchmarks/local_models/HISTORY.md)和 [OCR 评测](../benchmarks/local_ocr/README.md)。
+评测使用合成记录，结果仅适用于所记录的版本、硬件和服务商。

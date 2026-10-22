@@ -123,13 +123,8 @@ withhold reasoning, which the probe reports; Mirobody does not invent it.
 
 ## Evaluation reference
 
-The published comparisons include the local configurations and DeepSeek V4.1
-Flash, Claude Sonnet 5.5, Claude Opus 5.5, Gemini 3.8 Flash and GPT-6 Luna.
-They use synthetic records and dated application versions, hosts and hardware.
-Their scores and costs describe those runs rather than current pricing or a
-general model ranking.
-
 See the [evaluation guide](../benchmarks/local_models/README.md),
 [historical results](../benchmarks/local_models/HISTORY.md) and
-[OCR benchmark](../benchmarks/local_ocr/README.md) for workloads, measured
-results, limitations and reproduction commands.
+[OCR benchmark](../benchmarks/local_ocr/README.md) for methods, measured results
+and reproduction commands. Results use synthetic records and apply to the
+recorded versions, hardware and providers.

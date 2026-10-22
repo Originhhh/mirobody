@@ -97,10 +97,8 @@ Use a Windows drive, not a `\\wsl.localhost\...` UNC working directory, and
 keep this checkout on the same release as the app's WSL checkout. For CPU
 execution, use `docker\local-models-cpu.ini` instead.
 
-For CUDA builds, check that the release supports your GPU. For example, RTX 50
-cards have compute capability 12.0 (`nvidia-smi --query-gpu=compute_cap --format=csv`)
-and need the recorded b11429 release's CUDA 13.4 Windows build and matching
-DLLs; that release's CUDA 12.4 build does not support them.
+For CUDA builds, choose a llama.cpp release that supports your GPU and
+install its matching runtime libraries.
 
 Mirobody itself runs in Docker Desktop. Enable **Settings → Resources → WSL
 integration**, then clone the repository in a WSL terminal and run

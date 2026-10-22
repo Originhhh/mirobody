@@ -3,6 +3,11 @@
 Mirobody collects health records, standardizes names and units, and makes the
 results available to the web client, agent and MCP clients.
 
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="../images/collect-translate-agent-dark.svg">
+  <img src="../images/collect-translate-agent.svg" alt="Collect, translate and query health records" width="920">
+</picture>
+
 ## From source to answer
 
 | Stage | Result |

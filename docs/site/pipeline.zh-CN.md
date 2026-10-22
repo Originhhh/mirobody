@@ -2,6 +2,11 @@
 
 Mirobody 将文件、设备数据和健康日记整理成统一记录，再供网页、agent 和 MCP 客户端查询。
 
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="../images/collect-translate-agent-dark.zh-CN.svg">
+  <img src="../images/collect-translate-agent.zh-CN.svg" alt="收集、转译、智能体：从原始资料到回答" width="920">
+</picture>
+
 ## 从原始资料到回答
 
 | 阶段 | 处理内容 |

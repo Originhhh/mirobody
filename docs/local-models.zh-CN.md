@@ -34,7 +34,7 @@ CPU 生成回答可能需要几分钟。Mac 建议在主机直接运行 llama.cp
 | **Small**，默认轻量方案 | MiniCPM5-2B，Q8_0 | 约 4.1 GB | 16 GB 内存，无需显卡 |
 | **Large**，大模型方案 | Qwen3.8-27B，IQ3_S | 约 14.5 GB | 32 GB 内存的 Mac，或 24 GB 显存的 NVIDIA 显卡 |
 
-两种方案都使用 GLM-OCR 识别文档。对话中上传照片时，MiniCPM5-2B 接收 OCR 文字，Qwen3.8-27B 还可以直接识别图片。模型能力对比见 [model-choice.zh-CN.md](model-choice.zh-CN.md)，详细测量见[基准测试记录](../benchmarks/local_models/README.md)。
+两种方案都使用 GLM-OCR 识别文档。对话中上传照片时，MiniCPM5-2B 接收 OCR 文字，Qwen3.8-27B 还可以直接识别图片。模型能力对比见 [选择模型](model-choice.zh-CN.md)，详细测量见[基准测试记录](../benchmarks/local_models/README.md)。
 
 <a id="start-the-models"></a>
 
@@ -84,7 +84,7 @@ llama-server --models-preset docker\local-models.ini --port 8080 --models-max 2
 
 请使用 Windows 本地磁盘目录，不要以 `\\wsl.localhost\...` UNC 路径作为工作目录。这里的源码与应用在 WSL 中的源码应保持同一发布版本。只使用 CPU 时，将预设改为 `docker\local-models-cpu.ini`。
 
-使用 CUDA 版时，需确认构建支持对应显卡。例如 RTX 50 系的计算能力为 12.0，可通过 `nvidia-smi --query-gpu=compute_cap --format=csv` 查询；实测 b11429 发行版需使用 CUDA 13.4 Windows 构建及匹配 DLL，其 CUDA 12.4 构建不支持这类显卡。
+使用 CUDA 版时，请选择支持当前显卡的 llama.cpp 发行版，并安装配套运行库。
 
 Mirobody 应用本身仍在 Docker Desktop 中运行。打开 **Settings → Resources → WSL integration**，在 WSL 终端中克隆仓库并执行 `./deploy.sh`。如果 Docker 提示 `permission denied`，执行 `sudo usermod -aG docker $USER`，然后在 Windows 中执行 `wsl --shutdown`。
 
@@ -184,6 +184,6 @@ LOCAL_OCR_MODEL=glm-ocr
 
 GLM-OCR 用于识别文字和表格，无法判断餐食、皮疹等场景。默认问答模型接收照片的 OCR 文字，无法提取文字时会要求用户描述图片。Qwen3.8-27B 等视觉模型可以直接识别照片，但餐食热量仍只能粗略估算。
 
-本地与云端模型使用相同的文档处理流程：长报告按页处理，可识别的表格优先按规则抽取，其余内容交给文本模型。处理流程见 [pipeline.md](pipeline.md)（英文），其他 OCR 模型及其配置见 [model-choice.zh-CN.md](model-choice.zh-CN.md#the-document-reader-glm-ocr-09b)。
+本地与云端模型使用相同的文档处理流程：长报告按页处理，可识别的表格优先按规则抽取，其余内容交给文本模型。处理流程见 [处理流程参考](pipeline.md)（英文），其他 OCR 模型及其配置见 [文档识别](model-choice.zh-CN.md#the-document-reader-glm-ocr-09b)。
 
 所有聊天模型均通过 `python_exec` 对查询记录进行计算。该工具需要单独启用本地 Docker 执行环境，配置方法见[本地 Python 分析](python-analysis.zh-CN.md)。
