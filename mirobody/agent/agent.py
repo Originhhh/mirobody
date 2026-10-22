@@ -83,8 +83,7 @@ def _route(model: str) -> Any:
     return resolve_named(model) if model in chat_entries() else None
 
 
-#: Every chat model thinks between its tool calls unless configured otherwise
-#: (owner, 2026-10-10). An entry's `thinking_level` overrides it.
+#: Default effort requested from chat endpoints that support native reasoning.
 DEFAULT_THINKING = "medium"
 
 

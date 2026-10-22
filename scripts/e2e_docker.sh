@@ -90,10 +90,8 @@ check "$([ "$(echo "$BAD" | jqp "d['code']")" != "0" ] && echo 0 || echo 1)" \
 #
 # TWO surfaces, and they are deliberately different.
 #
-# `POST /mcp` is capability discovery and does NOT identify the caller — the
-# `tools/list` branch never reads the JWT, so a Bearer token here still gets the
-# FULL advertised list. That is the surface an external client sees before it
-# has a personal URL.
+# Anonymous `POST /mcp` is capability discovery. A Bearer token identifies the
+# caller and applies the same data gate as a personal URL, so omit it here.
 #
 # `POST /personal/mcp` mints `/mcp/<secret>`, and THAT path resolves a user, so
 # `_data_gated_tools` hides the tools this person has no data for. Checking only
@@ -104,10 +102,20 @@ check "$([ "$(echo "$BAD" | jqp "d['code']")" != "0" ] && echo 0 || echo 1)" \
 # this list still said `get_genetic_data` after the tool became
 # `query_genetic_data`, so the check could not pass on any tree. The name comes
 # from `genetic_service.TOOL_NAME`.
-LIST=$(curl -s -X POST "$BASE/mcp" -H "$AUTH" -H 'Content-Type: application/json' \
+LIST=$(curl -s -X POST "$BASE/mcp" -H 'Content-Type: application/json' \
        -d '{"jsonrpc":"2.0","id":1,"method":"tools/list","params":{}}')
 NAMES=$(echo "$LIST" | jqp "','.join(sorted(t['name'] for t in d['result']['tools']))")
 EXPECT="convert_unit,normalize_unit,query_genetic_data,query_health_indicators,query_medications,query_pharmacogenomics,resolve_indicator"
+# The optional knowledge pair is advertised only while a source is available.
+# Read availability independently of tools/list so missing registration fails.
+KNOWLEDGE_AVAILABLE=$(docker exec "$CONTAINER" python -c \
+  'from mirobody.agent.tools.knowledge_service import MedicalKnowledgeService; print(int(MedicalKnowledgeService.available()))' \
+  2>/dev/null | tail -1)
+if [ "$KNOWLEDGE_AVAILABLE" = "1" ]; then
+  EXPECT="convert_unit,normalize_unit,query_genetic_data,query_health_indicators,query_medications,query_pharmacogenomics,read_medical_source,resolve_indicator,search_medical_knowledge"
+elif [ "$KNOWLEDGE_AVAILABLE" != "0" ]; then
+  fail "read knowledge availability from the server container"
+fi
 check "$([ "$NAMES" = "$EXPECT" ] && echo 0 || echo 1)" \
       "tools/list advertises the whole surface to an unidentified caller" "got: $NAMES"
 

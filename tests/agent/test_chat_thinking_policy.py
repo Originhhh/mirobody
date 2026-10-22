@@ -25,6 +25,16 @@ def _model(entry, **kwargs):
     return clients.build_chat_model(entry, alias="test", resolve=lambda _: "test-key", **kwargs)
 
 
+def test_doctor_recognizes_shipped_responses_settings_and_still_reports_typos(monkeypatch):
+    from mirobody.utils.config import llm
+
+    entries = yaml.safe_load((ROOT / "config.llm.yaml").read_text())["MODELS"]
+    monkeypatch.setattr(llm, "model_entries", lambda: entries)
+    assert llm.unread_entry_keys() == {}
+    entries["openai"]["use_response_api"] = True
+    assert llm.unread_entry_keys() == {"openai": ["use_response_api"]}
+
+
 def test_chat_overrides_disable_without_mutating_a_shared_utility_entry():
     entry = {**LOCAL, "thinking_level": "off", "extra_body": {"chat_template_kwargs": {"enable_thinking": False, "other": 1}}}
     before = deepcopy(entry)

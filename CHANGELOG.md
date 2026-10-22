@@ -83,6 +83,13 @@
 
 ### Fixed
 
+- **The model doctor mislabelled Responses settings as unused.** The shipped
+  OpenAI entry's transport, output, storage and reasoning-context fields now
+  pass the configuration diagnostic; misspelled settings remain reported.
+- **The Docker smoke check confused authenticated and anonymous discovery.**
+  Anonymous tool discovery now omits the Bearer token, and the expected tool
+  set includes the optional knowledge pair only when its source is available.
+
 - **A cut medication log suggested an invalid retry.** The shared character-cut
   notice recommended `view=stats`, which `query_medications` refuses. The leading
   cut notice now asks callers to narrow the query using the producing tool's
