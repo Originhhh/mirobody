@@ -8,12 +8,13 @@ every family; it includes genetics, pharmacogenomics, OCR documents and a real
 follow-up conversation. The answering model retains the product's normal tools.
 Documents use the configured reader, including **GLM-OCR-0.9B** for a local setup.
 
-The suite is `harness100-20261023`, a **development/regression set**. It is not an
-unseen test set, a clinical validation or a new performance result. It asks the same
-100 questions of the same loaded record as `harness100-20261021`, which marked
-correct answers wrong when they stated sleep in hours or rounded a mean
-([Scoring and review](#scoring-and-review)); do not compare pass totals across the
-two. The historical 30-question runs and their conclusions are in
+The suite is `harness100-20261023b`, a **development/regression set**. It is not an
+unseen test set, a clinical validation or a new performance result. It asks about the
+same loaded record as `harness100-20261021` and `harness100-20261023`; its 32
+document and laboratory questions name the document by type and date instead of a
+corpus filename the product never shows, and its scorer reads more correct phrasings
+([Scoring and review](#scoring-and-review)). Do not compare pass totals across the
+three. The historical 30-question runs and their conclusions are in
 [HISTORY.md](HISTORY.md); their frozen questions are
 [results/2026-10-10/cases.jsonl](results/2026-10-10/cases.jsonl). Do not compare
 pass totals across those suites either.
@@ -124,8 +125,9 @@ calling the sentence parser, and explicit medication schedule versions through
 `POST /api/v1/medications`. A titration closes the preceding schedule on the day
 before the new dose starts; it never fabricates taken, skipped or missed dose logs.
 
-The accounts keep the `harness100-20261021` name: `harness100-20261023` changed only
-expected facts, so the loaded record and its identity are the same.
+The accounts keep the `harness100-20261021` name: `harness100-20261023` and
+`harness100-20261023b` changed only questions and expected facts, so the loaded record
+and its identity are the same.
 
 ```bash
 export BENCH_QA_GENERATION=harness100-20261021
@@ -196,6 +198,14 @@ within half the step it is naturally stated in (1 for step counts, mmHg and bpm;
 neighbouring reading does not; a difference of two means allows a whole step. A
 sleep total or mean whose unit the question leaves open is a duration, read as
 hours, hours and minutes or minutes, within 3 minutes (one-decimal hours). A
+clause or list item that names no test but opens with an attribute word ("mean",
+"result", "参考范围") continues the label before it, a table cell is read with its
+column header and row label, and the result of worked arithmetic ("74 − 50 = 24")
+belongs to the label that opens its clause; another test's name stops that.
+Absence, "this does not establish" and assay coverage are matched as phrases, so
+"There is no genotype file" passes and a reported value does not. A document
+question may be answered from that file's stored readings as well as by reading
+it. A month and day without a year take the year of the full date before them. A
 follow-up can cite and reuse its prerequisite's actual evidence without being forced into another call.
 
 These are conservative **structural checks**, not a semantic or clinical judge.

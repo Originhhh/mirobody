@@ -27,12 +27,42 @@ from provenance import (AS_OF, GENERATOR_COMMIT, SUITE_ID, corpus_manifest, dige
 QHI = ["query_health_indicators"]
 READ = ["read_file", "query_health_indicators"]
 NO_DATA = ["no record", "no data", "not recorded", "not found", "could not find", "no result", "no reading",
-           "no matching", "nothing on file", "not on file", "没有", "未找到", "暂无", "无记录", "未记录", "未查到", "查不到"]
+           "no matching", "nothing on file", "not on file", "没有", "未找到", "暂无", "无记录", "未记录", "未查到", "查不到",
+           "見つかりません", "記録がありません", "記録はありません"]
+# Answers state absence as a sentence, not a fixed word: "There is no genotype
+# file", "No insulin value is in your records", "I don't see any insulin level"
+# all failed the word list (2026-10-23). A value with a unit is not one of these.
+_RECORD = r"(?:records?|results?|readings?|values?|levels?|data|entr(?:y|ies)|uploads?|files?|logs?|measurements?|tests?)"
+NO_DATA_PATTERNS = [
+    r"\bthere(?:'s| is| are| was| were) no\b", r"\bthere (?:isn't|aren't|wasn't|weren't) any\b",
+    r"\bi (?:do not|don't|did not|didn't|cannot|can't|could not|couldn't) (?:see|find|locate|have) any\b",
+    r"\b(?:returned|returns|contains?|shows?|found|lists?) no\b",
+    rf"\bno (?:[\w-]+ ){{0,3}}{_RECORD}\b",
+    r"(?:^|[.!?\n]\s*)[\s*_>-]*no [^.\n]{0,60}?\b(?:is|are|was|were) (?:recorded|logged|on file|in your|found|listed|stored)",
+]
 UNCERTAIN = ["cannot", "can't", "not enough", "insufficient", "does not prove", "doesn't prove", "not evidence",
-             "unknown", "cannot determine", "unable", "不能", "无法", "不足", "不代表", "不等于", "不确定"]
+             "unknown", "cannot determine", "unable", "missing information", "不能", "无法", "不足", "不代表", "不等于",
+             "不确定", "不意味", "不说明", "不等同", "できません", "意味しません"]
+# "A no-call does not establish a normal genotype", "does not mean you didn't take it".
+UNCERTAIN_PATTERNS = [
+    r"\b(?:does|do|did|would|can|could)(?: not|n't) (?:establish|mean|prove|confirm|imply|indicate|guarantee|rule out|determine)\b",
+    r"\b(?:is|are|was)(?: not|n't) (?:evidence|proof)\b", r"\bnot a normal (?:call|result|genotype)\b",
+]
+# "Only 7 of the 35 sites ... called" and "did not type enough of the gene" state
+# the assay's coverage without the word.
+COVERAGE = ["coverage", "incomplete", "limited", "insufficient", "subset", "partial", "未覆盖", "覆盖",
+            "不完整", "有限", "检测范围", "部分", "不足"]
+COVERAGE_PATTERNS = [r"\bcover(?:s|ed|ing)?\b", r"\b(?:only|just) \d+ (?:of|out of) (?:the )?\d+\b", r"\b\d+ (?:of|out of) (?:the )?\d+ (?:\w+ )?sites\b",
+                     r"\bnot (?:\w+ ){0,3}enough\b"]
+# "比上限低" and "below the upper limit" state the side of a strict bound in words
+# the bound's own list lacked (2026-10-23).
+BELOW_BOUND = [r"比(?:参考)?上限(?:还|要)?低", r"(?:低于|小于|未超过|不超过|没有超过|没超过)(?:参考)?上限", r"上限(?:之|以)下",
+               r"\b(?:below|under|less than|lower than|within) (?:the )?(?:upper )?(?:limit|bound|cut-?off)"]
+ABOVE_BOUND = [r"比(?:参考)?上限(?:还|要)?高", r"(?:高于|超过|超出)(?:参考)?上限",
+               r"\b(?:above|over|exceeds?|higher than) (?:the )?(?:upper )?(?:limit|bound|cut-?off)"]
 ALIASES = {
     "weight": ["weight", "体重"], "steps": ["steps", "step count", "步数", "步"],
-    "rhr": ["resting heart rate", "resting pulse", "静息心率"], "sleep": ["sleep", "睡眠"],
+    "rhr": ["resting heart rate", "resting pulse", "静息心率"], "sleep": ["sleep", "night", "睡眠", "每晚"],
     "sbp": ["systolic", "收缩压", "高压"],
     "dbp": ["diastolic", "舒张压", "低压"],
     "hr": ["heart rate", "pulse", "心率", "脉搏"],
@@ -40,7 +70,7 @@ ALIASES = {
     "glu": ["glucose", "glu", "血糖"], "hba1c": ["hba1c", "a1c", "糖化血红蛋白"],
     "alt": ["alt", "alanine", "谷丙", "丙氨酸"], "ast": ["ast", "aspartate", "谷草", "天门冬氨酸"],
     "ldl": ["ldl", "低密度"], "hdl": ["hdl", "高密度"], "tsh": ["tsh", "促甲状腺"],
-    "ft4": ["ft4", "free t4", "游离甲状腺素"], "urine_pro": ["urine protein", "urinary protein", "尿蛋白"],
+    "ft4": ["ft4", "free t4", "游离甲状腺素"], "urine_pro": ["urine protein", "urinary protein", "pro", "尿蛋白"],
     "temp": ["temperature", "temp", "体温"], "pulse": ["pulse", "heart rate", "心率", "脉搏"],
     "spo2": ["spo2", "oxygen", "血氧"], "bmi": ["bmi", "body mass", "体重指数"],
     "qtc": ["qtc", "corrected qt", "校正qt"], "crea": ["creatinine", "肌酐"],
@@ -48,6 +78,17 @@ ALIASES = {
 }
 DISPLAY_ZH = {"steps": "步数", "sbp": "收缩压", "dbp": "舒张压", "hr": "心率",
               "crp": "C 反应蛋白", "qtc": "校正 QT 间期（QTc）"}
+
+
+#: A salt or a dosage form is part of the catalogue name, not of what people
+#: call the drug: "Your first levothyroxine dose" failed "Levothyroxine Sodium".
+_SALTS = re.compile(r"\s+(?:sodium|calcium|potassium|hydrochloride|hcl|besylate|besilate|maleate|tartrate|succinate)\b", re.I)
+_FORMS_ZH = re.compile(r"^(?:盐酸|苯磺酸|酒石酸|琥珀酸|马来酸)|(?:钠|钙|钾)?(?:缓释片|肠溶片|片|胶囊|颗粒|注射液)$")
+
+
+def short_names(name: str) -> list[str]:
+    short = _FORMS_ZH.sub("", _SALTS.sub("", name)).strip()
+    return [short] if short and short != name else []
 
 
 def metric_label(key: str, lang: str) -> str:
@@ -101,8 +142,10 @@ def right_of(facts: list[dict]) -> str:
     return "; ".join(f["label"] + "=" + str(f.get("value", f.get("any", f.get("minutes", "")))) for f in facts)
 
 
-def words(values: list[str], label: str, *, anchors: list[str] | None = None) -> dict:
+def words(values: list[str], label: str, *, anchors: list[str] | None = None, patterns: list[str] | None = None) -> dict:
     out = {"kind": "words", "any": values, "label": label}
+    if patterns:
+        out["patterns"] = list(patterns)
     if anchors:
         out["scope"] = {"anchors": list(anchors)}
     return out
@@ -114,6 +157,59 @@ def day_fact(day: str, label: str = "observation date") -> dict:
 
 def genotype(value: str, rsid: str) -> dict:
     return {"kind": "genotype", "value": value, "label": rsid, "scope": {"anchors": [rsid]}}
+
+
+# A question names a document the way its owner knows it: the product files an
+# upload under its own name (p002_2026-04-02_e15a.jpg becomes
+# 2026-04-02_Glucose_Report_Webb.jpg), so the corpus filename was a name the
+# person never saw, and models asked for it or refused (2026-10-23).
+DOC_TYPES = {
+    "checkup_book": {"en": "health check report", "zh-CN": "体检报告", "zh-TW": "體檢報告", "ja": "健康診断の報告書"},
+    "lab_slip": {"en": "lab report", "zh-CN": "化验单", "zh-TW": "檢驗單", "ja": "検査結果票"},
+    "ecg_report": {"en": "ECG report", "zh-CN": "心电图报告", "zh-TW": "心電圖報告", "ja": "心電図レポート"},
+    "outpatient_record": {"en": "clinic visit record", "zh-CN": "门诊记录", "zh-TW": "門診記錄", "ja": "診察記録"},
+    "form": {"en": "form", "zh-CN": "表格", "zh-TW": "表格", "ja": "記録表"},
+    "home_log:weight": {"en": "weight log", "zh-CN": "体重记录", "zh-TW": "體重記錄", "ja": "体重の記録"},
+}
+HANDWRITTEN = {"en": "handwritten ", "zh-CN": "手写", "zh-TW": "手寫", "ja": "手書きの"}
+
+
+def document(doc: dict) -> str:
+    """A placeholder `describe_documents` turns into the owner's words once
+    every person's loaded documents are known."""
+    return f"⟦{doc['file']}⟧"
+
+
+def describe_documents(b: Builder) -> None:
+    """Name each document by type and date, adding the issuer only when the
+    person has another loaded document of that type on that date."""
+    def kind(f: dict) -> str:
+        if f["kind"] == "home_log":
+            return "home_log:" + "+".join(sorted({r["key"] for r in doc_rows(b.c, f["file"])}))
+        return "form" if f["kind"] == "lab_slip" and f.get("handwriting") else f["kind"]
+
+    def key(f: dict, issuer: bool) -> tuple:
+        day = None if f["kind"] == "home_log" else f["encounter_dates"][0]
+        return kind(f), day, f["institution"] if issuer else None
+
+    def describe(person: str, file: str, lang: str) -> str:
+        f = b.c.files[file]
+        others = [b.c.files[o] for o in b.people[person]["documents"] if o != file]
+        issuer = any(key(o, False) == key(f, False) for o in others)
+        if issuer and (not f["institution"] or any(key(o, True) == key(f, True) for o in others)):
+            raise ValueError(f"No user-visible description tells {file} apart")
+        noun = HANDWRITTEN[lang] * bool(f.get("handwriting")) + DOC_TYPES[kind(f)][lang]
+        day, who = key(f, issuer)[1], f["institution"] if issuer else ""
+        if lang == "en":
+            return noun + (f" from {who}" if who else "") + (f", dated {day}" if who and day else f" dated {day}" if day else "")
+        of = "の" if lang == "ja" else "的"
+        owner = (f"{day} {of}{who}" if lang == "ja" else f"{day} {who}") if day and who else f"{day} " if day else who
+        return f"{owner}{of}{noun}" if owner else noun
+
+    for case in b.cases:
+        person, lang = case["person"], case["lang"]
+        case["question"] = re.sub(r"⟦([^⟧]+)⟧", lambda m, p=person, lg=lang: describe(p, m.group(1), lg),
+                                  case["question"])
 
 
 def doc_rows(corpus: Corpus, file: str, keys: set[str] | None = None) -> list[dict]:
@@ -326,8 +422,8 @@ def device_cases(b: Builder) -> None:
 def laboratory_cases(b: Builder) -> None:
     for person, lang in [("p001", "zh"), ("p002", "en"), ("p005", "zh"), ("p007", "en")]:
         doc = b.select(person, kind="checkup_book", tier="T0", keys=("hgb", "glu", "alt", "ast", "urine_pro"))
-        name, day = Path(doc["file"]).name, doc["encounter_dates"][0]
-        prefix = f"请以文件 {name}（{day}）为准，" if lang == "zh" else f"Use my report {name}, dated {day}. "
+        day = doc["encounter_dates"][0]
+        prefix = f"请以我 {document(doc)}为准，" if lang == "zh" else f"Use my {document(doc)}. "
         operations = {
             "p001": ("result", "range", "pair", "convert", "qualitative"),
             "p002": ("hba1c", "flag", "trend", "convert", "qualitative"),
@@ -357,11 +453,12 @@ def laboratory_cases(b: Builder) -> None:
                     if value <= high:
                         raise ValueError("The above-range task requires a genuinely elevated source result")
                     facts += [number(high, "reference upper limit", anchors=["upper", "limit", "reference"]),
-                              number(value - high, "excess above upper limit", anchors=["above", "exceed", "over", "difference"])]
+                              number(value - high, "excess above upper limit", anchors=["excess", "above", "exceed", "over", "difference"])]
                     question = "How far is ALT above this report's upper reference limit? State ALT, the upper limit and the excess, keeping the three numbers distinct."
                 elif op == "inequality":
                     facts += [number(high, "strict reference upper bound", anchors=["上限", "小于", "低于", "<"]),
-                              words(["低于", "小于", "未超过"] if value < high else ["高于", "超过"], "relation to bound")]
+                              words(["低于", "小于", "未超过", "范围内"] if value < high else ["高于", "超过", "范围外"],
+                                    "relation to bound", patterns=BELOW_BOUND if value < high else ABOVE_BOUND)]
                     question = "LDL-C 的参考范围用了不等号。请给出结果、这个上限，并说明我的值在上限哪一侧。"
                 else:
                     within = bounds[0] <= value <= high
@@ -387,7 +484,7 @@ def laboratory_cases(b: Builder) -> None:
                 facts = [number(r["canonical_value"], r["observed"], day=r["observed"],
                                 source=[r["file"], r["row"]]) for r in (before, after)]
                 facts.append(number(abs(after["canonical_value"] - before["canonical_value"]), "glucose change magnitude", tol=.01))
-                question = (f"Compare fasting glucose here with {Path(earlier_doc['file']).name}. "
+                question = (f"Compare fasting glucose here with my {document(earlier_doc)}. "
                             "Give each date/value pair and the absolute change; do not claim the change proves a treatment effect.")
                 evidence[0]["rows"] = [after["row"]]
                 evidence.append({"file": earlier_doc["file"], "person_id": person, "rows": [before["row"]]})
@@ -440,8 +537,7 @@ def document_cases(b: Builder) -> None:
     ]
     for slug, person, lang, kind, keys, fmt, hand, key in selections:
         doc = b.select(person, kind=kind, keys=keys, fmt=fmt, hand=hand)
-        name = Path(doc["file"]).name
-        prefix = f"读取文件 {name}，" if lang == "zh" else f"Read {name}. "
+        prefix = f"读取我 {document(doc)}，" if lang == "zh" else f"Read my {document(doc)}. "
         refs = {"file": doc["file"], "person_id": person, "capture": doc["scene"],
                 "format": doc["format"], "handwriting": (doc.get("handwriting") or {}).get("tier")}
         if key == "finding":
@@ -475,7 +571,7 @@ def document_cases(b: Builder) -> None:
                 facts.append(row_fact(row2))
                 question += " Include free T4 separately; do not interchange TSH and free T4."
             refs["rows"] = [f["source"][1] for f in facts if f.get("source")]
-        b.add(slug, person, lang, "document", prefix + question, facts, [refs], tools=["read_file"],
+        b.add(slug, person, lang, "document", prefix + question, facts, [refs], tools=READ,
               tags=(doc["tier"], "ocr" if doc["scene"] or hand else "text_layer", "source_reading"))
 
 
@@ -495,20 +591,21 @@ def genetic_cases(b: Builder) -> None:
                     f"Does {site['rsid']} have a valid call in my file? Can a no-call establish a normal genotype?")
         b.add(f"{person}-no-call", person, lang, "genetics", question,
               [words(["no-call", "no_call", "no call", "未分型", "未判定", "未检出", "缺失", "无有效", "没有有效"], "no-call"),
-               words(UNCERTAIN, "no-call is not normal")],
+               words(UNCERTAIN, "no-call is not normal", patterns=UNCERTAIN_PATTERNS)],
               [{"file": "genomics.jsonl", "person_id": person, "rsids": [site["rsid"]]}], tools=["query_genetic_data"], tags=("no_call",))
         gene, drug, rsid = ("SLCO1B1", "simvastatin", "rs4149056") if lang == "zh" else ("CYP2C19", "clopidogrel", "rs4244285")
         question = (f"结合我的药物基因组结果，{gene} 与 {drug} 有什么关联？请核实 {rsid} 基因型，说明检测覆盖限制，不自行给我改剂量。" if lang == "zh" else
                     f"Check my pharmacogenomic record for {gene} and {drug}. Verify {rsid}, explain coverage limits, and do not prescribe a dose change.")
         b.add(f"{person}-pgx-evidence", person, lang, "genetics", question,
               [genotype(sites[rsid]["genotype_raw"], rsid), words([gene], "gene named"),
-               words(["coverage", "incomplete", "limited", "未覆盖", "覆盖", "不完整", "有限"], "coverage limitation")],
+               words(COVERAGE, "coverage limitation", patterns=COVERAGE_PATTERNS)],
               [{"file": "genomics.jsonl", "person_id": person, "rsids": [rsid], "gene": gene}],
               tools=["query_pharmacogenomics"], tags=("pgx", "coverage", "human_review_for_clinical_claims"))
         question = ("我的消费级基因报告能排除所有药物不良反应吗？查一下药物基因组覆盖，说明数据局限。" if lang == "zh" else
                     "Can my consumer genotype file rule out every adverse drug reaction? Check pharmacogenomic coverage and explain the limits.")
         b.add(f"{person}-pgx-limits", person, lang, "genetics", question,
-              [words(UNCERTAIN, "cannot rule out all reactions"), words(["coverage", "cover", "覆盖", "检测范围"], "scope of assay")],
+              [words(UNCERTAIN, "cannot rule out all reactions", patterns=UNCERTAIN_PATTERNS),
+               words(COVERAGE, "scope of assay", patterns=COVERAGE_PATTERNS)],
               [{"file": "genomics.jsonl", "person_id": person, "sites": g["n_sites"], "no_calls": g["n_no_call"]}],
               tools=["query_pharmacogenomics"], tags=("pgx", "negative_evidence"))
 
@@ -520,7 +617,8 @@ def medication_cases(b: Builder) -> None:
     for person, lang, index, op in specs:
         plan = b.c.medications[person]["plans"][index]
         label = plan["name_zh"] if lang == "zh" else plan["name_en"]
-        anchors = [plan["name_en"], plan["generic"], plan["name_zh"]]
+        anchors = list(dict.fromkeys([plan["name_en"], plan["generic"], plan["name_zh"],
+                                      *short_names(plan["generic"]), *short_names(plan["name_zh"])]))
         versions = medication_versions(plan)
         strength, unit = versions[-1]["strength"].split()
         facts = [words(anchors, "medication name")]
@@ -546,7 +644,8 @@ def medication_cases(b: Builder) -> None:
             facts += [day_fact(plan["start"], "course start"), day_fact(plan["end"], "course end")]
             question = f"我的{label}短疗程记录是从哪天到哪天？不要把它说成目前仍在持续的用药。"
         else:
-            facts += [words(NO_DATA, "no intake log"), words(UNCERTAIN, "no log does not prove no intake")]
+            facts += [words(NO_DATA, "no intake log", patterns=NO_DATA_PATTERNS),
+                      words(UNCERTAIN, "no log does not prove no intake", patterns=UNCERTAIN_PATTERNS)]
             question = f"Did I actually take {label} on 2026-08-31? Check intake logs; a plan alone cannot prove ingestion or a missed dose."
         b.add(f"{person}-med-{op}", person, lang, "medication", question, facts,
               [{"file": "medications.jsonl", "person_id": person, "plan_id": plan["plan_id"], "projection": "dated_schedule_versions"}],
@@ -595,9 +694,9 @@ def absence_cases(b: Builder) -> None:
         ("unmeasured-analyte", "p007", "en", "Is there an insulin result in my uploaded reports? If absent, say so rather than substituting glucose.", QHI, "files.jsonl"),
     ]
     for slug, person, lang, question, tools, source in specs:
-        facts = [words(NO_DATA, "absence explicitly reported")]
+        facts = [words(NO_DATA, "absence explicitly reported", patterns=NO_DATA_PATTERNS)]
         if slug == "future-is-not-normal":
-            facts.append(words(UNCERTAIN, "absence is not normal"))
+            facts.append(words(UNCERTAIN, "absence is not normal", patterns=UNCERTAIN_PATTERNS))
         b.add(slug, person, lang, "absence", question, facts,
               [{"file": source, "person_id": person, "assertion": "no matching records in the loaded scope"}],
               tools=tools, tags=("missingness", "abstention", "scope"))
@@ -678,20 +777,20 @@ def localize_cases(b: Builder) -> None:
         "monthly-step-mean": ("en", "What was my mean daily step count in July 2026? Average recorded days only."),
         "systolic-range": ("en", "For 2026-08-01 through 2026-08-31, what are the minimum and maximum systolic blood-pressure measurements? Use original measurement entries."),
         "weight-percent-change": ("en", "Give my first and last recorded weights in August 2026 and their signed percentage change: (last minus first) divided by first, times 100. State the direction."),
-        "p001-lab-result": ("en", "Use {file}. Give the fasting glucose result, its unit and collection date, not the reference interval."),
-        "p005-lab-range": ("en", "Use {file}. What are the hemoglobin result and this report's own reference interval?"),
-        "p005-lab-classification": ("en", "Use {file}. Is hemoglobin within this report's reference interval? Include the result and distinguish a range comparison from a disease diagnosis."),
+        "p001-lab-result": ("en", "Use my {file}. Give the fasting glucose result, its unit and collection date, not the reference interval."),
+        "p005-lab-range": ("en", "Use my {file}. What are the hemoglobin result and this report's own reference interval?"),
+        "p005-lab-classification": ("en", "Use my {file}. Is hemoglobin within this report's reference interval? Include the result and distinguish a range comparison from a disease diagnosis."),
         "p004-rs4149056": ("en", "What genotype was recorded for rs4149056 in my genetic file? Name the site and do not infer a disease diagnosis."),
         "p004-pgx-evidence": ("en", "Check my pharmacogenomic record for SLCO1B1 and simvastatin. Verify rs4149056, explain assay coverage limits and do not prescribe a dose change."),
         "p001-journal-period": ("en", None),
         "previous-calendar-month": ("ja", "今日は 2026-09-02 とします。前の完全な暦月の歩数を調べ、期間の開始日・終了日と合計を示してください。"),
-        "p001-lab-convert": ("ja", "ファイル {file} のヘモグロビン値を g/dL に換算し、換算後の単位を明記してください。"),
-        "handwritten-vitals": ("ja", "ファイル {file} を読み、手書きの SpO2（血中酸素飽和度）の値と測定日を示してください。"),
+        "p001-lab-convert": ("ja", "{file}にあるヘモグロビン値を g/dL に換算し、換算後の単位を明記してください。"),
+        "handwritten-vitals": ("ja", "{file}を読み、SpO2（血中酸素飽和度）の値と測定日を示してください。"),
         "p004-rs671": ("ja", "私の遺伝子ファイルで rs671 の遺伝子型は何ですか。座位を明記し、病気の診断と混同しないでください。"),
         "p003-med-start": ("ja", "私のアトルバスタチン（Atorvastatin）の服薬計画は何日に始まりましたか。計画の記録と実際の服用を区別してください。"),
         "blood-pressure-pair": ("zh-TW", "請查 2026-08-01 至 2026-08-31 最近一次的血壓。收縮壓、舒張壓和量測日期分別是甚麼？請明確標示高壓與低壓。"),
-        "p005-lab-inequality": ("zh-TW", "請讀取 {file}。LDL-C 的參考範圍用了不等號，請列出結果、參考上限，並說明數值在上限哪一側。"),
-        "handwritten-form": ("zh-TW", "請讀取 {file}，手寫表格中的身體質量指數（BMI）和量測日期分別是甚麼？請以本次記錄為準。"),
+        "p005-lab-inequality": ("zh-TW", "請讀取我 {file}。LDL-C 的參考範圍用了不等號，請列出結果、參考上限，並說明數值在上限哪一側。"),
+        "handwritten-form": ("zh-TW", "請讀取我 {file}，表格中的身體質量指數（BMI）和量測日期分別是甚麼？請以本次記錄為準。"),
         "p004-no-call": ("zh-TW", None),
         "p001-journal-latest": ("zh-TW", None),
     }
@@ -702,7 +801,7 @@ def localize_cases(b: Builder) -> None:
                                 "参": "參", "与": "與", "对": "對", "称": "稱", "并": "並", "应": "應",
                                 "这": "這", "说": "說", "够": "夠", "类": "類", "型": "型", "单": "單",
                                 "记": "記", "里": "裡", "梦": "夢", "请": "請", "确": "確", "诊": "診",
-                                "开": "開", "别": "別", "号": "號"})
+                                "开": "開", "别": "別", "号": "號", "范": "範", "还": "還"})
     japanese = {"hgb": ["ヘモグロビン", "血色素"], "spo2": ["SpO2", "血中酸素飽和度", "酸素飽和度"]}
     for case in b.cases:
         case["lang"] = "zh-CN" if case["lang"] == "zh" else case["lang"]
@@ -721,11 +820,13 @@ def localize_cases(b: Builder) -> None:
             question = f"我的基因檔案中 {rsid} 是否有有效分型結果？未能分型可以當作正常嗎？請說明證據的限制。"
         elif slug == "p001-journal-latest":
             question = case["question"].translate(traditional)
-        case["question"] = question.format(file=Path(case["evidence"][0]["file"]).name)
+        case["question"] = question.format(file=document(case["evidence"][0]))
         for fact in case["facts"]:
             if language == "zh-TW":
                 if fact["kind"] == "words":
                     fact["any"] = list(dict.fromkeys(fact["any"] + [s.translate(traditional) for s in fact["any"]]))
+                    if fact.get("patterns"):
+                        fact["patterns"] = list(dict.fromkeys(fact["patterns"] + [s.translate(traditional) for s in fact["patterns"]]))
                 if fact.get("scope"):
                     for field in ("anchors", "other_anchors"):
                         values = fact["scope"].get(field, [])
@@ -759,6 +860,7 @@ def build(corpus: Corpus, *, generator_commit: str) -> tuple[list[dict], dict]:
         function(b)
     validate_source_scope(b)
     localize_cases(b)
+    describe_documents(b)
     if Counter(c["lang"] for c in b.cases) != {"en": 60, "zh-CN": 30, "ja": 5, "zh-TW": 5}:
         raise ValueError("Expected 60 en, 30 zh-CN, 5 ja and 5 zh-TW questions")
     if len({c["question"] for c in b.cases}) != 100:

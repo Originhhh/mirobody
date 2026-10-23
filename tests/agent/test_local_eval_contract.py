@@ -4,6 +4,7 @@ from __future__ import annotations
 import copy
 import importlib
 import json
+import re
 import sys
 from collections import Counter
 from pathlib import Path
@@ -469,6 +470,127 @@ def test_unit_anchors_bind_plural_words_but_not_swapped_values(manifest, answer,
     cases, _ = manifest
     facts = next(c for c in cases if c["id"] == "h100-kilograms-to-pounds")["facts"]
     assert all(present(f, answer) for f in facts) is passes
+
+
+def facts_of(cases, case_id, labels=None):
+    facts = next(c for c in cases if c["id"] == case_id)["facts"]
+    return [f for f in facts if labels is None or f["label"] in labels]
+
+
+@pytest.mark.parametrize(("case_id", "label", "answer", "passes"), [
+    ("h100-no-genomics", "absence explicitly reported", "There is no genotype file on your account right now.", True),
+    ("h100-no-genomics", "absence explicitly reported", "There's no active genotype upload on file for you.", True),
+    ("h100-no-genomics", "absence explicitly reported", "I don't have any active genotype upload on file for you.", True),
+    ("h100-unmeasured-analyte", "absence explicitly reported", "No insulin value is in your records.", True),
+    ("h100-unmeasured-analyte", "absence explicitly reported", "I don't see any insulin level recorded in your lab reports.", True),
+    ("h100-p008-med-adherence", "no intake log", "No dose of amlodipine is recorded for August 31.", True),
+    ("h100-unmeasured-analyte", "absence explicitly reported", "Your insulin was 8.2 uIU/mL on 2026-07-16.", False),
+    ("h100-unmeasured-analyte", "absence explicitly reported", "Insulin is not listed, but your glucose is 5.06 mmol/L.", False),
+    ("h100-p008-med-adherence", "no intake log", "Yes, you took 5 mg of amlodipine on August 31.", False),
+    ("h100-p008-no-call", "no-call is not normal", "No. A no-call does not establish a normal genotype.", True),
+    ("h100-p008-med-adherence", "no log does not prove no intake", "A missing entry does **not** mean you didn't take it.", True),
+    ("h100-p008-no-call", "no-call is not normal", "Yes, a no-call here means your genotype is normal.", False),
+    ("h100-p004-pgx-evidence", "coverage limitation", "Only 7 of the 35 sites the guideline needs were called.", True),
+    ("h100-p004-pgx-evidence", "coverage limitation", "The array did not type enough of the gene for a phenotype.", True),
+    ("h100-p004-pgx-evidence", "coverage limitation", "Your file has every site for this gene.", False),
+    ("h100-p005-lab-inequality", "relation to bound", "LDL-C 是 2.68 mmol/L，參考上限是 3.37，比上限低。", True),
+    ("h100-p005-lab-inequality", "relation to bound", "LDL-C 是 2.68 mmol/L，在參考範圍內。", True),
+    ("h100-p005-lab-inequality", "relation to bound", "LDL-C 是 2.68 mmol/L，比上限高。", False),
+])
+def test_absence_negation_and_coverage_are_read_as_phrases(manifest, case_id, label, answer, passes):
+    cases, _ = manifest
+    (fact,) = facts_of(cases, case_id, {label})
+    assert present(fact, answer) is passes
+
+
+@pytest.mark.parametrize(("case_id", "answer", "passes"), [
+    ("h100-diastolic-average", "8 月共记录了 3 次舒张压，平均值是 77.7 mmHg（范围 71–83 mmHg）。", True),
+    ("h100-diastolic-average", "8 月共记录了 3 次舒张压，收缩压平均值是 77.7 mmHg。", False),
+    ("h100-p005-lab-inequality", "LDL-C 的資料如下：\n\n- **結果**：2.68 mmol/L\n- **參考範圍**：<3.37 mmol/L", True),
+    ("h100-p005-lab-inequality", "LDL-C 的資料如下：\n\n- **HDL-C 結果**：2.68 mmol/L\n- **參考範圍**：<3.37 mmol/L", False),
+    ("h100-p001-lab-range", "- **血红蛋白（HGB）测定值**：147 g/L\n- **本报告正常范围值**：130 - 175 g/L", True),
+    ("h100-p001-lab-range", "- **血红蛋白（HGB）测定值**：147 g/L\n- **血糖参考范围**：130 - 175", False),
+    ("h100-latest-weight", "共记录了 5 次：\n\n| 日期 | 体重 (kg) |\n|---|---|\n| **2026-08-19** | **63.8** |", True),
+    ("h100-latest-weight", "| 日期 | 步数 |\n|---|---|\n| 2026-08-19 | 63.8 |", False),
+    ("h100-p002-lab-trend", ("- **2026-04-02** (p002_2026-04-02_e15a.jpg): glucose **6.24 mmol/L**\n"
+                             "- **2026-08-07**: glucose 7.25 mmol/L. Change: 7.25 − 6.24 = 1.01 mmol/L."), True),
+    ("h100-p007-lab-excess", "ALT 74 U/L; upper limit 50 U/L.\n- Excess above the limit: **74 − 50 = 24 U/L**", True),
+    ("h100-p007-lab-excess", "ALT 74 U/L; excess 50 U/L; upper limit: 74 − 50 = 24 U/L.", False),
+])
+def test_anchor_binds_across_a_continuing_clause_list_or_table(manifest, case_id, answer, passes):
+    cases, _ = manifest
+    facts = [f for f in facts_of(cases, case_id) if f["kind"] in {"number", "range"}]
+    assert all(present(f, answer) for f in facts) is passes
+
+
+@pytest.mark.parametrize(("answer", "passes"), [
+    ("ALT 与 AST：\n- ALT：62\n- AST：74", False),
+    ("- ALT：62 U/L\n- AST：74 U/L\n- 结果：74", False),
+    ("ALT 62，AST 74，平均值 74。", False),
+    ("| 项目 | 结果 |\n|---|---|\n| ALT | 62 |\n| AST | 74 |", False),
+    ("| 项目 | ALT | AST |\n|---|---|---|\n| 结果 | 62 | 74 |", False),
+    ("| 项目 | 结果 |\n|---|---|\n| ALT | 74 |\n| AST | 62 |", True),
+    ("| 项目 | ALT | AST |\n|---|---|---|\n| 结果 | 74 | 62 |", True),
+])
+def test_continuation_never_rebinds_a_swapped_alt_ast(answer, passes):
+    fact = cases_module.number(74, "ALT", anchors=["ALT"])
+    fact["scope"]["other_anchors"] = ["AST"]
+    assert present(fact, answer) is passes
+
+
+@pytest.mark.parametrize(("answer", "passes"), [
+    ("| Site | Genotype |\n|---|---|\n| rs4149056 (chr12:21331549, GRCh37) | TC — heterozygous |", True),
+    ("rs4149056 (chr12:21331549, GRCh37) | SLCO1B1 | TC — heterozygous (0/1)", True),
+    ("rs4149056 (SLCO1B1, chr12:21331549) is TC.", True),
+    ("遺伝子ファイルで rs671 に関する記録は以下の通りです。\n\n- **座位**: 12号染色体\n- **遺伝子型**: TC", True),
+    ("| Site | Genotype |\n|---|---|\n| rs4149056 | TT |\n| rs2306283 | TC |", False),
+    ("rs4149056 (SLCO1B1) is TT, rs2306283 (chr12) is TC.", False),
+])
+def test_genotype_binds_in_table_rows_and_bracketed_sites(answer, passes):
+    rsid = "rs671" if "rs671" in answer else "rs4149056"
+    assert present(cases_module.genotype("TC", rsid), answer) is passes
+
+
+def test_document_answer_may_use_that_files_stored_readings(manifest):
+    cases, _ = manifest
+    case = next(c for c in cases if c["id"] == "h100-spreadsheet-thyroid")
+    run = {"person": case["person"], "finish_reason": "stop", "blocks": [
+        {"type": "tool_call", "name": "query_health_indicators"},
+        {"type": "text", "text": "TSH 2.336 mIU/L and free T4 19.46 pmol/L, both measured on 2026-04-29."}]}
+    assert scorer.score_case(case, run)["checks"]["tool"]
+    run["blocks"][0]["name"] = "query_medications"
+    assert not scorer.score_case(case, run)["checks"]["tool"]
+
+
+@pytest.mark.parametrize(("case_id", "answer", "passes"), [
+    ("h100-sleep-hours", "In July you averaged about **7.5 hours a night**.", True),
+    ("h100-sleep-hours", "In July your steps averaged 7.5 an hour.", False),
+    ("h100-p005-med-history", "Your first levothyroxine dose was 25 µg once daily; it ended on 2024-09-07.", True),
+    ("h100-p005-med-history", "Your first ibuprofen dose was 25 mg; it ended on 2024-09-07.", False),
+    ("h100-p007-lab-qualitative", "- **PRO (protein) — Negative — Normal**", True),
+    ("h100-p007-lab-qualitative", "- PRO (protein) — 1+\n- GLU (glucose) — Negative", False),
+])
+def test_common_short_names_bind_without_repeating_the_question(manifest, case_id, answer, passes):
+    cases, _ = manifest
+    facts = [f for f in facts_of(cases, case_id) if f["kind"] != "date"]
+    assert all(present(f, answer) for f in facts) is passes
+
+
+def test_month_day_takes_the_year_of_the_date_before_it():
+    assert {"2026-08-01", "2026-08-31"} <= scorer.dates_in("2026年8月1日から8月31日の全月です。")
+    assert "2026-08-31" in scorer.dates_in("From Aug 1, 2026 to Aug 31.")
+    assert not scorer.dates_in("Your log opens with an entry for 12 April.")
+    assert "2026-01-01" not in scorer.dates_in("8月31日の13,039歩、2026年1月の集計")
+
+
+def test_questions_name_documents_as_their_owner_sees_them(manifest):
+    cases, _ = manifest
+    documents = [c for c in cases if c["domain"] in {"laboratory", "document"}]
+    assert len(documents) == 32
+    for case in documents:
+        assert not any(Path(e["file"]).stem in case["question"] for e in case["evidence"] if "file" in e)
+        assert not re.search(r"p00\d_|\.(?:pdf|jpg|png|xlsx)\b", case["question"])
+    assert next(c for c in cases if c["id"] == "h100-handwritten-form")["question"].startswith("請讀取我 2026-08-28 的手寫表格")
 
 
 @pytest.mark.parametrize(("language", "answer"), [
