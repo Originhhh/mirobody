@@ -605,6 +605,9 @@ def score_case(case: dict, run: dict) -> dict:
         "tools_called": called,
         "answer_language": lang,
         "charts": len(drawn),
+        # Observation, not a pass condition: a correct answer that took fifteen tool
+        # calls and a minute is not the same product behaviour as one that took two.
+        "efficient": None if run.get("seconds") is None else (len(called) <= 8 and run["seconds"] <= 60.0),
         "chart_points": sum(c["points"] for c in drawn),
         "chart_values_unsupported": chart_unsupported,
         "unsupported_numbers": invented,

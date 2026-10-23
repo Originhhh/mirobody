@@ -1,5 +1,15 @@
 ## Unreleased
 
+### Added
+
+- **Extra benchmark cases for charts and languages.** The 100-question suite
+  asks for a chart twice and is 60% English, so a model that never draws a
+  chart, or answers only in English, lost little. `expand_cases.py` builds
+  separate cases from the same build and plan: device latest/sum/count, a
+  weekly chart, journal counts and absence, in all four locales (journal in
+  its own language). Answers use the account's local days and the suite's
+  tolerances; the README says how to run them beside the maintained set.
+
 ### Fixed
 
 - **The 100-question local benchmark failed correct numeric answers.** Sleep
