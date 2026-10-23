@@ -66,6 +66,41 @@ def number(value: float, label: str, *, tol: float = .05, anchors: list[str] | N
     return out
 
 
+# The resolution an answer naturally states each quantity in. A correctly rounded
+# value is within half a step of the exact one, so that is the tolerance: 9585.57
+# steps read as "9586" passes, a neighbouring day's 112 mmHg for 113 does not. A
+# difference of two rounded means can be off by a whole step (53.43 and 53.86 bpm
+# read as 53 and 54 differ by 1, against 0.43).
+STEP = {"steps": 1, "sbp": 1, "dbp": 1, "rhr": 1, "weight": .1, "lb": .1, "percent": .1, "hours": .1}
+LB_PER_KG = 1 / .45359237
+# Sleep is stated in hours or minutes, so one bound must admit one-decimal hours
+# (47.6 h for 2858.25 min is 2.25 min off) and stays far below a missed night.
+SLEEP_TOL_MINUTES = 60 * STEP["hours"] / 2
+
+
+def half_step(quantity: str) -> float:
+    return STEP[quantity] / 2
+
+
+def duration(minutes: float, label: str, *, anchors: list[str] | None = None) -> dict:
+    """A length of time in any unit the answer chooses; `score._durations` reads h/min."""
+    out = {"kind": "duration", "minutes": [round(float(minutes), 6)], "tol": SLEEP_TOL_MINUTES, "label": label}
+    if anchors:
+        out["scope"] = {"anchors": list(anchors)}
+    return out
+
+
+def aggregate(metric: str, value: float, label: str, *, anchors: list[str]) -> dict:
+    """A device total or mean; the questions that sum or average sleep leave its unit to the answer."""
+    if metric == "sleep":
+        return duration(value, label, anchors=anchors)
+    return number(value, label, tol=half_step(metric), anchors=anchors)
+
+
+def right_of(facts: list[dict]) -> str:
+    return "; ".join(f["label"] + "=" + str(f.get("value", f.get("any", f.get("minutes", "")))) for f in facts)
+
+
 def words(values: list[str], label: str, *, anchors: list[str] | None = None) -> dict:
     out = {"kind": "words", "any": values, "label": label}
     if anchors:
@@ -165,7 +200,7 @@ class Builder:
                 "lang": lang, "domain": domain, "question": question, "facts": facts, "evidence": evidence,
                 "sources": sorted({e["file"] for e in evidence}), "expect_tools": tools, "chart": chart,
                 "tags": list(tags), "as_of": AS_OF, "forbidden": list(forbidden),
-                "right": "; ".join(f["label"] + "=" + str(f.get("value", f.get("any", ""))) for f in facts)}
+                "right": right_of(facts)}
         if depends_on:
             case["depends_on"] = depends_on
         self.cases.append(case)
@@ -223,7 +258,7 @@ def device_cases(b: Builder) -> None:
         base = f"请查询 {window} 的{label}。" if lang == "zh" else f"Check my {label} for {window}. "
         if metric == "sleep":
             base += "Use source sleep intervals; label nights by the evening date of the 18:00-based sleep window. "
-        tol = .1 if metric != "steps" else .5
+        tol = None if metric == "sleep" else half_step(metric)
         facts = []
         extra = {"zh": "", "en": ""}
         if op == "latest":
@@ -232,7 +267,8 @@ def device_cases(b: Builder) -> None:
         elif op in {"mean", "median", "hours", "sum", "relative"}:
             val = (statistics.median(values) if op == "median" else sum(values) if op in {"sum", "relative"}
                    else statistics.fmean(values) / (60 if op == "hours" else 1))
-            facts = [number(val, label, tol=tol, anchors=anchor)]
+            facts = [number(val, label, tol=half_step("hours"), anchors=anchor) if op == "hours"
+                     else aggregate(metric, val, label, anchors=anchor)]
             extra = {"zh": "请给出所有已记录数据的总和。" if op in {"sum", "relative"} else "所有已记录数值的平均值是多少？",
                      "en": {"mean": "Give the mean of the recorded readings.", "median": "Give the median of the recorded readings.",
                             "hours": "Give the mean sleep duration in hours per recorded night; do not count missing nights as zero.",
@@ -249,7 +285,7 @@ def device_cases(b: Builder) -> None:
             magnitude = change / values[0] * 100 if op == "percent" else change
             facts = [number(values[0], "first", tol=tol, anchors=["first", "start", "最早", "首", "初始"]),
                      number(values[-1], "last", tol=tol, anchors=["last", "latest", "最后", "末", "最新"]),
-                     number(magnitude, "signed change", tol=.1),
+                     number(magnitude, "signed change", tol=half_step("percent" if op == "percent" else metric)),
                      words(["increase", "rose", "higher", "增加", "上升", "升高"] if change > 0 else
                            ["decrease", "fell", "lower", "减少", "下降", "降低"], "change direction")]
             extra = {"zh": "列出首末值，算出带正负号的变化百分比（末值减首值，再除以首值），并说明升降。", "en": "Give the first and last values and their signed change (last minus first)."}
@@ -275,13 +311,13 @@ def device_cases(b: Builder) -> None:
         elif op == "bp":
             t, systolic = rows[-1]
             diastolic = next(v for dt, v in device_series(b.c, person, "dbp", b.people[person]["tz"]) if dt == t)
-            facts = [number(systolic, "systolic", tol=0, anchors=ALIASES["sbp"]),
-                     number(diastolic, "diastolic", tol=0, anchors=ALIASES["dbp"]), day_fact(t.date().isoformat())]
+            facts = [number(systolic, "systolic", tol=half_step("sbp"), anchors=ALIASES["sbp"]),
+                     number(diastolic, "diastolic", tol=half_step("dbp"), anchors=ALIASES["dbp"]), day_fact(t.date().isoformat())]
             evidence.append({**evidence[0], "metric": "dbp"})
             extra = {"zh": "最近一次血压的高压、低压和日期分别是什么？请区分高低压。", "en": "Give the latest pressure pair."}
         elif op == "pounds":
-            facts = [number(values[-1], "weight kg", tol=.05, anchors=["kg", "kilogram"]),
-                     number(values[-1] / .45359237, "weight lb", tol=.2, anchors=["lb", "pound"])]
+            facts = [number(values[-1], "weight kg", tol=half_step("weight"), anchors=["kg", "kilogram"]),
+                     number(values[-1] * LB_PER_KG, "weight lb", tol=half_step("lb"), anchors=["lb", "pound"])]
             extra = {"zh": "换算为磅。", "en": "Convert the latest weight to pounds and include the original kilograms."}
         b.add(slug, person, lang, "device", base + extra[lang], facts, evidence,
               chart=op == "chart", tags=(op, metric, "deterministic_arithmetic"))
@@ -585,25 +621,29 @@ def conversation_cases(b: Builder) -> None:
         if i == 2:
             question += " Keep this baseline window and remember the comparison label Cedar window."
         case = b.add(f"conversation-{i}-start", person, lang, "conversation", question,
-                     [number(a, label, tol=.1, anchors=ALIASES[metric])], evidence, tags=("context", "start"))
-        question = ("那接下来的七天呢？和刚才那七天相比是高还是低？给出新均值和差值。" if lang == "zh" else
-                    "And the following seven days? Give the new mean and how much it rose or fell compared with the period we just discussed.")
-        direction = ["higher", "rose", "increase", "上升", "高", "增加"] if z > a else ["lower", "fell", "decrease", "下降", "低", "减少"]
-        facts = [number(z, "following-week mean", tol=.1), number(abs(z - a), "difference", tol=.1), words(direction, "direction")]
-        refs = evidence + evidence2
-        if i == 3:
+                     [aggregate(metric, a, label, anchors=ALIASES[metric])], evidence, tags=("context", "start"))
+        if i in (1, 2):
+            question = ("那接下来的七天呢？和刚才那七天相比是高还是低？给出新均值和差值。" if lang == "zh" else
+                        "And the following seven days? Give the new mean and how much it rose or fell compared with the period we just discussed.")
+            direction = ["higher", "rose", "increase", "上升", "高", "增加"] if z > a else ["lower", "fell", "decrease", "下降", "低", "减少"]
+            facts = [number(z, "following-week mean", tol=half_step(metric)),
+                     number(abs(z - a), "difference", tol=STEP[metric]), words(direction, "direction")]
+            refs = evidence + evidence2
+        elif i == 3:
             question = "那刚才这段时间内最后一次舒张压是多少？请同时给出这次测量的日期。"
-            facts = [number(first[-1][1], "last diastolic pressure", tol=.1, anchors=ALIASES[metric]),
+            facts = [number(first[-1][1], "last diastolic pressure", tol=half_step(metric), anchors=ALIASES[metric]),
                      day_fact(first[-1][0].date().isoformat())]
             refs = evidence
         elif i == 4:
             question = "What was the total sleep duration over that same period, in hours? Sum recorded nights only."
-            facts = [number(sum(v for _, v in first) / 60, "total sleep hours", tol=.1, anchors=ALIASES[metric])]
+            facts = [number(sum(v for _, v in first) / 60, "total sleep hours", tol=half_step("hours"), anchors=ALIASES[metric])]
             refs = evidence
         elif i == 5:
             question = "把刚才这个平均体重换算成磅，并保留公斤值作为对照。"
-            facts = [number(a / .45359237, "mean pounds", tol=.2, anchors=["磅", "lb", "pound"]),
-                     number(a, "mean kg", tol=.1, anchors=["公斤", "千克", "kg"])]
+            # A mean already rounded to 0.1 kg carries that error into pounds.
+            facts = [number(a * LB_PER_KG, "mean pounds", tol=round(half_step("weight") * LB_PER_KG + half_step("lb"), 2),
+                            anchors=["磅", "lb", "pound"]),
+                     number(a, "mean kg", tol=half_step("weight"), anchors=["公斤", "千克", "kg"])]
             refs = evidence
         if i == 2:
             question += " Also repeat the original baseline start/end dates and the comparison label I asked you to remember."
@@ -706,7 +746,7 @@ def localize_cases(b: Builder) -> None:
                     fact["any"] += ["アトルバスタチン"]
             elif language == "en" and fact["kind"] == "words" and fact["label"] == "within printed interval":
                 fact["any"] += ["within", "normal", "in range"]
-        case["right"] = "; ".join(f["label"] + "=" + str(f.get("value", f.get("any", ""))) for f in case["facts"])
+        case["right"] = right_of(case["facts"])
     for config in b.people.values():
         if config["lang"] == "zh":
             config["lang"] = "zh-CN"
