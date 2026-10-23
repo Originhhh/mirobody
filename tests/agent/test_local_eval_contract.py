@@ -563,3 +563,32 @@ def test_runner_dispatches_heavy_followup_through_source_pressure_helper(monkeyp
     assert len(runs) == 2
     assert not runs[1]["score"]["checks"]["context"]
     assert not runs[1]["score"]["pass"]
+
+
+def test_extra_cases_use_account_days_first_person_and_journal_language(tmp_path):
+    expand = importlib.import_module("expand_cases")
+    # A UTC account whose device writes +08:00: 07:30 local is the previous UTC day.
+    steps = [{"metric": "steps", "indicator": "steps", "time": f"2026-07-{d:02d}T07:30:00+08:00", "value": 1000 + d}
+             for d in range(2, 9)]
+    journal = [{"person_id": "p901", "lang": "zh", "date": f"2026-07-0{i}", "text": "t", "expected": e}
+               for i, e in enumerate([[{"kind": "symptom", "name": "腰痛", "symptom_id": "back"}],
+                                      [{"kind": "symptom", "name": "腰痛", "symptom_id": "back"}],
+                                      [{"kind": "symptom", "name": "乏力", "symptom_id": "tired"}],
+                                      [{"kind": "symptom", "name": "没劲", "symptom_id": "tired"}],
+                                      [{"kind": "symptom", "name": "疲倦", "symptom_id": "tired"}]], 1)]
+    files = {"files.jsonl": [], "people.jsonl": [{"person_id": "p901"}], "genomics.jsonl": [], "medications.jsonl": [],
+             "devices.jsonl": [{"person_id": "p901", "files": [], "records": steps}], "journal.jsonl": journal}
+    for name, rows in files.items():
+        (tmp_path / name).write_text("".join(json.dumps(r, ensure_ascii=False) + "\n" for r in rows))
+    plan = {"qa_people": {"p901": {"tz": "UTC", "lang": "zh-CN", "documents": []}}}
+    extra = expand.build(expand.Corpus(tmp_path), plan, 1, expand.AS_OF)
+    chart = next(c for c in extra if c["id"] == "x-chart-steps-p901-en")
+    assert [f["value"] for f in chart["facts"]] == [1002, 1003, 1004, 1005, 1006, 1007, 1008]
+    assert [f["scope"]["date"] for f in chart["facts"]][0] == "2026-07-01"
+    assert chart["evidence"][0]["tz"] == "UTC" and chart["chart"]
+    assert {c["lang"] for c in extra if c["domain"] == "absence"} == {"zh-CN", "zh-TW", "ja", "en"}
+    assert {c["id"] for c in extra if c["domain"] == "absence"} == {f"x-absence-rhr-p901-{lang}" for lang in expand.LANGS}
+    (journal_case,) = [c for c in extra if c["domain"] == "journal"]
+    assert journal_case["lang"] == "zh-CN" and "腰痛" in journal_case["question"]
+    assert journal_case["facts"][0]["value"] == 2
+    assert not any("p901" in c["question"] for c in extra)
