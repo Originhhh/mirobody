@@ -33,12 +33,17 @@ NO_DATA = ["no record", "no data", "not recorded", "not found", "could not find"
 # file", "No insulin value is in your records", "I don't see any insulin level"
 # all failed the word list (2026-10-23). A value with a unit is not one of these.
 _RECORD = r"(?:records?|results?|readings?|values?|levels?|data|entr(?:y|ies)|uploads?|files?|logs?|measurements?|tests?)"
+# "No your insulin result is 7.2" and "no other tests were abnormal" report a value
+# around a "no": a determiner, a possessive or "other" after it means something
+# is on file, so none of these may follow "no" or "any" (port of #175's rule).
+_NOT_ABSENT = r"(?!(?:a|an|the|your|my|his|her|their|this|that|these|those|other|more|further|additional|new)\b)"
+_GAP = rf"(?:{_NOT_ABSENT}[\w-]+ ){{0,3}}"
 NO_DATA_PATTERNS = [
-    r"\bthere(?:'s| is| are| was| were) no\b", r"\bthere (?:isn't|aren't|wasn't|weren't) any\b",
-    r"\bi (?:do not|don't|did not|didn't|cannot|can't|could not|couldn't) (?:see|find|locate|have) any\b",
-    r"\b(?:returned|returns|contains?|shows?|found|lists?) no\b",
-    rf"\bno (?:[\w-]+ ){{0,3}}{_RECORD}\b",
-    r"(?:^|[.!?\n]\s*)[\s*_>-]*no [^.\n]{0,60}?\b(?:is|are|was|were) (?:recorded|logged|on file|in your|found|listed|stored)",
+    rf"\bthere(?:'s| is| are| was| were) no {_NOT_ABSENT}", rf"\bthere (?:isn't|aren't|wasn't|weren't) any {_NOT_ABSENT}",
+    rf"\bi (?:do not|don't|did not|didn't|cannot|can't|could not|couldn't) (?:see|find|locate|have) any {_NOT_ABSENT}",
+    rf"\b(?:returned|returns|contains?|shows?|found|lists?) no {_GAP}{_RECORD}\b",
+    rf"\bno {_GAP}{_RECORD}\b",
+    rf"(?:^|[.!?\n]\s*)[\s*_>-]*no {_NOT_ABSENT}[^.\n]{{0,60}}?\b(?:is|are|was|were) (?:recorded|logged|on file|in your|found|listed|stored)",
 ]
 UNCERTAIN = ["cannot", "can't", "not enough", "insufficient", "does not prove", "doesn't prove", "not evidence",
              "unknown", "cannot determine", "unable", "missing information", "不能", "无法", "不足", "不代表", "不等于",

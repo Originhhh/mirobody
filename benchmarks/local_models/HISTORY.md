@@ -7,7 +7,9 @@
 > facts and tolerances from each metric's precision. `harness100-20261023b` names
 > documents by type and date rather than corpus filenames, accepts a document's
 > stored readings, and reads absence, negation, continued clauses, table cells and
-> year-less dates; pass totals of the three are not comparable.
+> year-less dates. `harness100-20261023c` stops a "no" before a determiner, a
+> possessive or "other" from counting as absence ("Your insulin was 7.2; no other
+> tests were abnormal"); pass totals of the four are not comparable.
 
 # Local model sizes: an evaluation you can rerun
 
