@@ -207,7 +207,8 @@ def bench_email(kind: str, name: str) -> str:
 #: same plan at 338d54f4 (cited answers, the knowledge tools), the same machine.
 #: harness100-20261021 is the current eight-person generator record; its
 #: source/loading identity is verified separately from the question hash, so the
-#: harness100-20261023 questions (regraded facts only) run against it unchanged.
+#: harness100-20261023 and -20261023b questions (new facts and wording) run
+#: against it unchanged.
 QA_GENERATION = os.environ.get("BENCH_QA_GENERATION", "harness100-20261021")
 
 

@@ -4,8 +4,10 @@
 > totals and means to minutes within 0.1 and most device means within 0.1, so
 > "47.6 hours" for 2858.25 minutes and 78 mmHg for a 77.67 mean failed.
 > `harness100-20261023` asks the same questions of the same record with duration
-> facts and tolerances from each metric's precision; pass totals of the two are
-> not comparable.
+> facts and tolerances from each metric's precision. `harness100-20261023b` names
+> documents by type and date rather than corpus filenames, accepts a document's
+> stored readings, and reads absence, negation, continued clauses, table cells and
+> year-less dates; pass totals of the three are not comparable.
 
 # Local model sizes: an evaluation you can rerun
 

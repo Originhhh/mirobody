@@ -17,6 +17,7 @@ from pathlib import Path
 from typing import Any
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
+from cases import ALIASES
 from common import read_json, write_json
 
 from mirobody.kernel import citations
@@ -84,10 +85,22 @@ def strip_dates(text: str) -> str:
     return text
 
 
+#: A month and day without a year, as a range's second end is written:
+#: "2026年8月1日から8月31日", "Aug 1, 2026 to Aug 31".
+_SHORT_DATE_FORMS = [
+    re.compile(r"(?<![\d年])(\d{1,2})\s*月\s*(\d{1,2})\s*[日号]"),
+    re.compile(rf"\b({_MONTHS})\.?\s+(\d{{1,2}})(?:st|nd|rd|th)?\b(?!,?\s+\d{{4}})", re.I),
+    re.compile(rf"\b(\d{{1,2}})(?:st|nd|rd|th)?\s+({_MONTHS})\b\.?(?!,?\s+\d{{4}})", re.I),
+]
+
+
 def dates_in(text: str) -> set[str]:
-    """ISO dates an answer names, in any of the forms it writes them."""
+    """ISO dates an answer names, in any of the forms it writes them. A month
+    and day without a year take the year of the nearest full date before
+    them; with no earlier full date the year is unknown and nothing is read."""
     text = nfkc(text)
     found = set()
+    full: list[tuple[int, int, int]] = []
     for i, pattern in enumerate(_DATE_FORMS):
         for m in pattern.finditer(text):
             try:
@@ -98,6 +111,24 @@ def dates_in(text: str) -> set[str]:
                 else:
                     d, mo, y = int(m.group(1)), _MONTH_NO[m.group(2).lower()], int(m.group(3))
                 found.add(date(y, mo, d).isoformat())
+                full.append((m.start(), m.end(), y))
+            except (ValueError, KeyError):
+                continue
+    for i, pattern in enumerate(_SHORT_DATE_FORMS):
+        for m in pattern.finditer(text):
+            if any(start <= m.start() < end for start, end, _ in full):
+                continue
+            years = [y for start, _, y in sorted(full) if start < m.start()]
+            if not years:
+                continue
+            try:
+                if i == 0:
+                    mo, d = int(m.group(1)), int(m.group(2))
+                elif i == 1:
+                    mo, d = _MONTH_NO[m.group(1).lower()], int(m.group(2))
+                else:
+                    d, mo = int(m.group(1)), _MONTH_NO[m.group(2).lower()]
+                found.add(date(years[-1], mo, d).isoformat())
             except (ValueError, KeyError):
                 continue
     return found
@@ -328,34 +359,134 @@ def _closer_to_label(span: tuple[int, int], own: list[tuple[int, int]], other: l
     return bool(own) and min(map(gap, own)) < min(map(gap, other), default=float("inf"))
 
 
+#: The result of worked arithmetic, "74 − 50 = 24": the label that opens the
+#: clause names the result, while the nearest label names an operand
+#: ("Excess above the limit: 74 − 50 = 24" bound 24 to "limit", 2026-10-23).
+_WORKED = re.compile(r"\d[\d.,]*\s*[-−–+×*/÷]\s*\d[\d.,]*\s*[=≈]\s*[*_]*$")
+
+
 def _bound_numbers(fact: dict, clause: str) -> list[float]:
     text = strip_dates(clause)
     scope = fact["scope"]
     own = _anchor_spans(scope["anchors"], text)
     other = _anchor_spans(scope["other_anchors"], text)
-    return [value for match in _NUM.finditer(text) if _closer_to_label(match.span(), own, other)
-            for value in numbers(match.group())]
+    labels = sorted([(a, -(b - a), True) for a, b in own] + [(a, -(b - a), False) for a, b in other])
+    opens_own = bool(labels) and labels[0][2]
+    out = []
+    for match in _NUM.finditer(text):
+        worked = _WORKED.search(text[:match.start()])
+        if (opens_own if worked else _closer_to_label(match.span(), own, other)):
+            out += numbers(match.group())
+    return out
+
+
+_ITEM = re.compile(r"^\s*(?:[-*•+]|\d{1,2}[.)、])\s+")
+_TABLE_RULE = re.compile(r"^\s*\|?\s*:?-{2,}")
+#: Words that name an attribute of the subject already named, so an unlabelled
+#: clause or list item that starts with one continues it: "8 月共记录了 3 次舒张压，
+#: 平均值是 77.7"; "LDL-C 的資料如下：" then "- 結果：2.68 mmol/L".
+_CONTINUES = re.compile(
+    r"\b(?:result|value|reading|level|mean|average|median|total|sum|reference|range|normal|upper|lower|limit"
+    r"|genotype|call|dose|dosage|amount|i\.?e)s?\b"
+    r"|值|结果|結果|平均|均值|中位|合计|合計|总|總|参考|參考|正常|范围|範圍|上限|下限|基因型|遺伝子型|分型|剂量|劑量|用量|基準|即",
+    re.I)
+
+
+def _clauses(line: str) -> list[str]:
+    """A line cut at clause punctuation outside brackets: a comma inside
+    "(chr12:21331549, GRCh37)" or a filename's "." does not end a clause."""
+    # An unbalanced bracket ("1)" as a list marker) would swallow the line.
+    balanced = line.count("(") + line.count("（") == line.count(")") + line.count("）")
+    out, depth, start = [], 0, 0
+    for i, ch in enumerate(line):
+        if balanced and ch in "(（":
+            depth += 1
+        elif balanced and ch in ")）":
+            depth -= 1
+        elif depth:
+            continue
+        elif (ch in "。；;!?！？，"
+              or (ch == "," and not (line[i - 1:i].isdigit() and line[i + 1:i + 2].isdigit()))
+              or (ch == "." and (i + 1 == len(line) or line[i + 1].isspace()))):
+            out.append(line[start:i])
+            start = i + 1
+    out.append(line[start:])
+    return out
+
+
+def _rivals(scope: dict) -> list[str]:
+    own = {nfkc(a).casefold() for a in scope.get("anchors", []) + scope.get("other_anchors", [])}
+    return [a for names in ALIASES.values() for a in names if nfkc(a).casefold() not in own]
+
+
+def _continues(text: str, rivals: list[str]) -> bool:
+    """`text` names no subject of its own and starts with an attribute word."""
+    body = re.sub(r"^[\s*_>#|•+-]+", "", text)
+    head = re.split(r"[:：]|\d", body, maxsplit=1)[0]
+    if any(_anchor_present(r, head) for r in rivals):
+        return False
+    return not re.search(r"[A-Za-z㐀-鿿぀-ヿ]", head) or bool(_CONTINUES.search(head))
 
 
 def _fact_scopes(fact: dict, answer: str) -> list[str]:
     """Bind the fact to a clause/table row, rather than any number nearby.
 
     This is deliberately a conservative structural check, not an NLI judge.
-    Headings, unusual paraphrases and wide tables can need human review.
-    Keeping clauses separate catches swapped ALT/AST and genotype labels.
+    Keeping clauses separate catches swapped ALT/AST and genotype labels. A
+    clause or list item that names no subject but starts with an attribute
+    word ("平均值是 77.7", "- 結果：2.68") continues the clause, list
+    introduction or list item before it, and a table cell is read with its
+    column header and row label; another test's name (`cases.ALIASES`) in
+    that clause stops it.
     """
     scope = fact.get("scope")
     if not scope:
         return [answer]
-    clauses = re.split(r"\n|[。；;!?！？，]|(?<!\d)[.,]|[.,](?!\d)", answer)
+    anchors, others = scope.get("anchors", []), scope.get("other_anchors", [])
+    rivals = _rivals(scope) if anchors else []
+
+    def labelled(text: str) -> bool:
+        return any(_anchor_present(a, text) for a in anchors + others)
+
+    units: list[str] = []
+    intro = subject = ""
+    header = None
+    for line in answer.split("\n"):
+        if not line.strip():
+            continue
+        if line.lstrip().startswith("|"):
+            cells = [c.strip() for c in line.strip().strip("|").split("|")]
+            if _TABLE_RULE.match(line):
+                continue
+            if header is None:
+                header = cells
+            elif len(cells) == len(header):
+                units += [f"{cells[0]} {header[i]} {cells[i]}" for i in range(1, len(cells))]
+            units.append(line)
+            continue
+        header = None
+        # A list item continues the subject of the item before it, else of
+        # the list's introduction; a prose line starts afresh.
+        item = bool(_ITEM.match(line))
+        context = (subject or intro) if item else ""
+        for clause in _clauses(line):
+            if not anchors or labelled(clause):
+                units.append(clause)
+                context = clause
+            elif context and _continues(clause, rivals):
+                units.append(f"{context} {clause}")
+            else:
+                context = ""
+        subject = context
+        if not item:
+            intro = context
     matches = []
-    for clause in clauses:
-        if scope.get("anchors") and not any(_anchor_present(a, clause) for a in scope["anchors"]):
+    for unit in units:
+        if anchors and not any(_anchor_present(a, unit) for a in anchors):
             continue
-        found_dates = dates_in(clause)
-        if scope.get("date") and scope["date"] not in found_dates:
+        if scope.get("date") and scope["date"] not in dates_in(unit):
             continue
-        matches.append(clause)
+        matches.append(unit)
     return matches
 
 
@@ -409,8 +540,10 @@ def fact_present(fact: dict, answer: str, nums: list[float], trace: dict | None 
     if kind == "number":
         return _number_present(fact, nums)
     if kind == "words":
-        low = nfkc(answer).lower().replace("\u2019", "'")        # couldn’t, as GPT models write it
-        return any(w.lower() in low for w in fact["any"])
+        # couldn’t, as GPT models write it; "does **not** mean" is "does not mean"
+        low = nfkc(answer).lower().replace("\u2019", "'").replace("*", "")
+        return (any(w.lower() in low for w in fact["any"])
+                or any(re.search(pattern, low) for pattern in fact.get("patterns", [])))
     if kind == "date":
         return fact["value"] in dates_in(answer)
     if kind == "duration":

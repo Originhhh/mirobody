@@ -19,6 +19,19 @@
   a swapped or wrong value still fails. Questions and expected facts are
   unchanged, so saved results can be rescored with `score.py`.
 
+- **The 100-question benchmark failed correct answers it could not parse,
+  and named files the product never shows.** Absence ("There is no genotype
+  file"), "does not establish a normal genotype", coverage ("only 7 of 35
+  sites"), a value in a clause or list item after its label, table rows,
+  answers from a document's stored readings, short drug names and year-less
+  dates were all scored wrong, while a reported value still fails an
+  absence fact and a swapped ALT/AST still fails.
+  Questions also named corpus files like `p002_2026-04-02_e15a.jpg`, which the
+  product's `/library/` renames, so models searched for or refused a missing
+  file; they now name the document by type and date. The suite is
+  `harness100-20261023b` (same loaded record); each class has a case in
+  `tests/agent/test_local_eval_contract.py`.
+
 ## 1.5.8
 
 ### Added
