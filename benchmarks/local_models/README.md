@@ -215,3 +215,40 @@ machine details. Existing result directories with another question hash are refu
 The optional `--review-packets /path/to/review-packets.jsonl` export from `cases.py` can be passed to mirobody-gen's
 `review-scenarios` without `--model` for deterministic packet/coverage checks.
 Those checks do not independently judge medical truth or image quality.
+
+## Extending the set: chart and language coverage
+
+The shipped 100 questions ask for a chart on **two** of them and are **60% English**
+(`en` 60, `zh-CN` 30, `ja` 5, `zh-TW` 5; per-person counts run from 24 to 4). That
+makes the `chart` and `language` checks cheap for a model: almost every case passes
+`chart` without drawing anything, and a model that only ever answers in English is
+still measured mostly on English questions.
+
+`expand_cases.py` builds extra cases in the same shape as `cases.jsonl` from a
+`mirobody-gen` build, with every answer computed from the build (never from product
+output):
+
+```bash
+python benchmarks/local_models/expand_cases.py --corpus <build> --out extra-cases.jsonl --people 3
+# 76 cases for 2 people, 16 of them charts, in zh-CN / zh-TW / ja / en
+```
+
+It emits four families the current set under-covers:
+
+| family | asks | checked as |
+| --- | --- | --- |
+| device-latest | newest value and its date | number + date facts |
+| device-sum / device-count | total and covered days over 30 days | number |
+| chart | a week of daily values **and** a `vis-chart` block | 7 numbers + `chart` |
+| journal-count | how many entries mention a symptom | number |
+| absence | a metric this person never recorded | words: states absence |
+
+Each form is generated once per locale, so a model that answers a Chinese question in
+English now fails the language check.
+
+The file is deliberately **separate** from `cases.jsonl`: the maintained suite keeps
+its provenance and its historical baseline. To run the extras through this harness,
+append them to a copy of `cases.jsonl`, recompute `plan.json`'s `cases_sha256`, and
+relax `provenance.validate_cases`'s "exactly 100" rule in that copy — that is what the
+extras were developed against. Treat the result as an extended set with its own name,
+not as a replacement for `harness100-20261021`, and report the two separately.
