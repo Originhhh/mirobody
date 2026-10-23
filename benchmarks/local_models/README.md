@@ -230,21 +230,25 @@ output):
 
 ```bash
 python benchmarks/local_models/expand_cases.py --corpus <build> --out extra-cases.jsonl --people 3
-# 76 cases for 2 people, 16 of them charts, in zh-CN / zh-TW / ja / en
+# the exact count depends on 30-day coverage; the script prints it
 ```
 
-It emits four families the current set under-covers:
+It emits five families the current set under-covers:
 
 | family | asks | checked as |
 | --- | --- | --- |
 | device-latest | newest value and its date | number + date facts |
-| device-sum / device-count | total and covered days over 30 days | number |
+| device-sum / device-count | total (steps only; rhr/weight are not additive) and covered days over 30 days | number |
 | chart | a week of daily values **and** a `vis-chart` block | 7 numbers + `chart` |
 | journal-count | how many entries mention a symptom | number |
 | absence | a metric this person never recorded | words: states absence |
 
 Each form is generated once per locale, so a model that answers a Chinese question in
-English now fails the language check.
+English now fails the language check. `journal-count` is skipped in a locale when the
+symptom has no translation, rather than mixing an English symptom into a Chinese or
+Japanese question.
+
+Use `--as-of` when the build's clock is not the frozen suite's `2026-09-02`.
 
 The file is deliberately **separate** from `cases.jsonl`: the maintained suite keeps
 its provenance and its historical baseline. To run the extras through this harness,

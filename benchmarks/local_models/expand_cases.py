@@ -28,15 +28,48 @@ from __future__ import annotations
 
 import argparse
 import json
-from collections import defaultdict
+from collections import Counter, defaultdict
 from datetime import date
 from pathlib import Path
 
 AS_OF = "2026-09-02T00:00:00+00:00"
+EXTRA_SUITE = "harness-extra-20261023"
 LANGS = ("zh-CN", "zh-TW", "ja", "en")
-METRICS = {"steps": ("count", "步数", "steps"),
-           "rhr": ("bpm", "静息心率", "resting heart rate"),
-           "weight": ("kg", "体重", "weight")}
+METRICS = {
+    "steps": {"unit": "count", "additive": True,
+              "labels": {"zh-CN": "步数", "zh-TW": "步數", "ja": "歩数", "en": "steps"}},
+    "rhr": {"unit": "bpm", "additive": False,
+            "labels": {"zh-CN": "静息心率", "zh-TW": "靜止心率", "ja": "安静時心拍数", "en": "resting heart rate"}},
+    "weight": {"unit": "kg", "additive": False,
+               "labels": {"zh-CN": "体重", "zh-TW": "體重", "ja": "体重", "en": "weight"}},
+}
+
+# Only symptoms with a translation are emitted in that locale. Falling back to the
+# English name would mix languages in exactly the dimension this generator is for.
+SYMPTOM_LABELS = {
+    "headache": {"zh-CN": "头痛", "zh-TW": "頭痛", "ja": "頭痛"},
+    "fatigue": {"zh-CN": "疲劳", "zh-TW": "疲勞", "ja": "疲労"},
+    "nausea": {"zh-CN": "恶心", "zh-TW": "噁心", "ja": "吐き気"},
+    "dizziness": {"zh-CN": "头晕", "zh-TW": "頭暈", "ja": "めまい"},
+    "cough": {"zh-CN": "咳嗽", "zh-TW": "咳嗽", "ja": "咳"},
+    "fever": {"zh-CN": "发热", "zh-TW": "發燒", "ja": "発熱"},
+    "pain": {"zh-CN": "疼痛", "zh-TW": "疼痛", "ja": "痛み"},
+    "insomnia": {"zh-CN": "失眠", "zh-TW": "失眠", "ja": "不眠"},
+    "anxiety": {"zh-CN": "焦虑", "zh-TW": "焦慮", "ja": "不安"},
+    "stress": {"zh-CN": "压力", "zh-TW": "壓力", "ja": "ストレス"},
+    "sore throat": {"zh-CN": "喉咙痛", "zh-TW": "喉嚨痛", "ja": "喉の痛み"},
+    "runny nose": {"zh-CN": "流鼻涕", "zh-TW": "流鼻水", "ja": "鼻水"},
+    "stomach ache": {"zh-CN": "胃痛", "zh-TW": "胃痛", "ja": "腹痛"},
+    "diarrhea": {"zh-CN": "腹泻", "zh-TW": "腹瀉", "ja": "下痢"},
+    "constipation": {"zh-CN": "便秘", "zh-TW": "便秘", "ja": "便秘"},
+    "back pain": {"zh-CN": "背痛", "zh-TW": "背痛", "ja": "背中の痛み"},
+    "chest pain": {"zh-CN": "胸痛", "zh-TW": "胸痛", "ja": "胸の痛み"},
+    "shortness of breath": {"zh-CN": "气短", "zh-TW": "呼吸急促", "ja": "息切れ"},
+}
+
+
+def label_for(metric: str, lang: str) -> str:
+    return METRICS[metric]["labels"][lang]
 
 TEXT = {
     "latest": {
@@ -116,7 +149,7 @@ def evidence(person: str, metric: str, start: str, end: str, records: int) -> li
              "value_policy": "reported_numeric_value"}]
 
 
-def build(corpus: Path, people: int) -> list[dict]:
+def build(corpus: Path, people: int, as_of: str) -> list[dict]:
     devices = load_devices(corpus)
     journal = load_journal(corpus)
     out: list[dict] = []
@@ -131,23 +164,23 @@ def build(corpus: Path, people: int) -> list[dict]:
             total = round(sum(v for _, v in points), 2)
             tol = 0.11 if metric == "weight" else 0.6
             for lang in LANGS:
-                unit, zh, en = METRICS[metric]
-                label = zh if lang.startswith("zh") else (en if lang == "en" else zh)
-                common = dict(suite_id=None, synthetic=True, person=person, lang=lang, domain="device",
-                              sources=["devices.jsonl"], expect_tools=["query_health_indicators"],
-                              chart=False, as_of=AS_OF, evidence=evidence(person, metric, start, end, len(points)),
-                              forbidden=[])
+                label = label_for(metric, lang)
+                common = {"suite_id": EXTRA_SUITE, "synthetic": True, "person": person, "lang": lang,
+                          "domain": "device", "sources": ["devices.jsonl"],
+                          "expect_tools": ["query_health_indicators"], "chart": False, "as_of": as_of,
+                          "evidence": evidence(person, metric, start, end, len(points)), "forbidden": []}
                 out.append({**common, "id": f"x-device-{metric}-latest-{person}-{lang}",
                             "question": TEXT["latest"][lang].format(person=person, start=start, end=end, label=label),
                             "facts": [{"kind": "number", "value": round(latest_value, 2), "tol": tol,
                                        "label": "latest", "scope": {"date": latest_day}},
                                       {"kind": "date", "value": latest_day, "label": "latest date"}],
                             "tags": [metric, "latest"], "right": f"{latest_day} {latest_value}"})
-                out.append({**common, "id": f"x-device-{metric}-sum-{person}-{lang}",
-                            "question": TEXT["sum"][lang].format(person=person, start=start, end=end, label=label),
-                            "facts": [{"kind": "number", "value": total, "tol": max(1.0, abs(total) * 0.002),
-                                       "label": "total"}],
-                            "tags": [metric, "sum"], "right": str(total)})
+                if METRICS[metric]["additive"]:
+                    out.append({**common, "id": f"x-device-{metric}-sum-{person}-{lang}",
+                                "question": TEXT["sum"][lang].format(person=person, start=start, end=end, label=label),
+                                "facts": [{"kind": "number", "value": total, "tol": max(1.0, abs(total) * 0.002),
+                                           "label": "total"}],
+                                "tags": [metric, "sum"], "right": str(total)})
                 out.append({**common, "id": f"x-device-{metric}-count-{person}-{lang}",
                             "question": TEXT["count"][lang].format(person=person, start=start, end=end, label=label),
                             "facts": [{"kind": "number", "value": len(points), "tol": 0.01, "label": "days"}],
@@ -156,11 +189,10 @@ def build(corpus: Path, people: int) -> list[dict]:
             if week:
                 wstart, wend, wpoints = week
                 for lang in LANGS:
-                    unit, zh, en = METRICS[metric]
-                    label = zh if lang.startswith("zh") else (en if lang == "en" else zh)
-                    out.append({"suite_id": None, "synthetic": True, "person": person, "lang": lang,
+                    label = label_for(metric, lang)
+                    out.append({"suite_id": EXTRA_SUITE, "synthetic": True, "person": person, "lang": lang,
                                 "domain": "device", "sources": ["devices.jsonl"],
-                                "expect_tools": ["query_health_indicators"], "chart": True, "as_of": AS_OF,
+                                "expect_tools": ["query_health_indicators"], "chart": True, "as_of": as_of,
                                 "id": f"x-chart-{metric}-{person}-{lang}",
                                 "question": TEXT["chart"][lang].format(person=person, start=wstart, end=wend, label=label),
                                 "facts": [{"kind": "number", "value": round(v, 2), "tol": tol, "label": d,
@@ -173,14 +205,18 @@ def build(corpus: Path, people: int) -> list[dict]:
         names = [n for row in journal[person] for n in row["names"] if n]
         if not names:
             continue
-        symptom = max(set(names), key=names.count)
+        counts = Counter(names)
+        symptom = sorted(counts.items(), key=lambda kv: (-kv[1], kv[0]))[0][0]
         count = sum(1 for row in journal[person] if symptom in row["names"] and row["text"].strip())
         for lang in LANGS:
-            out.append({"suite_id": None, "synthetic": True, "person": person, "lang": lang, "domain": "journal",
+            local = SYMPTOM_LABELS.get(symptom, {}).get(lang)
+            if lang != "en" and not local:
+                continue
+            out.append({"suite_id": EXTRA_SUITE, "synthetic": True, "person": person, "lang": lang, "domain": "journal",
                         "sources": ["journal.jsonl"], "expect_tools": ["query_health_indicators"], "chart": False,
-                        "as_of": AS_OF, "evidence": [], "forbidden": [],
+                        "as_of": as_of, "evidence": [], "forbidden": [],
                         "id": f"x-journal-{person}-{lang}",
-                        "question": TEXT["journal"][lang].format(symptom=symptom),
+                        "question": TEXT["journal"][lang].format(symptom=local or symptom),
                         "facts": [{"kind": "number", "value": count, "tol": 0.01, "label": "entries"}],
                         "tags": ["journal", symptom], "right": str(count)})
 
@@ -189,12 +225,11 @@ def build(corpus: Path, people: int) -> list[dict]:
         if not missing:
             continue
         metric = missing[0]
-        unit, zh, en = METRICS[metric]
         for lang in LANGS:
-            label = zh if lang.startswith("zh") else (en if lang == "en" else zh)
-            out.append({"suite_id": None, "synthetic": True, "person": person, "lang": lang, "domain": "absence",
+            label = label_for(metric, lang)
+            out.append({"suite_id": EXTRA_SUITE, "synthetic": True, "person": person, "lang": lang, "domain": "absence",
                         "sources": ["devices.jsonl"], "expect_tools": ["query_health_indicators"], "chart": False,
-                        "as_of": AS_OF, "evidence": [], "forbidden": [],
+                        "as_of": as_of, "evidence": [], "forbidden": [],
                         "id": f"x-absence-{metric}-{person}-{lang}",
                         "question": TEXT["absence"][lang].format(person=person, label=label),
                         "facts": [{"kind": "words", "label": "states absence",
@@ -209,9 +244,10 @@ def main() -> int:
     ap.add_argument("--corpus", required=True, type=Path, help="a mirobody-gen build (devices.jsonl, journal.jsonl)")
     ap.add_argument("--out", required=True, type=Path)
     ap.add_argument("--people", type=int, default=3, help="how many people to draw cases from")
+    ap.add_argument("--as-of", default=AS_OF, help="evaluation clock recorded on every case")
     args = ap.parse_args()
 
-    cases = build(args.corpus, args.people)
+    cases = build(args.corpus, args.people, args.as_of)
     with args.out.open("w") as fh:
         for case in cases:
             fh.write(json.dumps(case, ensure_ascii=False) + "\n")
