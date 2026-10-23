@@ -8,13 +8,13 @@ every family; it includes genetics, pharmacogenomics, OCR documents and a real
 follow-up conversation. The answering model retains the product's normal tools.
 Documents use the configured reader, including **GLM-OCR-0.9B** for a local setup.
 
-The suite is `harness100-20261023b`, a **development/regression set**. It is not an
+The suite is `harness100-20261023c`, a **development/regression set**. It is not an
 unseen test set, a clinical validation or a new performance result. It asks about the
-same loaded record as `harness100-20261021` and `harness100-20261023`; its 32
+same loaded record as `harness100-20261021`, `-20261023` and `-20261023b`; its 32
 document and laboratory questions name the document by type and date instead of a
 corpus filename the product never shows, and its scorer reads more correct phrasings
-([Scoring and review](#scoring-and-review)). Do not compare pass totals across the
-three. The historical 30-question runs and their conclusions are in
+([Scoring and review](#scoring-and-review)). Do not compare pass totals across
+suites. The historical 30-question runs and their conclusions are in
 [HISTORY.md](HISTORY.md); their frozen questions are
 [results/2026-10-10/cases.jsonl](results/2026-10-10/cases.jsonl). Do not compare
 pass totals across those suites either.
@@ -125,9 +125,8 @@ calling the sentence parser, and explicit medication schedule versions through
 `POST /api/v1/medications`. A titration closes the preceding schedule on the day
 before the new dose starts; it never fabricates taken, skipped or missed dose logs.
 
-The accounts keep the `harness100-20261021` name: `harness100-20261023` and
-`harness100-20261023b` changed only questions and expected facts, so the loaded record
-and its identity are the same.
+The accounts keep the `harness100-20261021` name: every later suite changed only
+questions and expected facts, so the loaded record and its identity are the same.
 
 ```bash
 export BENCH_QA_GENERATION=harness100-20261021
@@ -203,7 +202,9 @@ clause or list item that names no test but opens with an attribute word ("mean",
 column header and row label, and the result of worked arithmetic ("74 − 50 = 24")
 belongs to the label that opens its clause; another test's name stops that.
 Absence, "this does not establish" and assay coverage are matched as phrases, so
-"There is no genotype file" passes and a reported value does not. A document
+"There is no genotype file" passes, while a reported value does not, nor does a
+"no" followed by a determiner, a possessive or "other" ("no other tests were
+abnormal"). A document
 question may be answered from that file's stored readings as well as by reading
 it. A month and day without a year take the year of the full date before them. A
 follow-up can cite and reuse its prerequisite's actual evidence without being forced into another call.

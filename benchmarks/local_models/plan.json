@@ -1,6 +1,6 @@
 {
  "provenance": {
-  "suite_id": "harness100-20261023b",
+  "suite_id": "harness100-20261023c",
   "split": "development_regression",
   "independent_test_set": false,
   "as_of": "2026-09-02T00:00:00+00:00",
@@ -172,7 +172,7 @@
    "vendor_signals.jsonl": "291da7a065c86ef253c6a4aa82e92b7ca910aa71285a46a422f4540611114f60"
   }
  },
- "cases_sha256": "3734fa3bcfe545605e93348634c36834b221129ee93890e03ad21556ad1405c6",
+ "cases_sha256": "bdcf21d8eaa04973396d2a0550be7e29ffbea599fb041097ade1fef8b844cf5f",
  "qa_people": {
   "p001": {
    "tz": "Asia/Shanghai",

@@ -32,6 +32,14 @@
   `harness100-20261023b` (same loaded record); each class has a case in
   `tests/agent/test_local_eval_contract.py`.
 
+- **The benchmark's absence phrases passed answers that report a value.**
+  "Your insulin was 7.2; no other tests were abnormal", "No your insulin
+  result is 7.2" and "There is no other insulin result" all counted as
+  stating absence, because any "no … result" matched. A determiner, a
+  possessive or "other" after "no" or "any" now rules the phrase out;
+  "There is no genotype file" still passes. The suite is
+  `harness100-20261023c`; the contract test has these cases.
+
 ## 1.5.8
 
 ### Added
