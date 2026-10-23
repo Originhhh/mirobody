@@ -428,6 +428,36 @@ def test_signed_change_oracle_rejects_opposite_sign(manifest):
     assert not present(signed, "Signed change: +3 bpm, a decrease.")
 
 
+@pytest.mark.parametrize(("case_id", "answer", "passes"), [
+    ("h100-sleep-observed-total", "Your total sleep was 47.6 hours.", True),
+    ("h100-sleep-observed-total", "Total sleep: 2858 minutes.", True),
+    ("h100-sleep-observed-total", "Total sleep: 47 h 38 min.", True),
+    ("h100-sleep-observed-total", "Total sleep: 47.2 hours.", False),
+    ("h100-conversation-4-start", "Mean sleep was 7.4 hours per night.", True),
+    ("h100-conversation-4-start", "Mean sleep was 7.5 hours per night.", False),
+])
+def test_sleep_duration_passes_in_any_unit_but_not_a_wrong_length(manifest, case_id, answer, passes):
+    cases, _ = manifest
+    (fact,) = next(c for c in cases if c["id"] == case_id)["facts"]
+    assert fact["kind"] == "duration"
+    assert present(fact, answer) is passes
+
+
+@pytest.mark.parametrize(("case_id", "answer", "passes"), [
+    ("h100-conversation-1-followup", "The next week averaged 9586 steps, 554 fewer: lower.", True),
+    ("h100-conversation-1-followup", "The next week averaged 9580 steps, 560 fewer: lower.", False),
+    ("h100-diastolic-average", "舒张压平均值为 78 mmHg。", True),
+    ("h100-diastolic-average", "舒张压平均值为 77 mmHg。", False),
+    ("h100-conversation-3-start", "舒张压平均值为 82 mmHg。", True),
+    ("h100-conversation-3-start", "舒张压平均值为 81 mmHg。", False),
+    ("h100-blood-pressure-pair", "收縮壓 112 mmHg，舒張壓 83 mmHg。", False),
+])
+def test_device_tolerance_accepts_rounding_but_not_a_neighbouring_value(manifest, case_id, answer, passes):
+    cases, _ = manifest
+    numeric = [f for f in next(c for c in cases if c["id"] == case_id)["facts"] if f["kind"] == "number"]
+    assert all(present(f, answer) for f in numeric) is passes
+
+
 @pytest.mark.parametrize(("language", "answer"), [
     ("en", "The result was 26 U/L."),
     ("zh-CN", "检查结果是 26，记录里没有其他数据。"),

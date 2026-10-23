@@ -1,5 +1,12 @@
 > Archived historical evaluation. The current 100-question suite is in [README.md](README.md). Commands and numbers below describe their original revisions.
 
+> **100-question suite revisions.** `harness100-20261021` (2026-10-21) bound sleep
+> totals and means to minutes within 0.1 and most device means within 0.1, so
+> "47.6 hours" for 2858.25 minutes and 78 mmHg for a 77.67 mean failed.
+> `harness100-20261023` asks the same questions of the same record with duration
+> facts and tolerances from each metric's precision; pass totals of the two are
+> not comparable.
+
 # Local model sizes: an evaluation you can rerun
 
 Mirobody 1.5.5 offers two sizes of answering model for running with no API

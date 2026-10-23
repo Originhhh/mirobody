@@ -1,5 +1,17 @@
 ## Unreleased
 
+### Fixed
+
+- **The 100-question local benchmark failed correct numeric answers.** Sleep
+  totals and means were expected in minutes within 0.1, so "47.6 hours" or
+  "2858 minutes" for 2858.25 minutes failed, and most device means allowed
+  0.1, so 78 mmHg for a 77.67 mean failed. Sleep sums and means whose unit
+  the question leaves open are now durations in any unit within 3 minutes,
+  and each device value allows half the step it is stated in (1 for steps,
+  mmHg and bpm; 0.1 for kg, lb, hours and percent). The suite is now
+  `harness100-20261023`, with the same questions and loaded record;
+  `tests/agent/test_local_eval_contract.py` pins both cases.
+
 ## 1.5.8
 
 ### Added

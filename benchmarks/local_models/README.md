@@ -8,11 +8,15 @@ every family; it includes genetics, pharmacogenomics, OCR documents and a real
 follow-up conversation. The answering model retains the product's normal tools.
 Documents use the configured reader, including **GLM-OCR-0.9B** for a local setup.
 
-The suite is `harness100-20261021`, a **development/regression set**. It is not an
-unseen test set, a clinical validation or a new performance result. The historical
-30-question runs and their conclusions are in [HISTORY.md](HISTORY.md); their
-frozen questions are [results/2026-10-10/cases.jsonl](results/2026-10-10/cases.jsonl).
-Do not compare pass totals across the two suites.
+The suite is `harness100-20261023`, a **development/regression set**. It is not an
+unseen test set, a clinical validation or a new performance result. It asks the same
+100 questions of the same loaded record as `harness100-20261021`, which marked
+correct answers wrong when they stated sleep in hours or rounded a mean
+([Scoring and review](#scoring-and-review)); do not compare pass totals across the
+two. The historical 30-question runs and their conclusions are in
+[HISTORY.md](HISTORY.md); their frozen questions are
+[results/2026-10-10/cases.jsonl](results/2026-10-10/cases.jsonl). Do not compare
+pass totals across those suites either.
 
 | Family | Questions | Distinct challenges |
 | --- | ---: | --- |
@@ -120,6 +124,9 @@ calling the sentence parser, and explicit medication schedule versions through
 `POST /api/v1/medications`. A titration closes the preceding schedule on the day
 before the new dose starts; it never fabricates taken, skipped or missed dose logs.
 
+The accounts keep the `harness100-20261021` name: `harness100-20261023` changed only
+expected facts, so the loaded record and its identity are the same.
+
 ```bash
 export BENCH_QA_GENERATION=harness100-20261021
 .venv/bin/python benchmarks/local_models/load.py --corpus /path/to/corpus --qa
@@ -183,8 +190,13 @@ The scorer checks completion, a relevant tool path, language, expected facts,
 requested chart, subject identity and fabricated citation IDs. Expected numeric
 facts can bind to a labelled clause, table row, date or rsID. It rejects swapped
 ALT/AST values, wrong dated points, a genotype attached to another site, wrong
-numeric sign and an answer from a different synthetic subject. A follow-up can cite
-and reuse its prerequisite's actual evidence without being forced into another call.
+numeric sign and an answer from a different synthetic subject. A device number passes
+within half the step it is naturally stated in (1 for step counts, mmHg and bpm;
+0.1 for kg, lb, hours and percent), so any correct rounding passes and a
+neighbouring reading does not; a difference of two means allows a whole step. A
+sleep total or mean whose unit the question leaves open is a duration, read as
+hours, hours and minutes or minutes, within 3 minutes (one-decimal hours). A
+follow-up can cite and reuse its prerequisite's actual evidence without being forced into another call.
 
 These are conservative **structural checks**, not a semantic or clinical judge.
 Unusual valid phrasing or wide tables can produce false negatives; contradictions,
