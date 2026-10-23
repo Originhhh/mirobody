@@ -12,6 +12,13 @@
   `harness100-20261023`, with the same questions and loaded record;
   `tests/agent/test_local_eval_contract.py` pins both cases.
 
+- **The 100-question benchmark failed unit conversions written in the
+  plural.** An English label bound only its exact word, so "about 153.7 lbs"
+  or "153.66 pounds" never matched the `lb`/`pound` label and a correct
+  kilogram-to-pound answer failed. A word label now also binds its plural;
+  a swapped or wrong value still fails. Questions and expected facts are
+  unchanged, so saved results can be rescored with `score.py`.
+
 ## 1.5.8
 
 ### Added

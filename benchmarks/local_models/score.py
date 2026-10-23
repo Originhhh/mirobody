@@ -299,10 +299,15 @@ def _number_present(fact: dict, nums: list[float]) -> bool:
     return any(abs(n - t) <= fact["tol"] + 1e-9 for t in targets for n in nums)
 
 
+#: A word anchor also binds its plural: "153.7 lbs" and "in pounds" bound
+#: neither `lb` nor `pound`, so correct conversions failed (2026-10-23).
+_PLURAL = r"(?:e?s)?"
+
+
 def _anchor_present(anchor: str, text: str) -> bool:
     anchor, text = nfkc(anchor).casefold(), nfkc(text).casefold()
     if re.fullmatch(r"[a-z0-9 /_-]+", anchor):
-        return bool(re.search(r"(?<![a-z0-9])" + re.escape(anchor) + r"(?![a-z0-9])", text))
+        return bool(re.search(r"(?<![a-z0-9])" + re.escape(anchor) + _PLURAL + r"(?![a-z0-9])", text))
     return anchor in text
 
 
@@ -312,7 +317,7 @@ def _anchor_spans(anchors: list[str], text: str) -> list[tuple[int, int]]:
         anchor = nfkc(anchor).casefold()
         pattern = re.escape(anchor)
         if re.fullmatch(r"[a-z0-9 /_-]+", anchor):
-            pattern = r"(?<![a-z0-9])" + pattern + r"(?![a-z0-9])"
+            pattern = r"(?<![a-z0-9])" + pattern + _PLURAL + r"(?![a-z0-9])"
         spans.extend(m.span() for m in re.finditer(pattern, text.casefold()))
     return spans
 

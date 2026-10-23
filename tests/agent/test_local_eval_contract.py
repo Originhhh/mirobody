@@ -458,6 +458,19 @@ def test_device_tolerance_accepts_rounding_but_not_a_neighbouring_value(manifest
     assert all(present(f, answer) for f in numeric) is passes
 
 
+@pytest.mark.parametrize(("answer", "passes"), [
+    ("Your latest weight is 69.7 kg, which is about 153.7 lb.", True),
+    ("Your latest weight is 69.7 kg, which is about 153.7 lbs.", True),
+    ("Latest reading: 69.7 kilograms. In pounds: ~153.66 pounds.", True),
+    ("Your latest weight is 69.7 kg, which is about 153.9 lbs.", False),
+    ("Your latest weight is 153.7 kg, which is about 69.7 lbs.", False),
+])
+def test_unit_anchors_bind_plural_words_but_not_swapped_values(manifest, answer, passes):
+    cases, _ = manifest
+    facts = next(c for c in cases if c["id"] == "h100-kilograms-to-pounds")["facts"]
+    assert all(present(f, answer) for f in facts) is passes
+
+
 @pytest.mark.parametrize(("language", "answer"), [
     ("en", "The result was 26 U/L."),
     ("zh-CN", "检查结果是 26，记录里没有其他数据。"),
