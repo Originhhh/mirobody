@@ -19,6 +19,14 @@
 
 ### Fixed
 
+- **A compacted conversation can be read back.** When the history is summarized,
+  deepagents writes the messages it dropped to `/conversation_history/…` and names
+  the file in the summary; a local model was denied that path, so a long turn that
+  was compacted had no way to recover a detail the summary dropped and could end
+  with no answer at all. Local models get the path now, and the prompt bounds it:
+  at most one page, only when the summary lacks what the question needs.
+  `LOCAL_HISTORY_OFFLOAD=off` restores the previous rule.
+
 - **A calculation could fail before it ran: inputs never arrived.** The sandbox
   uploaded `data.json`, `main.py` and `runner.py` through `docker exec` with an
   attached stdin. With some docker SDK/daemon pairs that call returns no exit
