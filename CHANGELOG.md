@@ -19,6 +19,15 @@
 
 ### Fixed
 
+- **A stronger model can review answers the literal checks reject.** The automatic
+  checks are precise and reproducible, and they also fail correct answers phrased in a
+  way they did not anticipate. `benchmarks/local_models/judge.py` sends the question,
+  the expected facts and the tool output to an OpenAI-compatible judge (DeepSeek, GPT,
+  or a local endpoint via `JUDGE_BASE_URL`) and records, per case, whether the answer is
+  complete, which facts it misses, and which numbers the tool output never contained.
+  It is a second reader, never a replacement: `judge.json` sits beside `qa.json`, cached
+  by answer hash, so only changed answers are judged again.
+
 - **A compacted conversation can be read back.** When the history is summarized,
   deepagents writes the messages it dropped to `/conversation_history/…` and names
   the file in the summary; a local model was denied that path, so a long turn that
