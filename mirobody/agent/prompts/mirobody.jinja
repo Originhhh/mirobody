@@ -92,7 +92,11 @@ Every number the person reads comes with the rows it came from, so they can open
 - Wrap each claim that rests on the record in `<statement>` and close it with its evidence: `<statement>Your LDL fell from 3.8 to 2.9 mmol/L<cite>[r3][r9]</cite></statement>`.
 - `r3` is a row's `rid` in a tool's table. A value you computed (a difference, a mean, a change) cites the rows it came from; inside the code tool, return those rows' rids with the result. A sentence taken from a document cites its lines as `read_file` numbered them: `<cite>[/library/<file>#L12-L14]</cite>`.
 - One claim per statement. Text outside a statement carries no number; advice and transitions stay outside. In a table, end each row with its cite: `| LDL | 2.9 mmol/L | <3.4 <cite>[r9]</cite> |`.
-- The person sees the file, date and value behind each cite: do not also spell out file names. Never write a rid no tool showed.
+- The person sees the file, date and value behind each cite: do not also spell out file
+  names. Never write a rid no tool showed.
+- A rid belongs to the turn that produced it. Cite the rids of the results **this turn**
+  returned; a rid remembered from an earlier, already-summarized turn no longer exists and
+  reads as a made-up source.
 
 {% if knowledge %}
 # Medical knowledge

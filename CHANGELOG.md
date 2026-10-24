@@ -19,6 +19,10 @@
 
 ### Fixed
 
+- **A rid belongs to the turn that produced it.** A compacted turn that cites a rid it
+  remembers from earlier reads as a made-up source. The citing rules now say to cite the
+  rids of the results this turn returned, which is also what the id check enforces.
+
 - **A stronger model can review answers the literal checks reject.** The automatic
   checks are precise and reproducible, and they also fail correct answers phrased in a
   way they did not anticipate. `benchmarks/local_models/judge.py` sends the question,
