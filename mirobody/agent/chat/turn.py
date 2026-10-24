@@ -365,10 +365,11 @@ def _attach_citations(block: dict[str, Any], transcript: list[dict[str, Any]]) -
 
     text = str(block.get("text") or "")
     cited_text, cited, uncited = attach_citations(text, collect_rows(transcript))
-    if not cited:
+    if not cited and not uncited:
         return block
-    return {**block, "text": cited_text, "auto_cited": cited,
-            "auto_uncited": uncited}  # numbers no row of this turn supports
+    # The uncited numbers are the review signal even when nothing could be cited: a turn
+    # whose every figure is unsupported is exactly the one a reviewer must see.
+    return {**block, "text": cited_text, "auto_cited": cited, "auto_uncited": uncited}
 
 async def _accumulate(
     blocks: AsyncGenerator[dict[str, Any], None],

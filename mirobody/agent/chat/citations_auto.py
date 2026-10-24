@@ -1,15 +1,23 @@
-"""Cite what the turn actually read: attach rids to the numbers in the answer.
+"""Cite what the turn actually read: verify a claim's source, never guess at it.
 
-Why this is a harness job, not a training job: the base model already answers the
-questions correctly and naturally (facts 74/100) but cites almost nothing (17/84 in
-format), while our SFT that teaches `<cite>` drops facts from 74 to 63. The citation is
-a mechanical claim about where a number came from, and the turn holds every row the
-tools returned - so it can be attached deterministically, with no weight change.
+A citation says "this number came from that row". The turn holds the rows, so the
+relation can be checked - but only when it is unambiguous: a value that several rows share
+(HbA1c 5.5 % and glucose 5.5 mmol/L) does not identify a source, and citing the first of
+them creates a false provenance, which is worse than citing nothing.
 
-`attach_citations` walks the answer's numbers and, for each one that matches a row of a
-record result (value within tolerance), appends `<cite>[rid]</cite>` immediately after
-it. Numbers with no matching row are left alone: they are either prose, or exactly the
-unsupported numbers the review is meant to catch.
+So this module:
+
+* parses the rows of the results this turn returned, including the compact rendering
+  that hoists constant columns into a `(constants: ...)` line;
+* accepts a number only when exactly one row carries it within tolerance **and** the row
+  is not contradicted by a nearer metric name, unless the row is unique by value;
+* leaves the answer untouched where it is machine-readable (fenced blocks, including
+  `vis-chart`) or already cited, so the inserted tags never corrupt JSON or nest;
+* returns the numbers it could not attribute, whether or not it cited anything: those are
+  the unsupported figures a reviewer needs.
+
+Numbers that no row supports stay as they are, and a number whose row is ambiguous is
+reported as ambiguous rather than silently attributed.
 """
 from __future__ import annotations
 
@@ -17,90 +25,175 @@ import re
 from typing import Any
 
 _NUM = re.compile(r"-?\d+(?:\.\d+)?")
-_RID = re.compile(r"\[(r\d+)\]")
-_TABLE_HEAD = re.compile(r"^rid\|", re.M)
-#: A unit that must stay glued to the number a citation follows.
+_CITE = re.compile(r"<cite>.*?</cite>", re.S)
+_FENCE = re.compile(r"```.*?```", re.S)
+_RID = re.compile(r"^r\d+$")
 _UNIT = re.compile(r"\s?(?:[a-zA-Zµμ%/][a-zA-Zµμ%^0-9/\-.]{0,11})?")
-
-
-def rows_from_result(content: str) -> list[dict[str, str]]:
-    """Rows of a `rid|indicator|...` table (the compact render of a record result)."""
-    if not content or "|" not in content:
-        return []
-    lines = [line for line in content.splitlines() if line.strip()]
-    head_index = next((i for i, line in enumerate(lines) if line.startswith("rid|")), None)
-    if head_index is None:
-        return []
-    columns = lines[head_index].split("|")
-    if "value" not in columns:
-        return []
-    rows = []
-    for line in lines[head_index + 1:]:
-        parts = line.split("|")
-        if len(parts) != len(columns):
-            continue
-        row = dict(zip(columns, parts))
-        try:
-            row["_value"] = float(row["value"])
-        except (KeyError, TypeError, ValueError):
-            continue
-        rows.append(row)
-    return rows
+_CONSTANTS = re.compile(r"^\(constants:\s*(.*?)\)\s*$")
 
 
 def _tolerance(target: float) -> float:
     return max(0.011, abs(target) * 0.002)
 
 
-def attach_citations(text: str, rows: list[dict[str, str]]) -> tuple[str, int, list[str]]:
-    """Return (text with citations, cited count, uncited numbers).
+def _columns(header: str, constants: dict[str, str]) -> list[str]:
+    return [part.strip() for part in header.split("|") if part.strip()]
 
-    The uncited numbers are the review signal: each one is a figure the answer states
-    that no row of this turn supports, so a reader (or a UI) can check it before it is
-    taken as coming from the record.
+
+def rows_from_result(content: str) -> list[dict[str, str]]:
+    """Rows of a record result, in either rendering the tool emits.
+
+    A table may arrive with its header line (`rid|name|time|value`) or with constant
+    columns hoisted into a leading `(constants: rid=r3, value=69.5, ...)` line, where the
+    remaining table can be as narrow as `rid|time`. Both shapes describe rows; a single
+    hoisted row describes exactly one.
+    """
+    if not content:
+        return []
+    rows: list[dict[str, str]] = []
+    constants: dict[str, str] = {}
+    header: list[str] | None = None
+
+    for line in content.splitlines():
+        stripped = line.strip()
+        if not stripped:
+            continue
+        match = _CONSTANTS.match(stripped)
+        if match:
+            for item in match.group(1).split(","):
+                if "=" in item:
+                    key, value = item.split("=", 1)
+                    constants[key.strip()] = value.strip()
+            continue
+        parts = [part.strip() for part in stripped.split("|")]
+        if parts and parts[0] == "rid" and "value" in parts:
+            header = parts
+            continue
+        if not header:
+            # A hoisted single row: the table below lists only the varying columns.
+            if constants.get("rid") and "value" in constants:
+                rows.append({**constants})
+                header = parts
+                continue
+            continue
+        if len(parts) != len(header):
+            continue
+        row = dict(zip(header, parts, strict=False))
+        for key, value in constants.items():
+            row.setdefault(key, value)
+        if row.get("rid"):
+            rows.append(row)
+
+    if not rows and constants.get("rid") and "value" in constants:
+        rows.append(dict(constants))
+
+    parsed = []
+    for row in rows:
+        try:
+            row["_value"] = float(row["value"])
+        except (KeyError, TypeError, ValueError):
+            continue
+        parsed.append(row)
+    return parsed
+
+
+def _spans_outside_code(text: str) -> list[tuple[int, int]]:
+    return [match.span() for match in _FENCE.finditer(text)]
+
+
+def _inside(span: tuple[int, int], regions: list[tuple[int, int]]) -> bool:
+    return any(start <= span[0] < end for start, end in regions)
+
+
+def attach_citations(text: str, rows: list[dict[str, str]]) -> tuple[str, int, list[str]]:
+    """Return (text with citations, cited count, numbers left uncited).
+
+    A number is cited only when exactly one row carries it and the answer does not put a
+    different indicator's name immediately before it. Fenced blocks (a `vis-chart` JSON
+    body) and existing `<cite>` spans are copied through untouched.
     """
     if not text or not rows:
         return text, 0, []
-    by_value: dict[float, str] = {}
-    for row in rows:
-        rid = row.get("rid")
-        if rid:
-            by_value.setdefault(row["_value"], rid)
 
+    by_value: dict[float, list[dict[str, str]]] = {}
+    for row in rows:
+        by_value.setdefault(row["_value"], []).append(row)
+    names = {str(row.get("name") or row.get("indicator") or "").strip() for row in rows}
+    names.discard("")
+
+    regions = _spans_outside_code(text) + [match.span() for match in _CITE.finditer(text)]
     out: list[str] = []
+    cursor = 0
     cited = 0
     uncited: list[str] = []
-    cursor = 0
+
     for match in _NUM.finditer(text):
-        raw = match.group()
-        # Skip digits inside dates, times, rids and already-cited spans.
-        before = text[max(0, match.start() - 12):match.start()]
-        after = text[match.end():match.end() + 12]
+        if _inside(match.span(), regions):
+            continue
+        before = text[max(0, match.start() - 16):match.start()]
+        after = text[match.end():match.end() + 16]
+        if re.search(r"[A-Za-zµμ]$", before) or re.match(r"[A-Za-z]", after):
+            continue
         if re.search(r"\d[-:/年.]$", before) or re.match(r"[-:/年月日]", after):
             continue
-        if _RID.search(after):
-            continue
         try:
-            value = float(raw)
+            value = float(match.group())
         except ValueError:
             continue
-        hit = next((rid for target, rid in by_value.items() if abs(value - target) <= _tolerance(target)), None)
-        # Keep the number adjacent to its unit: "15.8 g/dL<cite>[r2]</cite>", never
-        # "15.8<cite>[r2]</cite> g/dL" - a citation inside the value swallows the unit.
+
+        candidates = []
+        for target, group in by_value.items():
+            if abs(value - target) <= _tolerance(target):
+                candidates.extend(group)
+
         end = match.end()
         unit = _UNIT.match(text, end)
         if unit:
             end = unit.end()
+            # A sentence period is not part of the unit: "5.5 %." keeps its full stop
+            # after the citation.
+            while end > match.end() and text[end - 1] == ".":
+                end -= 1
+
+        chosen = _choose(before, candidates)
         out.append(text[cursor:end])
-        already = text[end:end + 6].startswith("<cite>")
-        if hit and not already:
-            out.append(f"<cite>[{hit}]</cite>")
-            cited += 1
+        if chosen is not None:
+            if not text[end:end + 6].startswith("<cite>"):
+                out.append(f"<cite>[{chosen['rid']}]</cite>")
+                cited += 1
         else:
-            uncited.append(raw)
+            uncited.append(match.group())
         cursor = end
+
     out.append(text[cursor:])
     return "".join(out), cited, uncited
+
+
+def _choose(before: str, candidates: list[dict[str, str]]) -> dict[str, str] | None:
+    """The single row a number refers to, or None when the answer does not say which.
+
+    One candidate needs no name. Several candidates (HbA1c 5.5 % and glucose 5.5 mmol/L)
+    are distinguished only when the text names one of them; naming a third indicator, or
+    naming none, means the source cannot be attributed and no citation is written.
+    """
+    if len(candidates) == 1:
+        return candidates[0]
+    window = before.casefold()
+    named = [row for row in candidates
+             if str(row.get("name") or row.get("indicator") or "").strip().casefold() in window
+             and str(row.get("name") or row.get("indicator") or "").strip()]
+    return named[0] if len(named) == 1 else None
+
+
+def _contradicted(before: str, row: dict[str, str], names: set[str]) -> bool:
+    """True when the text right before the number names a *different* indicator."""
+    own = str(row.get("name") or row.get("indicator") or "").strip()
+    if not own:
+        return False
+    window = before.casefold()
+    if own.casefold() in window:
+        return False
+    return any(name.casefold() in window for name in names if name != own)
 
 
 def collect_rows(transcript: list[dict[str, Any]]) -> list[dict[str, str]]:
