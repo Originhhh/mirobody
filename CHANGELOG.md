@@ -2,6 +2,33 @@
 
 ### Added
 
+- **A citation is attached to the numbers an answer states.** A chat turn
+  already holds every row the record tools returned, so `<cite>[rN]</cite>` no
+  longer depends on the model remembering to type it: the number is matched
+  against those rows (value within tolerance) and cited right after its unit -
+  `69.5 kg<cite>[r3]</cite>`. Numbers that match no row are left alone, which
+  makes them the unsupported numbers a reviewer should look at. `AUTO_CITE=off`
+  restores the previous behaviour.
+
+- **Unit conversion is a chat tool.** `convert_unit` and `normalize_unit` were
+  published to MCP clients only; an answer about a reading recorded in another
+  unit needs them before comparing or charting. They are offline, read-only and
+  carry no user data, so the chat agent gets them too. `resolve_indicator`
+  stays MCP-only.
+
+### Fixed
+
+- **A calculation could fail before it ran: inputs never arrived.** The sandbox
+  uploaded `data.json`, `main.py` and `runner.py` through `docker exec` with an
+  attached stdin. With some docker SDK/daemon pairs that call returns no exit
+  code and the payload is dropped, so every `python_exec` answered "calculation
+  inputs could not be transferred" while the tool and the query were fine. The
+  files are now written with a base64 body over an ordinary shell command,
+  which needs neither an attach socket nor a writable rootfs (`put_archive` is
+  refused on this read-only container).
+
+### Added
+
 - **Extra benchmark cases for charts and languages.** The 100-question suite
   asks for a chart twice and is 60% English, so a model that never draws a
   chart, or answers only in English, lost little. `expand_cases.py` builds

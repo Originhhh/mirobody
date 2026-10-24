@@ -8,6 +8,7 @@ remote Docker context cannot move computation off this machine.
 
 from __future__ import annotations
 
+import base64
 import io
 import json
 import logging
@@ -167,7 +168,17 @@ class LocalPythonSandbox(BaseSandbox):
                     bundle.addfile(info, io.BytesIO(content))
                 # Docker's archive API cannot see a live tmpfs on a read-only
                 # rootfs (Docker 29 returns 400); exec writes into the actual mount.
-                _, code, _ = self._command(["tar", "-xf", "-", "-C", str(_WORKSPACE)], stdin=archive.getvalue())
+                # ``exec_run(stdin=...)`` depends on the docker SDK and daemon
+                # agreeing on an attach socket; with some pairs it returns
+                # ``None`` instead of an exit code and the payload never arrives,
+                # so every calculation answers "inputs could not be transferred".
+                # A base64 body over a plain command needs neither an attach
+                # socket nor a writable rootfs, and ``put_archive`` is refused on
+                # the read-only container this sandbox runs.
+                archive.seek(0)
+                payload = base64.b64encode(archive.getvalue()).decode("ascii")
+                script = (f"printf %s '{payload}' | base64 -d | tar -xf - -C '{_WORKSPACE}'")
+                _, code, _ = self._command(["/bin/sh", "-c", script])
                 if code != 0:
                     raise OSError("input transfer failed")
                 responses.append(FileUploadResponse(path))
