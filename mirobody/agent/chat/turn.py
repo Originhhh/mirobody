@@ -367,7 +367,8 @@ def _attach_citations(block: dict[str, Any], transcript: list[dict[str, Any]]) -
     cited_text, cited, uncited = attach_citations(text, collect_rows(transcript))
     if not cited:
         return block
-    return {**block, "text": cited_text, "auto_cited": cited, "auto_uncited": uncited}
+    return {**block, "text": cited_text, "auto_cited": cited,
+            "auto_uncited": uncited}  # numbers no row of this turn supports
 
 async def _accumulate(
     blocks: AsyncGenerator[dict[str, Any], None],

@@ -52,10 +52,15 @@ def _tolerance(target: float) -> float:
     return max(0.011, abs(target) * 0.002)
 
 
-def attach_citations(text: str, rows: list[dict[str, str]]) -> tuple[str, int, int]:
-    """Return (text with citations, cited count, uncited numeric count)."""
+def attach_citations(text: str, rows: list[dict[str, str]]) -> tuple[str, int, list[str]]:
+    """Return (text with citations, cited count, uncited numbers).
+
+    The uncited numbers are the review signal: each one is a figure the answer states
+    that no row of this turn supports, so a reader (or a UI) can check it before it is
+    taken as coming from the record.
+    """
     if not text or not rows:
-        return text, 0, 0
+        return text, 0, []
     by_value: dict[float, str] = {}
     for row in rows:
         rid = row.get("rid")
@@ -63,7 +68,8 @@ def attach_citations(text: str, rows: list[dict[str, str]]) -> tuple[str, int, i
             by_value.setdefault(row["_value"], rid)
 
     out: list[str] = []
-    cited = uncited = 0
+    cited = 0
+    uncited: list[str] = []
     cursor = 0
     for match in _NUM.finditer(text):
         raw = match.group()
@@ -91,7 +97,7 @@ def attach_citations(text: str, rows: list[dict[str, str]]) -> tuple[str, int, i
             out.append(f"<cite>[{hit}]</cite>")
             cited += 1
         else:
-            uncited += 1
+            uncited.append(raw)
         cursor = end
     out.append(text[cursor:])
     return "".join(out), cited, uncited

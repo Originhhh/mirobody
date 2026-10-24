@@ -19,7 +19,7 @@ def test_value_is_cited_after_its_unit() -> None:
     text, cited, uncited = attach_citations("最新体重 69.5 kg，上次 69.7 kg。", rows)
     assert "69.5 kg<cite>[r3]</cite>" in text
     assert "69.7 kg<cite>[r4]</cite>" in text
-    assert (cited, uncited) == (2, 0)
+    assert (cited, uncited) == (2, [])
 
 
 def test_dates_are_not_cited() -> None:
@@ -33,7 +33,7 @@ def test_a_number_no_row_supports_stays_uncited() -> None:
     rows = rows_from_result(TABLE)
     text, cited, uncited = attach_citations("体重涨了 3.2 kg，最新 69.5 kg。", rows)
     assert "3.2<cite>" not in text
-    assert (cited, uncited) == (1, 1)
+    assert (cited, uncited) == (1, ["3.2"])
 
 
 def test_an_existing_citation_is_not_duplicated() -> None:

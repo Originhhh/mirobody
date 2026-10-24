@@ -6,9 +6,10 @@
   already holds every row the record tools returned, so `<cite>[rN]</cite>` no
   longer depends on the model remembering to type it: the number is matched
   against those rows (value within tolerance) and cited right after its unit -
-  `69.5 kg<cite>[r3]</cite>`. Numbers that match no row are left alone, which
-  makes them the unsupported numbers a reviewer should look at. `AUTO_CITE=off`
-  restores the previous behaviour.
+  `69.5 kg<cite>[r3]</cite>`. Numbers that match no row are left alone and
+  returned in the block as `auto_uncited`: a figure the answer states that the
+  record does not support is exactly what a reviewer, or a UI, should see beside
+  the cited ones. `AUTO_CITE=off` restores the previous behaviour.
 
 - **Unit conversion is a chat tool.** `convert_unit` and `normalize_unit` were
   published to MCP clients only; an answer about a reading recorded in another
