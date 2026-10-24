@@ -29,8 +29,15 @@
   the expected facts and the tool output to an OpenAI-compatible judge (DeepSeek, GPT,
   or a local endpoint via `JUDGE_BASE_URL`) and records, per case, whether the answer is
   complete, which facts it misses, and which numbers the tool output never contained.
-  It is a second reader, never a replacement: `judge.json` sits beside `qa.json`, cached
-  by answer hash, so only changed answers are judged again.
+  It is a second reader, never a replacement, and it is built to be auditable: the case
+  list defaults to the manifest frozen in `qa.json`, the evidence packet carries every tool
+  result of this turn and of the earlier ones, the expected facts keep their tolerance,
+  unit and duration, and a value the answer derives from record values (a ratio, a mean, a
+  conversion) counts as supported when the arithmetic is right. A reply that is not the
+  documented shape is an evaluator failure, never a silent pass, and the summary reports
+  selected / answered / judged / failures rather than a single percentage. The cache key
+  covers the rubric version, the judge endpoint, the gold and the evidence, so changing any
+  of them judges afresh.
 
 - **A compacted conversation can be read back.** When the history is summarized,
   deepagents writes the messages it dropped to `/conversation_history/…` and names
