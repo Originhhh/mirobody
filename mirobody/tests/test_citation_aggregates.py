@@ -139,3 +139,16 @@ def test_a_tolerance_that_scales_with_the_value_keeps_unrelated_numbers_out() ->
     _, cited, uncited = attach_citations("Analyte is 0.01 g/L.", rows)
     assert cited == 0
     assert "0.01" in uncited
+
+def test_a_named_statistic_binds_to_that_field_only() -> None:
+    """codex's case: a row reporting min=5, avg=5.5, max=6.
+
+    "Glucose maximum is 5" used to be cited (to the minimum), and "Glucose mean is 6" to the
+    maximum, because the field was never part of the match.
+    """
+    rows = rows_from_result(
+        "(constants: rid=r1, indicator=Glucose, min=5, avg=5.5, max=6, unit=mmol/L)")
+    assert attach_citations("Glucose maximum is 5 mmol/L.", rows)[1] == 0
+    assert attach_citations("Glucose mean is 6 mmol/L.", rows)[1] == 0
+    assert attach_citations("Glucose maximum is 6 mmol/L.", rows)[1] == 1
+    assert attach_citations("Glucose mean is 5.5 mmol/L.", rows)[1] == 1

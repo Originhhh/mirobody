@@ -185,7 +185,11 @@ def _statistic_before(window: str) -> str:
 
 def _choose(before: str, context: str, unit: str, candidates: list[dict[str, Any]],
             names: set[str]) -> dict[str, Any] | None:
-    candidates = list({(r["rid"], r["_value"], r.get("unit", "")): r for r in candidates}.values())
+    # The field belongs in the key: an average and a minimum that happen to be the same number
+    # are two claims about one row, and collapsing them kept whichever came last - which is how
+    # "Body weight averaged 70" resolved to the row's minimum.
+    candidates = list({(r["rid"], r.get("_field", ""), r["_value"], r.get("unit", "")): r
+                       for r in candidates}.values())
     original_count = len({r["rid"] for r in candidates})
     dates = set(_DATE.findall(context))
     dates.update(f"{int(y):04d}-{int(m):02d}-{int(d):02d}"
@@ -203,6 +207,13 @@ def _choose(before: str, context: str, unit: str, candidates: list[dict[str, Any
     elif original_count != 1 or not _GENERIC.fullmatch(_DATE_TIME.sub("", window).strip()):
         return None
     candidates = [r for r in candidates if _unit_matches(r, unit)]
+    # A sentence that names a statistic means that field.
+    statistic = _statistic_before(window)
+    if statistic:
+        by_field = [r for r in candidates if r.get("_field") == statistic]
+        if not by_field:
+            return None
+        candidates = by_field
     return candidates[0] if len({r["rid"] for r in candidates}) == 1 else None
 
 
