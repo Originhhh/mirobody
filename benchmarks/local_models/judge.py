@@ -36,10 +36,10 @@ from typing import Any
 
 #: Bumped whenever the prompt or the packet changes, so cached verdicts from an older
 #: rubric are never reused under the new one.
-PROMPT_VERSION = "2026-10-25.1"
+PROMPT_VERSION = "2026-10-25.2"
 
-#: A packet above this is cut with a note the judge can see; it is far beyond any answer
-#: this suite produces and exists so one runaway tool result cannot exceed a model window.
+#: A larger serialized packet is an evaluator failure, never a truncated record
+#: silently sent to the judge as if it were complete.
 MAX_EVIDENCE_CHARS = 200_000
 
 PROMPT = """You are reviewing one answer from a personal health-record assistant.
@@ -95,24 +95,9 @@ def _base_url() -> str:
 # ----------------------------------------------------------------------------- evidence
 
 def facts_text(case: dict) -> str:
-    """Every expected fact with the detail the judge needs to compare numbers."""
-    lines = []
-    for fact in case.get("facts") or []:
-        label = fact.get("label") or "fact"
-        kind = fact.get("kind") or ""
-        if kind == "number" and fact.get("value") is not None:
-            unit = fact.get("unit") or ""
-            tol = fact.get("tol")
-            extra = f" unit={unit}" if unit else ""
-            extra += f" tol=±{tol}" if isinstance(tol, (int, float)) else ""
-            lines.append(f"- {label}: {fact['value']} ({kind}{extra})")
-        elif kind == "date" and fact.get("value"):
-            lines.append(f"- {label}: {fact['value']} (date)")
-        elif "any" in fact:
-            lines.append(f"- {label}: one of {fact['any']}")
-        else:
-            lines.append(f"- {label}: {kind or 'stated'}")
-    return "\n".join(lines) or "- (none recorded)"
+    """Keep the complete typed fact, including duration alternatives and scope."""
+    return "\n".join(f"- {fact.get('label') or 'fact'}: {json.dumps(fact, ensure_ascii=False, sort_keys=True)}"
+                     for fact in case.get("facts") or []) or "- (none recorded)"
 
 
 def _tool_blocks(run: dict) -> list[dict]:
@@ -130,7 +115,7 @@ def evidence_text(run: dict) -> str:
         chunks.append(f"[{index}] {name} ({status})\n{content}")
     text = "\n\n".join(chunks)
     if len(text) > MAX_EVIDENCE_CHARS:
-        text = text[:MAX_EVIDENCE_CHARS] + "\n\n[evidence truncated by the harness]"
+        raise ValueError("Serialized tool evidence exceeds the complete-packet budget")
     return text or "(no tool result)"
 
 
@@ -152,9 +137,16 @@ def validate(verdict: Any) -> dict[str, Any]:
             raise ValueError(f"verdict lacks {field}")
         if not isinstance(verdict[field], expected):
             raise ValueError(f"verdict.{field} is not {expected.__name__}")
+    for field in ("missing", "unsupported"):
+        if any(not isinstance(value, str) or not value.strip() for value in verdict[field]):
+            raise ValueError(f"verdict.{field} must contain nonempty strings")
+    if verdict["correct"] and (verdict["missing"] or verdict["unsupported"]):
+        raise ValueError("A correct verdict cannot have missing or unsupported facts")
     note = verdict.get("note", "")
     if not isinstance(note, str):
         raise ValueError("verdict.note is not a string")
+    if not verdict["correct"] and not note.strip():
+        raise ValueError("An incorrect verdict requires an explanation")
     return {"correct": verdict["correct"], "missing": list(verdict["missing"]),
             "unsupported": list(verdict["unsupported"]), "note": note}
 
@@ -180,20 +172,36 @@ def ask(prompt: str, model: str, timeout: int = 180) -> dict[str, Any]:
         headers={"Authorization": f"Bearer {_key()}", "Content-Type": "application/json"})
     with urllib.request.urlopen(request, timeout=timeout) as handle:
         payload = json.loads(handle.read())
-    content = ((payload.get("choices") or [{}])[0].get("message") or {}).get("content") or ""
+    if not isinstance(payload, dict) or not isinstance(payload.get("choices"), list) or not payload["choices"]:
+        raise ValueError("Judge response has no completion")
+    choice = payload["choices"][0]
+    if not isinstance(choice, dict) or choice.get("finish_reason") != "stop":
+        raise ValueError("Judge response did not finish normally")
+    message = choice.get("message")
+    content = message.get("content") if isinstance(message, dict) else None
+    if not isinstance(content, str) or not content.strip():
+        raise ValueError("Judge response is empty")
     start, end = content.find("{"), content.rfind("}")
     if start < 0 or end <= start:
         raise ValueError("judge did not answer with JSON")
-    return validate(json.loads(content[start:end + 1]))
+    return {**validate(json.loads(content[start:end + 1])), "response_model": payload.get("model")}
 
 
 # ----------------------------------------------------------------------------- driver
 
+def manifest_sha256(cases: list[dict]) -> str:
+    """Use the same canonical JSON identity as provenance.digest_json."""
+    return hashlib.sha256(json.dumps(cases, ensure_ascii=False, sort_keys=True,
+                                     separators=(",", ":")).encode()).hexdigest()
+
+
 def saved_manifest(run_data: dict) -> list[dict]:
-    """The case list frozen with the run, so later edits to `cases.jsonl` cannot leak in."""
+    """The verified question version that produced this run."""
     manifest = run_data.get("case_manifest") or []
     if not manifest:
         raise SystemExit("qa.json carries no case_manifest; re-run the benchmark or pass --cases-file")
+    if manifest_sha256(manifest) != run_data.get("cases_sha256"):
+        raise ValueError("Saved case manifest failed its own hash check")
     return manifest
 
 
@@ -203,68 +211,93 @@ def main() -> int:
     ap.add_argument("--model", default="deepseek-chat")
     ap.add_argument("--cases-file", type=Path, default=None,
                     help="override the frozen manifest (recorded as a new evaluation version)")
-    ap.add_argument("--limit", type=int, default=0, help="judge at most N unanswered cases (0 = all)")
+    ap.add_argument("--limit", type=int, default=0, help="judge the first N selected cases (0 = all)")
     ap.add_argument("--force", action="store_true", help="ignore the cache")
     args = ap.parse_args()
 
+    if args.limit < 0:
+        ap.error("--limit must be nonnegative")
     run_data = json.loads((args.results / "qa.json").read_text())
-    manifest = saved_manifest(run_data)
-    cases = {c["id"]: c for c in manifest}
     if args.cases_file:
-        cases = {c["id"]: c for c in (json.loads(line) for line in args.cases_file.open() if line.strip())}
-        print("note: judging against an explicit --cases-file, not the frozen manifest", file=sys.stderr)
-
+        manifest = [json.loads(line) for line in args.cases_file.read_text().splitlines() if line.strip()]
+        source = {"kind": "explicit_override", "file": args.cases_file.name,
+                  "original_cases_sha256": run_data.get("cases_sha256")}
+    else:
+        manifest = saved_manifest(run_data)
+        source = {"kind": "frozen_manifest"}
+    cases = {c["id"]: c for c in manifest}
+    if len(cases) != len(manifest):
+        raise ValueError("Duplicate case ids in the selected manifest")
     selected = run_data.get("selected_ids") or [r.get("id") for r in run_data.get("runs") or []]
+    if len(selected) != len(set(selected)):
+        raise ValueError("Duplicate selected case ids")
+    if args.limit:
+        selected = selected[:args.limit]
+    runs = {r["id"]: r for r in run_data.get("runs") or []}
+    if len(runs) != len(run_data.get("runs") or []):
+        raise ValueError("Duplicate attempted case ids")
     cache_path = args.results / "judge.json"
     cache = {} if args.force or not cache_path.exists() else json.loads(cache_path.read_text())
-
-    counts = {"selected": len(selected), "attempted": 0, "answered": 0, "judged": 0,
-              "unknown_case": 0, "evaluator_failure": 0, "correct": 0}
-    for run in run_data.get("runs") or []:
-        if run.get("id") not in selected:
+    counts = {"selected": len(selected), "attempted": 0, "text_present": 0, "answered": 0,
+              "judged": 0, "unknown_case": 0, "evaluator_failure": 0, "correct": 0,
+              "run_failure": 0, "missing_run": 0}
+    outcomes = {}
+    for case_id in selected:
+        run = runs.get(case_id)
+        if run is None:
+            counts["missing_run"] += 1
+            outcomes[case_id] = {"status": "missing_run"}
             continue
         counts["attempted"] += 1
         answer = answer_text(run).strip()
-        if not answer:
+        counts["text_present"] += bool(answer)
+        finished = run.get("finish_reason") == "stop" and not run.get("timeout") and not run.get("error")
+        if not finished or not answer:
+            counts["run_failure"] += 1
+            outcomes[case_id] = {"status": "run_failure", "finish_reason": run.get("finish_reason")}
             continue
         counts["answered"] += 1
-        case = cases.get(run["id"])
-        if not case:
+        case = cases.get(case_id)
+        if case is None:
             counts["unknown_case"] += 1
+            outcomes[case_id] = {"status": "unknown_case"}
             continue
-        if args.limit and counts["judged"] + counts["evaluator_failure"] >= args.limit:
-            break
-
-        key = cache_key(case, run, answer, args.model)
-        cached = cache.get(run["id"])
-        if cached and cached.get("key") == key and not args.force:
-            counts["judged"] += 1
-            counts["correct"] += 1 if cached.get("correct") else 0
-            continue
-
-        prompt = PROMPT.format(question=case.get("question", ""), facts=facts_text(case),
-                               evidence=evidence_text(run), answer=answer)
         try:
-            verdict = ask(prompt, args.model)
-        except (urllib.error.URLError, ValueError, TimeoutError) as error:
+            key = cache_key(case, run, answer, args.model)
+            cached = cache.get(case_id)
+            if cached and cached.get("key") == key and not args.force:
+                verdict = validate(cached)
+                response_model = cached.get("response_model")
+            else:
+                prompt = PROMPT.format(question=case.get("question", ""), facts=facts_text(case),
+                                       evidence=evidence_text(run), answer=answer)
+                reply = ask(prompt, args.model)
+                response_model = reply.get("response_model")
+                verdict = validate(reply)
+        except (urllib.error.URLError, ValueError, TimeoutError, TypeError) as error:
             counts["evaluator_failure"] += 1
-            print(f"  {run['id']}: evaluator failure ({type(error).__name__}: {error})", file=sys.stderr)
+            outcomes[case_id] = {"status": "evaluator_failure", "error_type": type(error).__name__}
+            print(f"  {case_id}: evaluator failure ({type(error).__name__})", file=sys.stderr)
             continue
-        verdict.update({"key": key, "model": args.model, "endpoint": _base_url(),
-                        "rubric": PROMPT_VERSION})
-        cache[run["id"]] = verdict
+        verdict.update({"key": key, "model": args.model, "response_model": response_model,
+                        "endpoint": _base_url(), "rubric": PROMPT_VERSION,
+                        "cases_sha256": manifest_sha256(manifest), "cases_source": source})
+        cache[case_id] = verdict
         counts["judged"] += 1
-        counts["correct"] += 1 if verdict["correct"] else 0
+        counts["correct"] += verdict["correct"]
+        outcomes[case_id] = {"status": "judged", "correct": verdict["correct"]}
         cache_path.write_text(json.dumps(cache, ensure_ascii=False, indent=1))
-
+    metadata = {"rubric": PROMPT_VERSION, "model": args.model, "endpoint": _base_url(),
+                "cases_sha256": manifest_sha256(manifest), "cases_source": source,
+                "selected_ids": selected, "counts": counts, "outcomes": outcomes}
+    (args.results / "judge-meta.json").write_text(json.dumps(metadata, ensure_ascii=False, indent=2) + "\n")
     print(json.dumps(counts, ensure_ascii=False))
-    print(f"judged {counts['judged']}/{counts['answered']} answered with {args.model}: "
-          f"{counts['correct']} correct, {counts['judged'] - counts['correct']} not correct, "
-          f"{counts['evaluator_failure']} evaluator failures")
-    for case_id, verdict in sorted(cache.items()):
-        if verdict.get("correct") is False:
-            print(f"  {case_id}: {verdict.get('note') or ''} missing={verdict.get('missing')}")
-    return 0
+    print(f"judged {counts['judged']}/{counts['selected']} selected with {args.model}: "
+          f"{counts['correct']} correct, {counts['evaluator_failure']} evaluator failures")
+    for case_id in selected:
+        if outcomes.get(case_id, {}).get("status") == "judged" and not cache[case_id]["correct"]:
+            print(f"  {case_id}: {cache[case_id].get('note') or ''} missing={cache[case_id].get('missing')}")
+    return int(any(counts[k] for k in ("evaluator_failure", "unknown_case", "run_failure", "missing_run")))
 
 
 if __name__ == "__main__":

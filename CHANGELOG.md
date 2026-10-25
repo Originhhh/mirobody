@@ -2,14 +2,12 @@
 
 ### Added
 
-- **A citation is attached to the numbers an answer states.** A chat turn
-  already holds every row the record tools returned, so `<cite>[rN]</cite>` no
-  longer depends on the model remembering to type it: the number is matched
-  against those rows (value within tolerance) and cited right after its unit -
-  `69.5 kg<cite>[r3]</cite>`. Numbers that match no row are left alone and
-  returned in the block as `auto_uncited`: a figure the answer states that the
-  record does not support is exactly what a reviewer, or a UI, should see beside
-  the cited ones. `AUTO_CITE=off` restores the previous behaviour.
+- **Answers can cite visible record values without guessing their source.**
+  Automatic citations check the metric, recorded unit and any stated encounter
+  date, retaining ambiguous claims as `auto_uncited`. Compact tables preserve
+  constant columns, escaped cells and aggregate values; chart JSON and existing
+  citations stay intact. Repeated reads of one source remain one candidate.
+  `AUTO_CITE=off` disables automatic insertion.
 
 - **Unit conversion is a chat tool.** `convert_unit` and `normalize_unit` were
   published to MCP clients only; an answer about a reading recorded in another
@@ -19,25 +17,21 @@
 
 ### Fixed
 
-- **A rid belongs to the turn that produced it.** A compacted turn that cites a rid it
-  remembers from earlier reads as a made-up source. The citing rules now say to cite the
-  rids of the results this turn returned, which is also what the id check enforces.
+- **A summarized conversation can retain valid citations.** Rids are minted
+  for the conversation and subject, and remain valid when messages are folded
+  into a summary. The prompt now follows that lifetime; an unminted id or one
+  belonging to another person's record is not a source.
 
-- **A stronger model can review answers the literal checks reject.** The automatic
-  checks are precise and reproducible, and they also fail correct answers phrased in a
-  way they did not anticipate. `benchmarks/local_models/judge.py` sends the question,
-  the expected facts and the tool output to an OpenAI-compatible judge (DeepSeek, GPT,
-  or a local endpoint via `JUDGE_BASE_URL`) and records, per case, whether the answer is
-  complete, which facts it misses, and which numbers the tool output never contained.
-  It is a second reader, never a replacement, and it is built to be auditable: the case
-  list defaults to the manifest frozen in `qa.json`, the evidence packet carries every tool
-  result of this turn and of the earlier ones, the expected facts keep their tolerance,
-  unit and duration, and a value the answer derives from record values (a ratio, a mean, a
-  conversion) counts as supported when the arithmetic is right. A reply that is not the
-  documented shape is an evaluator failure, never a silent pass, and the summary reports
-  selected / answered / judged / failures rather than a single percentage. The cache key
-  covers the rubric version, the judge endpoint, the gold and the evidence, so changing any
-  of them judges afresh.
+- **External answer review now preserves the frozen evaluation contract.**
+  `benchmarks/local_models/judge.py` verifies the saved manifest hash and sends
+  every typed fact, including duration alternatives, genotypes, ranges and
+  tolerances, with current and historical tool evidence. Explicit replacement
+  manifests have a recorded identity in `judge-meta.json`. Only completed,
+  nonempty answers enter quality grades; missing runs, run failures, unknown
+  cases and invalid or contradictory verdicts remain separate in the selected
+  denominator and produce a failing exit status. Cache identity covers model,
+  endpoint, prompt version, gold and evidence. Recorded and verifiable derived
+  values are both supported.
 
 - **A compacted conversation can be read back.** When the history is summarized,
   deepagents writes the messages it dropped to `/conversation_history/…` and names

@@ -10,7 +10,11 @@ from __future__ import annotations
 
 import importlib.util
 import json
+import hashlib
+import sys
 from pathlib import Path
+
+import pytest
 
 _JUDGE = Path(__file__).resolve().parents[2] / "benchmarks" / "local_models" / "judge.py"
 _spec = importlib.util.spec_from_file_location("local_judge", _JUDGE)
@@ -46,8 +50,8 @@ RUN = {
 
 def test_facts_keep_tolerance_and_unit() -> None:
     text = facts_text(CASE)
-    assert "first: 53.0 (number unit=bpm tol=±0.5)" in text
-    assert "direction: one of ['rise', 'fall']" in text
+    assert '"value": 53.0' in text and '"unit": "bpm"' in text and '"tol": 0.5' in text
+    assert '"any": ["rise", "fall"]' in text
 
 
 def test_evidence_includes_prior_turns_and_excludes_reasoning() -> None:
@@ -87,10 +91,95 @@ def test_the_cache_key_covers_gold_evidence_and_model() -> None:
 
 
 def test_the_frozen_manifest_is_the_default_case_list() -> None:
-    run_data = {"case_manifest": [CASE], "runs": []}
+    run_data = frozen_run([])
     assert saved_manifest(run_data)[0]["id"] == "c1"
     try:
         saved_manifest({"runs": []})
     except SystemExit:
         return
     raise AssertionError("a run without a manifest must not be judged against live cases")
+
+
+def frozen_run(runs):
+    return {"case_manifest": [CASE], "selected_ids": ["c1"], "runs": runs,
+            "cases_sha256": hashlib.sha256(json.dumps([CASE], sort_keys=True, ensure_ascii=False,
+                                                       separators=(",", ":")).encode()).hexdigest()}
+
+
+def test_all_existing_gold_types_reach_the_judge():
+    facts = [{"kind": "duration", "minutes": [2858.251212], "tol": 3.0, "label": "sleep"},
+             {"kind": "genotype", "value": "GA", "label": "rs671"},
+             {"kind": "range", "value": "130 - 175", "label": "hemoglobin"}]
+    text = facts_text({"facts": facts})
+    assert "2858.251212" in text and '"tol": 3.0' in text
+    assert '"value": "GA"' in text and '"value": "130 - 175"' in text
+
+
+def test_a_tampered_frozen_manifest_is_rejected():
+    data = frozen_run([])
+    data["cases_sha256"] = "wrong-hash"
+    with pytest.raises(ValueError, match="hash"):
+        saved_manifest(data)
+
+
+@pytest.mark.parametrize("verdict", [
+    {"correct": True, "missing": [{}], "unsupported": [], "note": ""},
+    {"correct": True, "missing": ["weight"], "unsupported": [], "note": ""},
+    {"correct": False, "missing": [], "unsupported": [], "note": ""},
+])
+def test_malformed_or_contradictory_verdicts_fail(verdict):
+    with pytest.raises(ValueError):
+        validate(verdict)
+
+
+@pytest.mark.parametrize("status", [{"finish_reason": "length"},
+                                   {"finish_reason": "stop", "timeout": True},
+                                   {"finish_reason": "stop", "error": "failed"}])
+def test_incomplete_runs_do_not_enter_correct_counts(tmp_path, monkeypatch, capsys, status):
+    run = {"id": "c1", "blocks": [{"type": "text", "text": "53 bpm"}], **status}
+    (tmp_path / "qa.json").write_text(json.dumps(frozen_run([run])))
+    monkeypatch.setattr(sys, "argv", ["judge.py", str(tmp_path)])
+    def unexpected(*args, **kwargs):
+        raise AssertionError("An incomplete answer must not be sent to the judge")
+    monkeypatch.setattr(_judge, "ask", unexpected)
+    assert _judge.main() == 1
+    counts = json.loads(capsys.readouterr().out.splitlines()[0])
+    assert counts["correct"] == 0 and counts["run_failure"] == 1
+
+
+def test_all_evaluator_failures_propagate_to_the_exit_code(tmp_path, monkeypatch):
+    (tmp_path / "qa.json").write_text(json.dumps(frozen_run([
+        {"id": "c1", "finish_reason": "stop", "blocks": [{"type": "text", "text": "53 bpm"}]}])))
+    monkeypatch.setattr(sys, "argv", ["judge.py", str(tmp_path)])
+    def invalid(*args, **kwargs):
+        raise ValueError("Invalid verdict")
+    monkeypatch.setattr(_judge, "ask", invalid)
+    assert _judge.main() == 1
+
+
+def test_explicit_manifest_works_without_frozen_labels_and_is_recorded(tmp_path, monkeypatch):
+    run = {"id": "c1", "finish_reason": "stop", "blocks": [{"type": "text", "text": "53 bpm"}]}
+    (tmp_path / "qa.json").write_text(json.dumps({"runs": [run], "selected_ids": ["c1"]}))
+    explicit = tmp_path / "override.jsonl"
+    explicit.write_text(json.dumps(CASE) + "\n")
+    monkeypatch.setattr(sys, "argv", ["judge.py", str(tmp_path), "--cases-file", str(explicit)])
+    monkeypatch.setattr(_judge, "ask", lambda *a, **k: {"correct": True, "missing": [], "unsupported": [], "note": ""})
+    assert _judge.main() == 0
+    meta = json.loads((tmp_path / "judge-meta.json").read_text())
+    assert meta["cases_source"]["kind"] == "explicit_override"
+    assert meta["cases_sha256"] == frozen_run([])["cases_sha256"]
+
+
+def test_evidence_budget_includes_the_serialized_headers(tmp_path, monkeypatch):
+    content = "x" * (_judge.MAX_EVIDENCE_CHARS - 10) + "TAILMARKER"
+    run = {"id": "c1", "finish_reason": "stop", "blocks": [
+        {"type": "tool_result", "name": "query_health_indicators", "content": content},
+        {"type": "text", "text": "53 bpm"}]}
+    (tmp_path / "qa.json").write_text(json.dumps(frozen_run([run])))
+    monkeypatch.setattr(sys, "argv", ["judge.py", str(tmp_path)])
+    def forbidden(*a, **k):
+        raise AssertionError("A truncated packet must not reach the judge")
+    monkeypatch.setattr(_judge, "ask", forbidden)
+    assert _judge.main() == 1
+    counts = json.loads((tmp_path / "judge-meta.json").read_text())["counts"]
+    assert counts["evaluator_failure"] == 1 and counts["judged"] == 0

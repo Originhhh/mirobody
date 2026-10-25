@@ -8,8 +8,10 @@ cited.
 from __future__ import annotations
 
 import json
+import pytest
 
 from mirobody.agent.chat.citations_auto import attach_citations, collect_rows, rows_from_result
+from mirobody.kernel.query import compact
 
 TABLE = """(constants: unit=kg)
 rid|indicator|name|time|value|unit
@@ -29,7 +31,7 @@ def test_value_is_cited_after_its_unit() -> None:
 
 def test_dates_are_not_cited() -> None:
     rows = rows_from_result(TABLE)
-    text, cited, _ = attach_citations("2026-08-31 与 2026-08-30 的体重是 69.5 kg。", rows)
+    text, cited, _ = attach_citations("2026-08-31 的体重是 69.5 kg；上次检查是 2026-08-30。", rows)
     assert "2026-08-31<cite>" not in text
     assert cited == 1
 
@@ -108,3 +110,71 @@ def test_insertion_never_breaks_json() -> None:
     text, _, _ = attach_citations(f"```vis-chart\n{payload}\n```", rows)
     body = text.split("```vis-chart", 1)[1].rsplit("```", 1)[0]
     assert json.loads(body)
+
+
+@pytest.mark.parametrize("answer", ["HbA1c is 5.5%.", "Calcium is 5.5 mmol/L.", "Glucose is 5.5 mg/dL."])
+def test_a_unique_value_does_not_override_the_claims_identity(answer):
+    rows = rows_from_result(compact([{"rid": "r1", "indicator": "Glucose", "value": 5.5, "unit": "mmol/L"}]))
+    text, cited, uncited = attach_citations(answer, rows)
+    assert text == answer and cited == 0
+    assert "5.5" in uncited
+
+
+def test_a_unique_value_cannot_borrow_another_encounter_date():
+    rows = rows_from_result(compact([{"rid": "r1", "indicator": "Glucose", "value": 5.5,
+                                      "unit": "mmol/L", "time": "2026-08-31"}]))
+    text, cited, _ = attach_citations("2026-08-30 Glucose is 5.5 mmol/L.", rows)
+    assert "<cite>" not in text and cited == 0
+
+
+def test_compact_multirow_constants_preserve_all_source_rows():
+    rendered = compact([{"rid": "r3", "indicator": "Body weight", "value": 69.5, "unit": "kg", "time": "2026-08-31"},
+                        {"rid": "r4", "indicator": "Body weight", "value": 69.5, "unit": "kg", "time": "2026-08-30"}])
+    rows = rows_from_result(rendered)
+    assert {r["rid"] for r in rows} == {"r3", "r4"}
+    text, cited, _ = attach_citations("2026-08-31 Body weight is 69.5 kg.", rows)
+    assert "[r3]" in text and cited == 1
+    assert attach_citations("Body weight is 69.5 kg.", rows)[1] == 0
+
+
+def test_compact_statistics_supply_their_actual_aggregate_values():
+    rows = rows_from_result(compact([{"rid": "r5", "indicator": "Body weight", "count": 7,
+                                      "avg": 69.5, "min": 69, "max": 70, "unit": "kg"}]))
+    assert {r["_value"] for r in rows} == {69, 69.5, 70}
+    assert attach_citations("Body weight averaged 69.5 kg.", rows)[1] == 1
+
+
+def test_escaped_cells_and_separate_tables_keep_their_source_identity():
+    rendered = compact([{"rid": "r1", "name": "a|b", "value": 5.5, "unit": "mmol/L", "note": "one\ntwo"},
+                        {"rid": "r2", "name": "other", "value": 6.0, "unit": "mmol/L", "note": "plain"}])
+    rendered += "\n\n" + compact([{"rid": "r3", "indicator": "Weight", "value": 70, "unit": "kg"}])
+    rows = rows_from_result(rendered)
+    assert {r["rid"] for r in rows} == {"r1", "r2", "r3"}
+    assert next(r for r in rows if r["rid"] == "r1")["name"] == "a|b"
+
+
+def test_repeated_reads_of_one_source_do_not_create_ambiguity():
+    rows = rows_from_result(COMPACT)
+    assert attach_citations("Glucose 5.5 mmol/L.", rows + rows)[1] == 1
+
+
+@pytest.mark.parametrize("prefix", ["Glucose is 5.5 mmol/L. ", "Glucose was measured, ",
+                                   "Glucose was measured and "])
+def test_an_earlier_metric_cannot_endorse_a_later_unknown_claim(prefix):
+    answer = prefix + "Calcium is 5.5 mmol/L."
+    result, _, _ = attach_citations(answer, rows_from_result(COMPACT))
+    assert "Calcium is 5.5 mmol/L<cite>" not in result
+
+
+def test_chinese_dates_use_the_same_encounter_identity_as_iso_dates():
+    rows = rows_from_result(compact([{"rid": "r1", "indicator": "Glucose", "value": 5.5,
+                                      "unit": "mmol/L", "time": "2026-08-31"}]))
+    assert attach_citations("2026年8月30日 Glucose is 5.5 mmol/L.", rows)[1] == 0
+    assert attach_citations("2026年8月31日 Glucose is 5.5 mmol/L.", rows)[1] == 1
+
+
+def test_a_specific_metric_name_wins_over_its_shared_suffix():
+    rows = rows_from_result(compact([{"rid": "r1", "indicator": "Glucose", "value": 5.5, "unit": "mmol/L"},
+                                     {"rid": "r2", "indicator": "Fasting glucose", "value": 5.5, "unit": "mmol/L"}]))
+    result, cited, _ = attach_citations("Fasting glucose is 5.5 mmol/L.", rows)
+    assert "[r2]" in result and cited == 1

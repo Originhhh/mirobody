@@ -167,18 +167,10 @@ class LocalPythonSandbox(BaseSandbox):
                     info = tarfile.TarInfo(relative)
                     info.size, info.mode, info.uid, info.gid = len(content), 0o600, 65534, 65534
                     bundle.addfile(info, io.BytesIO(content))
-                # Docker's archive API cannot see a live tmpfs on a read-only
-                # rootfs (Docker 29 returns 400); exec writes into the actual mount.
-                # ``exec_run(stdin=...)`` depends on the docker SDK and daemon
-                # agreeing on an attach socket; with some pairs it returns ``None``
-                # instead of an exit code and the payload never arrives, so every
-                # calculation answers "inputs could not be transferred". A base64 body
-                # over a plain command needs neither an attach socket nor a writable
-                # rootfs (``put_archive`` is refused on this read-only container).
-                #
-                # It is written in chunks: one argv holds a single argument at most
-                # ~128 KiB on Linux, and a whole payload in one ``printf`` failed above
-                # 64 KiB of input long before the 8 MiB transfer budget.
+                # Docker 29's archive API misses read-only tmpfs; some SDK attach
+                # paths also lose stdin. Exec writes into the actual mount.
+                # Keep each chunk below Linux's ~128 KiB single-argument limit:
+                # a whole base64 argument failed near 64 KiB of input.
                 archive.seek(0)
                 payload = base64.b64encode(archive.getvalue()).decode("ascii")
                 stage = "/tmp/.mirobody-upload.b64"
