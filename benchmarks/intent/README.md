@@ -25,8 +25,8 @@ messages, medical consultation cases or independently validated clinical labels.
 
 The eight analysis operations are conditional mean, next-day comparison,
 complete-pair coverage, Pearson correlation, outlier exclusion, consecutive
-streaks, observed-day weighted mean and personal baseline. Missing days, UTC
-boundaries, lag direction and tie rules are explicit. Numerical answers have
+streaks, observed-day weighted mean and personal baseline. Missing days, the declared
+Asia/Shanghai account day, lag direction and tie rules are explicit. Numerical answers have
 executable keys; a generic explanation or overall mean cannot satisfy the task.
 Doctor summaries contain six observations across two indicators with dates,
 not just a single latest result. Capability and regression scores stay separate.
@@ -117,23 +117,29 @@ usually in ignored `internal/` or outside the repository.
 ```bash
 # Review task answerability and rubric alignment.
 python -m benchmarks.intent.run audit \
-  --provider openrouter --model openai/gpt-4.1-mini \
+  --provider openrouter --model anthropic/claude-opus-5.5 \
+  --reasoning-effort medium --max-output-tokens 8192 --timeout-seconds 180 \
   --env-file /private/mirobody.env --out internal/intent-audit
 
 # Main-set answer calibration; --role capability selects only the 24 core tasks.
 python -m benchmarks.intent.run baseline \
-  --provider deepseek --model deepseek-flash \
+  --provider openrouter --model openai/gpt-6-luna \
+  --reasoning-effort medium --max-output-tokens 8192 --timeout-seconds 180 \
   --env-file /private/mirobody.env --out internal/intent-answers
 
 # External semantic judge plus programmatic numeric checks.
 python -m benchmarks.intent.run score \
-  --provider openrouter --model openai/gpt-4.1-mini \
+  --provider openrouter --model anthropic/claude-opus-5.5 \
+  --reasoning-effort medium --max-output-tokens 8192 --timeout-seconds 180 \
   --env-file /private/mirobody.env \
   --answers internal/intent-answers/answers.jsonl --out internal/intent-score
 ```
 
 `--smoke` selects the first two tasks per domain (12 tasks); `--limit` further
-bounds a run. Use the same selection for answers and scores. `--dataset
+bounds a run. Use the same selection for answers and scores. Reasoning models accept
+`--reasoning-effort`, `--max-output-tokens` and `--timeout-seconds`; the complete
+settings bind both the request and cache. Native OpenAI uses
+`max_completion_tokens`, while OpenRouter uses `max_tokens`. `--dataset
 reliability` selects the eight reliability episodes. `baseline` supplies visible
 evidence directly: it does **not** run the production prompt, tools, database,
 authorization or native compaction. Its score calibrates dataset difficulty,
@@ -178,3 +184,40 @@ Measured calibration, failures, per-item model disagreements and limits are
 recorded in [`validation.json`](validation.json). Do not use model agreement as
 clinical truth or a 32-item development calibration as an independent leaderboard.
 See [中文说明](README.zh-CN.md).
+
+## Current calibration protocol
+
+The current evaluation uses `anthropic/claude-opus-5.5` and `openai/gpt-6-luna`
+through OpenRouter, with medium reasoning, an 8192-token output budget and a
+180-second timeout. Both review the task set; answers are scored by the other
+family and also by each common judge for a transparent comparison. Self-grades
+are diagnostic, not independent confirmation. The [official Luna model page](https://developers.openai.com/api/docs/models/gpt-6-luna)
+and [Claude model catalog](https://platform.claude.com/docs/en/models/overview)
+identify the requested models. Actual response identities and settings are retained.
+
+Modern review prompted corrections to local-day alignment, the explicit 21/7
+baseline, task-specific rubrics, family-member identity and complete three-result
+report comparisons. No task was selected or dropped based on which model won.
+The main set remains 32. Unchanged visible packets may reuse the identical saved
+answer with explicit source-case/request hashes; changed packets are re-answered.
+Earlier packets, raw responses and their scores remain separate and must not be
+mixed with the corrected dataset's hash. The eight held-out tasks remain uncalled.
+
+Independent inspection found two false distinctions that the model audits had
+missed: the excluded dates were graded in listing order, and medication strength
+was treated as a per-dose amount. Evaluator 8 accepts either order of the two
+distinct dates and extracts recorded strength separately from any explicit dose
+instructions. All four changed medication review packets require new reviews;
+old verdicts cannot count against the corrected rubric. Adjacent key/value table
+rows now bind a pure numeric value to their own cited unit row, while borrowing
+units across records remains invalid.
+
+Both answering models produced 32 usable answers. Current audits retain 28
+valid reviews per model, with four medication reviews pending. Scoring is
+incomplete: OpenRouter exhausted its allowance, and the supplied Nebula key
+exposes only DeepSeek models and returns 403 for Claude/Luna. No substitute
+model is presented as either requested model. `validation.json` records the
+fixed denominators, unresolved items and original response provenance. Two
+independently checked differences (conditional-pair membership and local-date
+streak boundaries) remain; aggregate model ranking and suite-wide saturation
+claims await complete review.

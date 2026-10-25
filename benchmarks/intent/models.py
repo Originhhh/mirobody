@@ -41,8 +41,18 @@ def key_for(provider: str, env_file: Path | None) -> str:
     return value
 
 
-def request_body(provider: str, model: str, messages: list[dict], *, json_output: bool) -> dict:
-    body = {"model": model, "messages": messages, "temperature": 0, "max_tokens": 2400}
+def request_body(provider: str, model: str, messages: list[dict], *, json_output: bool,
+                 max_output_tokens: int = 2400, reasoning_effort: str | None = None) -> dict:
+    budget_key = "max_completion_tokens" if provider == "openai" else "max_tokens"
+    body = {"model": model, "messages": messages, budget_key: max_output_tokens}
+    if reasoning_effort is None:
+        body["temperature"] = 0
+    elif provider == "openrouter":
+        body["reasoning"] = {"effort": reasoning_effort}
+    elif provider == "openai":
+        body["reasoning_effort"] = reasoning_effort
+    else:
+        raise ValueError("Reasoning effort requires the OpenAI or OpenRouter provider")
     if json_output:
         body["response_format"] = {"type": "json_object"}
     if provider == "deepseek":
@@ -50,15 +60,18 @@ def request_body(provider: str, model: str, messages: list[dict], *, json_output
     return body
 
 
-def call(provider: str, model: str, messages: list[dict], env_file: Path | None, *, json_output: bool) -> dict:
+def call(provider: str, model: str, messages: list[dict], env_file: Path | None, *, json_output: bool,
+         max_output_tokens: int = 2400, reasoning_effort: str | None = None,
+         timeout_seconds: int = 90) -> dict:
     base, _ = PROVIDERS[provider]
-    body = request_body(provider, model, messages, json_output=json_output)
+    body = request_body(provider, model, messages, json_output=json_output,
+                        max_output_tokens=max_output_tokens, reasoning_effort=reasoning_effort)
     request = urllib.request.Request(f"{base}/chat/completions", data=json.dumps(body).encode(),
                                      headers={"Authorization": f"Bearer {key_for(provider, env_file)}",
                                               "Content-Type": "application/json"})
     opener = urllib.request.build_opener(NoRedirect())
     try:
-        with opener.open(request, timeout=90) as response:
+        with opener.open(request, timeout=timeout_seconds) as response:
             payload = json.load(response)
         choice = payload["choices"][0]
         content = choice["message"]["content"]

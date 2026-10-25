@@ -16,6 +16,7 @@ from benchmarks.intent.schema import read_jsonl, verify_bundle
 from benchmarks.intent.analytics import compute
 from benchmarks.intent.oracles import recompute
 from benchmarks.intent.compare import compare
+from benchmarks.intent.models import request_body
 
 DATA = Path(__file__).resolve().parents[2] / "demo" / "intent"
 
@@ -121,6 +122,31 @@ def test_numeric_rounding_is_programmatic_not_a_judge_opinion(case):
     assert not grade(case, "69.6 kg", verdict_for(case, "69.6 kg", 69.6))["facts"][0]["ok"]
 
 
+def test_excluded_dates_are_an_unordered_pair_but_cannot_repeat():
+    task = next(c for c in read_jsonl(DATA / "development.jsonl")
+                if c.get("analysis", {}).get("kind") == "trimmed_comparison")
+    answer = "\n".join(f"{f['value']} {f.get('unit', '')}" for f in task["facts"])
+    verdict = {"criteria": [{"id": r["id"], "status": "met", "answer_line_ids": ["a1"],
+                              "evidence_ids": [], "reason": "Checked."} for r in task["rubric"]],
+               "facts": [{"id": f["id"], "status": "stated", "value": f["value"],
+                          "unit": f.get("unit", ""), "answer_line_ids": [f"a{i + 1}"]}
+                         for i, f in enumerate(task["facts"])]}
+    verdict["facts"][-2]["value"], verdict["facts"][-1]["value"] = (
+        verdict["facts"][-1]["value"], verdict["facts"][-2]["value"])
+    verdict["facts"][-2]["answer_line_ids"], verdict["facts"][-1]["answer_line_ids"] = ["a4"], ["a3"]
+    assert grade(task, answer, verdict)["evidence_conditioned_pass"]
+    verdict["facts"][-1].update(value=verdict["facts"][-2]["value"], answer_line_ids=["a4"])
+    assert not grade(task, answer, verdict)["evidence_conditioned_pass"]
+
+
+def test_medication_amount_keys_describe_recorded_strength_not_inferred_dose():
+    tasks = [c for c in read_jsonl(DATA / "development.jsonl") if c["domain"] == "medication"]
+    assert len(tasks) == 4
+    for task in tasks:
+        assert all("strength" in f["label"] for f in task["facts"] if f["kind"] == "number")
+        assert "per-dose" in task["rubric"][0]["text"]
+
+
 def test_fabricated_unit_and_quantity_are_evaluator_failures(case):
     with pytest.raises(ValueError, match="unit"):
         grade(case, "69.5 pounds", verdict_for(case, "69.5", unit="kg"))
@@ -166,6 +192,25 @@ def test_request_cache_includes_model_answer_rubric_and_receipts(case):
     assert key != identity("score", changed, "deepseek", "A", messages, {})
 
 
+def test_reasoning_models_omit_unsupported_sampling_and_keep_budget_in_cache(case):
+    messages = messages_for("score", case, "69.5 kg")
+    settings = {"reasoning_effort": "medium", "max_output_tokens": 8192, "timeout_seconds": 180}
+    body = request_body("openrouter", "openai/gpt-6-luna", messages, json_output=True,
+                        reasoning_effort="medium", max_output_tokens=8192)
+    assert "temperature" not in body
+    assert body["reasoning"] == {"effort": "medium"}
+    assert body["max_tokens"] == 8192
+    base = identity("score", case, "openrouter", "openai/gpt-6-luna", messages, {}, settings)
+    assert base != identity("score", case, "openrouter", "openai/gpt-6-luna", messages, {},
+                            {**settings, "reasoning_effort": "high"})
+    assert base != identity("score", case, "openrouter", "openai/gpt-6-luna", messages, {},
+                            {**settings, "max_output_tokens": 16384})
+    direct = request_body("openai", "gpt-6-luna", messages, json_output=True,
+                          reasoning_effort="medium", max_output_tokens=8192)
+    assert direct["max_completion_tokens"] == 8192 and "max_tokens" not in direct
+    assert direct["reasoning_effort"] == "medium" and "temperature" not in direct
+
+
 def test_frozen_bundle_counts_and_source_derived_fact_integrity():
     result = verify_bundle(DATA)
     assert (result["cases"], result["pairs"], result["families"]) == (40, 4, 20)
@@ -190,18 +235,29 @@ def test_latest_frequency_follows_effective_change_not_initial_plan():
             {"date": "2026-07-01", "frequency": "qd"}]}}]}
     rule = {"op": "effective_plan", "evidence": "e1", "field": "frequency"}
     assert recompute(case, rule) == ("tid", "")
-    assert recompute(case, {**rule, "field": "dose"}) == (250, "mg")
+    assert recompute(case, {**rule, "field": "strength_amount"}) == (250, "mg")
 
 
 def test_trend_model_sees_the_actual_window_timezone_and_missing_policy():
     case = next(c for c in read_jsonl(DATA / "development.jsonl") if c["domain"] == "trend")
     packet = answer_packet(case)
     window = packet["comparison_window"]
-    assert window["timezone"] == "UTC"
-    assert window["first_half"] == ["2026-08-05", "2026-08-18"]
-    assert window["second_half"] == ["2026-08-19", "2026-09-01"]
+    assert window["timezone"] == "Asia/Shanghai"
+    assert window["start"] == "2026-08-05" and window["end"] == "2026-09-01"
+    assert "first_half" not in window and "second_half" not in window
     assert "never zero" in window["aggregation"]
-    assert packet["analysis_parameters"]["lag_policy"].startswith("next UTC day")
+    lagged = next(c for c in read_jsonl(DATA / "development.jsonl") if c.get("analysis", {}).get("kind") == "lagged_comparison")
+    assert answer_packet(lagged)["analysis_parameters"]["lag_policy"].startswith("next calendar day in Asia/Shanghai")
+
+
+def test_personal_baseline_packet_declares_21_plus_7_days_only():
+    case = next(c for c in read_jsonl(DATA / "development.jsonl") if c.get("analysis", {}).get("kind") == "personal_baseline")
+    packet = answer_packet(case)
+    assert packet["comparison_window"]["baseline_period"] == ["2026-08-05", "2026-08-25"]
+    assert packet["comparison_window"]["recent_week"] == ["2026-08-26", "2026-09-01"]
+    assert "first_half" not in packet["comparison_window"]
+    assert "first_half_days" not in packet["analysis_parameters"]
+    assert "step_threshold" not in packet["analysis_parameters"]
 
 
 def test_chart_checks_type_dates_values_order_and_valid_json():
@@ -259,6 +315,27 @@ def test_adjacent_labeled_value_unit_fields_remain_valid(case):
     assert grade(case, answer, v)["facts"][0]["ok"]
     v["facts"][0]["answer_line_ids"] = ["a1", "a4"]
     v["facts"][0]["unit"] = "cm"
+    with pytest.raises(ValueError, match="unit"):
+        grade(case, answer, v)
+
+
+@pytest.mark.parametrize("labels", [("Value", "Unit"), ("结果", "单位"), ("数值", "单位")])
+def test_adjacent_key_value_table_rows_bind_their_unit(case, labels):
+    answer = f"| Field | Content |\n| --- | --- |\n| **{labels[0]}** | **69.5** |\n| {labels[1]} | kg |"
+    v = verdict_for(case, answer)
+    v["facts"][0]["answer_line_ids"] = ["a3", "a4"]
+    assert grade(case, answer, v)["facts"][0]["ok"]
+
+
+@pytest.mark.parametrize("answer, ids", [
+    ("| Value | 69.5 |\n| Unit | lb |\n| Value | 180 |\n| Unit | kg |", ["a1", "a4"]),
+    ("| Value | 69.5 lb |\n| Unit | kg |", ["a1", "a2"]),
+    ("| Value | 69.5 |\n| Unit | kg |", ["a1"]),
+    ("| Value | 69.5 |\nUnit: kg", ["a1", "a2"]),
+])
+def test_key_value_table_unit_cannot_cross_records_or_override_units(case, answer, ids):
+    v = verdict_for(case, answer)
+    v["facts"][0]["answer_line_ids"] = ids
     with pytest.raises(ValueError, match="unit"):
         grade(case, answer, v)
 
@@ -381,3 +458,11 @@ def test_timezone_is_applied_before_daily_pairing():
     case = analytics_case("conditional_mean", {"steps": {1: 8000}, "rhr": {1: 60}})
     case["evidence"][0]["data"]["time"] = "2026-01-02T01:00:00+08:00"
     assert compute(case)["conditional_rhr_mean"][0] == 60
+
+
+def test_account_local_day_changes_the_join_instead_of_using_utc():
+    case = analytics_case("conditional_mean", {"steps": {1: 8000}, "rhr": {1: 60}})
+    case["evidence"][0]["data"]["time"] = "2026-01-02T01:00:00+08:00"
+    case["window"]["timezone"] = "Asia/Shanghai"
+    with pytest.raises(ValueError, match="empty"):
+        compute(case)

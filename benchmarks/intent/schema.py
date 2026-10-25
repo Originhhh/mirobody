@@ -137,10 +137,16 @@ def answer_packet(case: dict) -> dict:
                          for e in case["evidence"] if e["visible"]]}
     if case.get("window"):
         start = date.fromisoformat(case["window"]["start"])
-        packet["comparison_window"] = {**case["window"],
-            "first_half": [start.isoformat(), (start + timedelta(days=13)).isoformat()],
-            "second_half": [(start + timedelta(days=14)).isoformat(), case["window"]["end"]],
-            "aggregation": "Daily means in the declared timezone, then the requested operation over observed days; missing days omitted, never zero."}
+        window = {**case["window"],
+            "aggregation": "Daily means in the declared account timezone, then the requested operation over observed days; missing days omitted, never zero."}
+        kind = case.get("analysis", {}).get("kind")
+        if kind in {"trimmed_comparison", "observed_weighted_mean"}:
+            window.update(first_half=[start.isoformat(), (start + timedelta(days=13)).isoformat()],
+                          second_half=[(start + timedelta(days=14)).isoformat(), case["window"]["end"]])
+        elif kind == "personal_baseline":
+            window.update(baseline_period=[start.isoformat(), (start + timedelta(days=20)).isoformat()],
+                          recent_week=[(start + timedelta(days=21)).isoformat(), case["window"]["end"]])
+        packet["comparison_window"] = window
     if case.get("analysis"):
         packet["analysis_parameters"] = case["analysis"]
     return packet

@@ -4,16 +4,18 @@ from __future__ import annotations
 
 import statistics
 from collections import defaultdict
-from datetime import UTC, datetime
+from datetime import datetime
+from zoneinfo import ZoneInfo
 
 
 def daily_points(case: dict) -> tuple[list[dict], str]:
     days: dict[str, list[float]] = defaultdict(list)
     units = set()
+    timezone = ZoneInfo(case["window"].get("timezone", "UTC"))
     for evidence in case["evidence"]:
         if evidence["visible"] and evidence["kind"] == "device_reading":
             data = evidence["data"]
-            day = datetime.fromisoformat(data["time"]).astimezone(UTC).date().isoformat()
+            day = datetime.fromisoformat(data["time"]).astimezone(timezone).date().isoformat()
             if case["window"]["start"] <= day <= case["window"]["end"]:
                 days[day].append(float(data["value"]))
                 units.add(data["unit"])
@@ -42,7 +44,7 @@ def recompute(case: dict, rule: dict) -> tuple[object, str]:
         latest = {"frequency": record["frequency"]}
         for version in sorted(applicable, key=lambda item: item["date"]):
             latest.update(version)
-        if rule["field"] == "dose":
+        if rule["field"] == "strength_amount":
             amount, unit = latest["strength"].split()
             return float(amount), unit
         if rule["field"] == "date":

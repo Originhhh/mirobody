@@ -19,7 +19,7 @@
 
 分析题包含条件均值、次日对比、完整配对覆盖率、皮尔逊相关、排除最高活动日、
 连续达标天数、按实际记录日加权的均值、个人历史基线，共八种运算。
-题目明确 UTC 日界、滞后方向、缺失处理及并列规则；数值有可执行金标，
+题目明确 Asia/Shanghai 账号日界、滞后方向、缺失处理及并列规则；数值有可执行金标，
 不能用泛泛解释或全月均值替代。医生摘要包含两个指标共六次观测，要求数值、
 单位、就诊日、来源绑定。简单回归与能力题分别出分，不用容易题抬高主成绩。
 这些配额是设计选择，不是用户流量占比。
@@ -86,16 +86,19 @@ python -m benchmarks.intent.build \
 ```bash
 # 审查题目质量，不是在评模型答案。
 python -m benchmarks.intent.run audit \
-  --provider openrouter --model openai/gpt-4.1-mini \
+  --provider openrouter --model anthropic/claude-opus-5.5 \
+  --reasoning-effort medium --max-output-tokens 8192 --timeout-seconds 180 \
   --env-file /private/mirobody.env --out internal/intent-audit
 
 # 全部32题；加 --role capability 可单独选择24题。
 python -m benchmarks.intent.run baseline \
-  --provider deepseek --model deepseek-flash \
+  --provider openrouter --model openai/gpt-6-luna \
+  --reasoning-effort medium --max-output-tokens 8192 --timeout-seconds 180 \
   --env-file /private/mirobody.env --out internal/intent-answers
 
 python -m benchmarks.intent.run score \
-  --provider openrouter --model openai/gpt-4.1-mini \
+  --provider openrouter --model anthropic/claude-opus-5.5 \
+  --reasoning-effort medium --max-output-tokens 8192 --timeout-seconds 180 \
   --env-file /private/mirobody.env \
   --answers internal/intent-answers/answers.jsonl --out internal/intent-score
 ```
@@ -135,3 +138,31 @@ python -m benchmarks.intent.compare \
 实测对照、逐题差异、失败与局限见 [validation.json](validation.json)。
 开发集同题对照只用于检查区分度，不是独立排行榜，也不建立临床有效性。
 完整契约见 [English README](README.md)。
+
+## 当前模型与校准方式
+
+当前通过 OpenRouter 调用 `anthropic/claude-opus-5.5` 和 `openai/gpt-6-luna`，
+两者都设为 medium 推理、8192 输出 token 预算、180 秒超时。两者分别审查题目，
+并做跨家族评分；同一裁判评两种答案的结果也分别保留，自评分只作诊断参考。
+[GPT‑6 Luna 官方文档](https://developers.openai.com/api/docs/models/gpt-6-luna)和
+[Claude 型号文档](https://platform.claude.com/docs/en/models/overview)对应请求型号；
+实际返回型号、完整参数、原始响应与用量均保存。参数与实际请求、缓存身份绑定。
+OpenAI 直连使用 `max_completion_tokens`，OpenRouter 使用 `max_tokens`。
+
+新模型外审促成了个人日界、21/7 基线窗口、任务专用 rubric、家人称谓和完整三次
+报告比较的纠正。没有按谁赢来选题或删题，规模仍为32题。可见答题包完全相同的
+任务可以复用相同型号、相同参数的原答案，并记录原始 case/request 哈希；输入
+改变的任务重新作答。旧题包与结果分开保存，不与新集合哈希混算。8道保留题仍未调用模型。
+
+独立逐题复核发现了模型外审漏掉的两处假区分：剔除日期按列举顺序判分，以及把
+药品规格当成每次剂量。评测器8允许两个不同的剔除日期按任意顺序列出；药物事实
+明确提取记录的规格，与已有的每次剂量指示分别处理。4道药物题的评审输入已更改，
+旧评语不能计入新 rubric，必须重评。相邻键值表格中的纯数字与本组引用的单位行
+可以绑定，跨记录借用单位仍然拒绝。
+
+两种答题模型均已得到32份有效答案。当前每个模型的题目外审保留28份有效结果，
+另4道药物题待重审。评分尚未齐全：OpenRouter 额度用尽，提供的 Nebula Key 仅
+开放 DeepSeek，对 Claude/Luna 实测返回403。没有把替代模型标成这两个请求型号。
+`validation.json` 保留固定分母、待评项目和原始响应来源。条件配对成员与当地日期
+连续区间已有两道独立核对的真实差异；完整评分补齐前，不给模型排名或声称整套题
+已经充分检验了饱和程度。

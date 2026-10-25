@@ -1,6 +1,6 @@
 {
   "as_of": "2026-09-02",
-  "combined_sha256": "06eb3b2fe7453d729bcf90c79c7d15a73f1945626b984c9856e8b4184a81d865",
+  "combined_sha256": "05b4c2701b1081c8edd321736b707a4023b92ee8a603dd4f31ac4d018cc91101",
   "datasets": {
     "development.jsonl": {
       "cases": 32,
@@ -19,7 +19,7 @@
         "zh-CN": 20
       },
       "pairs": 0,
-      "sha256": "2f61979d1b2288d400df4b54a527a51be04078a605b22b345131ba4c2768d883"
+      "sha256": "a0e9128cb366f5eb5e4f447a0272fca427b1cd51e9e59f871a29b00246653cae"
     },
     "reliability.jsonl": {
       "cases": 8,
@@ -34,7 +34,7 @@
         "zh-CN": 6
       },
       "pairs": 4,
-      "sha256": "fb08ec9c4541c375d07d87c9979fa60d54a0e6800b5c3ba8bf91b589203e7773"
+      "sha256": "148b8d88490ffdcd0388b4d7e89b3d1554cf0478a9d92c7099a3cdc4c4c0a0f4"
     }
   },
   "generator_commit": "9723605b468912951b8ccc12756c2d9412ff8c3d",
@@ -63,7 +63,7 @@
       "zh-CN": 5
     },
     "pairs": 0,
-    "sha256": "cc6fdc7a8bbb331792b344e747660a068ad1f50844e12aa24b189642dc077ce8",
+    "sha256": "6909e3db17f06f6402dcb668ee6cc13e14ea829d468ff4cb1f8a11e7062a0bb4",
     "status": "patient_disjoint; not model_evaluated; not author_blind"
   },
   "recipe": "python -m mirobody_gen build --seed 20261025 --people 30 --clinical --out <corpus>",
@@ -71,7 +71,7 @@
   "source_checks": {
     "clinical_expert_validation": "not_performed",
     "rendered_image_audit": "not_applicable_text_snapshots",
-    "selected_snapshots": 888
+    "selected_snapshots": 890
   },
   "source_sha256": {
     "devices.jsonl": "2aaf9afb7109872a2d11da6da5ad4bbd55e4cd293b846a760256e42aa5df55f1",

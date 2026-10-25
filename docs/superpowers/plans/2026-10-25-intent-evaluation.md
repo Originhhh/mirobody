@@ -59,10 +59,27 @@ Create English and Chinese benchmark READMEs, add the benchmark index entry and 
 - [x] Run `ruff check mirobody examples`, `python -m compileall -q mirobody`, `pytest -q`, `lint-imports`, and bare library imports against this checkout. Also lint and compile the new benchmark modules.
 - [x] Review the complete diff and verify no PR #178 implementation files changed.
 
-## Recorded outcome
+## Initial recorded outcome (superseded calibration)
 
 - 32 main tasks, 8 held-out, 4 reliability pairs; 888 source snapshots checked and byte-identical rebuild verified.
 - Two answering models completed all 32 tasks; external Sonnet judge produced 28 valid reviews per model. Failures remain explicit.
 - Six capability items separate the models on executable facts alone; two more differ on handoff semantics with adjudication notes.
 - Final checks: 893 passed, 110 skipped, 12 xfailed; ruff/compileall/bare imports pass; 6 import contracts kept.
 - Detailed evidence and per-item comparison: `benchmarks/intent/validation.json`; raw responses and held-out labels stay outside the repository.
+
+## Modern-model revision
+
+- Use Claude Opus 5.5 and GPT-6 Luna with medium reasoning, 8192 output tokens
+  and a 180-second timeout. Keep both common judges and cross-family reviews.
+- Keep 32 main tasks, eight held-out tasks and four reliability pairs. Rebuild
+  890 verified source snapshots using the declared Asia/Shanghai account day,
+  explicit 21/7 baseline and complete three-result report comparisons.
+- Distinguish medication strength from per-dose instructions, accept unordered
+  excluded dates without accepting duplicates, and bind adjacent key/value
+  table units locally. Invalidate changed reviewer inputs rather than carrying
+  over their old scores.
+- Both models answered all 32 visible packets. Four medication reviews per
+  audit and incomplete scoring remain pending provider access. The current
+  report records these limits; older model totals above are historical.
+- The eight held-out tasks remain uncalled. Raw responses, source packets and
+  revalidation scripts are preserved outside the tracked tree.

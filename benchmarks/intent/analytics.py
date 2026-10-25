@@ -4,7 +4,8 @@ from __future__ import annotations
 
 import statistics
 from collections import defaultdict
-from datetime import UTC, date, datetime, timedelta
+from datetime import date, datetime, timedelta
+from zoneinfo import ZoneInfo
 
 TASKS = ("conditional_mean", "lagged_comparison", "paired_coverage", "correlation",
          "trimmed_comparison", "longest_streak", "observed_weighted_mean", "personal_baseline")
@@ -18,10 +19,11 @@ REFERENCES = {
 
 def daily(case: dict) -> dict[str, dict[str, float]]:
     values = defaultdict(lambda: defaultdict(list))
+    timezone = ZoneInfo(case["window"].get("timezone", "UTC"))
     for e in case["evidence"]:
         if e["visible"] and e["kind"] == "device_reading":
             row = e["data"]
-            day = datetime.fromisoformat(row["time"]).astimezone(UTC).date().isoformat()
+            day = datetime.fromisoformat(row["time"]).astimezone(timezone).date().isoformat()
             if case["window"]["start"] <= day <= case["window"]["end"]:
                 values[row["metric"]][day].append(float(row["value"]))
     return {metric: {day: statistics.mean(v) for day, v in days.items()} for metric, days in values.items()}
