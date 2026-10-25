@@ -199,6 +199,7 @@ def validate_account(plan: dict, person: str, entry: dict) -> None:
 
 def main() -> int:
     import common
+    import requests
     import run as bench
     from load import LOAD_STATE
 
@@ -219,7 +220,7 @@ def main() -> int:
     packet = {"person": args.person, "email": args.email, "source_sha256": plan["provenance"]["sha256"],
               "record_sha256": record_identity(plan), "tz": config["tz"], "as_of": AS_OF,
               "case_manifest": probes, "cases_sha256": digest_json(probes), "skipped": skipped,
-              "dry_run": args.dry_run, "results": []}
+              "dry_run": args.dry_run, "complete": False, "results": []}
     write_json(args.out, packet)
     if not any(p["capability"] == "C3" for p in probes):
         print(f"No discriminating C3 windows; skipped-source reasons saved to {args.out}", file=sys.stderr)
@@ -230,19 +231,23 @@ def main() -> int:
     entry = read_json(LOAD_STATE, {}).get(args.email, {})
     validate_account(plan, args.person, entry)
     account = common.sign_in(args.email, tz=config["tz"], lang="en")
-    for probe in probes:
-        turn = bench.ask(account, probe["question"], args.timeout, as_of=AS_OF)
+    packet["results"] = [{**p, "status": "not_attempted", "ok": False, "cited": False, "detail": "not attempted"}
+                         for p in probes]
+    packet["capabilities"] = summarize(packet["results"])
+    write_json(args.out, packet)
+    for index, probe in enumerate(probes):
+        try:
+            turn = bench.ask(account, probe["question"], args.timeout, as_of=AS_OF)
+        except (common.ApiError, requests.RequestException) as exc:
+            turn = {"error": type(exc).__name__, "finish_reason": "error", "blocks": []}
         result = grade(probe, turn)
-        packet["results"].append(result)
+        packet["results"][index] = result
         packet["capabilities"] = summarize(packet["results"])
         write_json(args.out, packet)
         print(f"{result['status']} {probe['id']} {probe['capability']} ok={result['ok']} cited={result['cited']}", flush=True)
         if result["status"] == "run_failure":
             break
-    # Unattempted probes remain in the selected denominator if execution stops.
-    done = {r["id"] for r in packet["results"]}
-    packet["results"].extend({**p, "status": "not_attempted", "ok": False, "cited": False, "detail": "not attempted"}
-                             for p in probes if p["id"] not in done)
+    packet["complete"] = True
     packet["capabilities"] = summarize(packet["results"])
     write_json(args.out, packet)
     return int(any(not r["ok"] or (r.get("gold") is not None and not r["cited"]) for r in packet["results"]))

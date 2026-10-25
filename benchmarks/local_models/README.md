@@ -332,7 +332,9 @@ Numeric extraction excludes dates and citation IDs and rejects ambiguous multipl
 values. Explicit incompatible units fail. Per-capability counts keep selected,
 completed, passed, failed runs and unattempted questions separate; C6 uses the same
 selected numeric denominator. An incomplete turn stops further calls and leaves the
-remaining questions unattempted. Results are saved after each answer.
+remaining questions unattempted. Session-creation failures are captured too. Results
+are saved after each answer with the full selected denominator; `complete=false`
+marks a model run that has not reached its final write.
 
 Exit status is 0 only when all selected checks pass, 1 for a failed answer, citation
 or run, and 2 when there are no discriminating C3 windows (including dry runs). A dry

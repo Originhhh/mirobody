@@ -205,3 +205,28 @@ def test_dry_run_pins_sources_and_explains_saturation_without_network(source, tm
     assert packet["cases_sha256"] == probes.digest_json(packet["case_manifest"])
     if flat:
         assert any("overlap" in r["reason"] for r in packet["skipped"])
+
+
+def test_session_creation_failure_is_saved_with_the_full_selected_denominator(source, tmp_path, monkeypatch):
+    import common
+    import run as bench
+    corpus, config = source
+    plan = {"qa_people": {"p001": config}, "provenance": {"sha256": {"devices.jsonl": "synthetic"}}}
+    entry = {"person": "p001", "record_sha256": probes.record_identity(plan), "loaded_at": "2025-01-01", "steps": {"devices": {}}}
+    output = tmp_path / "result.json"
+    monkeypatch.setattr(probes, "Corpus", lambda _: corpus)
+    monkeypatch.setattr(probes, "read_json", lambda path, *args: plan if str(path) == "plan.json" else {"synthetic@example.invalid": entry})
+    monkeypatch.setattr(probes, "validate_corpus", lambda *args: None)
+    monkeypatch.setattr(common, "sign_in", lambda *args, **kwargs: object())
+    def session_failed(*args, **kwargs):
+        raise common.ApiError("synthetic session unavailable")
+    monkeypatch.setattr(bench, "ask", session_failed)
+    monkeypatch.setattr("sys.argv", ["probes.py", "--corpus", "synthetic", "--plan", "plan.json", "--person", "p001",
+                                    "--email", "synthetic@example.invalid", "--out", str(output)])
+    assert probes.main() == 1
+    packet = json.loads(output.read_text())
+    assert packet["complete"] and packet["results"][0]["status"] == "run_failure"
+    assert all(r["status"] == "not_attempted" for r in packet["results"][1:])
+    for capability in packet["capabilities"].values():
+        assert capability["selected"] == capability["run_failure"] + capability["not_attempted"]
+        assert capability["completed"] == capability["passed"] == 0
