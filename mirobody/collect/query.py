@@ -786,7 +786,7 @@ _BUCKET_BUDGET = (
 _DAY_AUTHORITY_CTE = f"""
 WITH base AS (
     SELECT DISTINCT ON (o.series_id, o.local_date)
-           o.series_id, o.display, o.code_system, o.code, o.local_date::timestamp AS at, o.value_text, o.value_num,
+           o.id, o.series_id, o.display, o.code_system, o.code, o.local_date::timestamp AS at, o.value_text, o.value_num,
            o.value_canonical, o.unit_ucum, o.unit_canonical, o.elected, o.kind = ANY(:reported) AS reported,
            {_UNVERIFIED_ROW}
       FROM v_observation o

@@ -129,8 +129,36 @@ And `view` is a dispatch TABLE, not a chain of `if`s (`query.DISPATCH`):
 | `minute` / `hour` | one point per bucket, the newest 92 per indicator (`query.BUCKET_CAP`) |
 | `day` / `week` / `month` | the same, from the day authority: each day counts once |
 | `stats` | count/min/max/avg/sum/first/last/change over the window |
+| `trend` | numeric direction and shape from the newest 400 elected daily values, with coverage |
 | `latest` | the most recent value per indicator |
 | any, with no `keywords` or `indicators` | the catalogue, and a note that the view waits for names |
+
+`trend` compares the means of the first and last thirds of **observed numeric
+days**, not equal calendar intervals. `delta_pct` divides their difference by
+the mean absolute daily magnitude; it is undefined on an all-zero scale.
+`slope_per_day` uses elapsed local calendar days, including gaps. Direction
+uses a descriptive 2% threshold; shape distinguishes a single hump or dip
+from repeated significant reversals (`swing`). Neither is a clinical test.
+Compatible multiplicative units, including known LOINC molar conversions,
+share a numeric basis; offset or incompatible conversions return
+`incomparable` instead of combining unlike numbers.
+
+Each trend row retains `series`, `system`, `code`, source verification and
+day semantics. `n` counts numeric days, `source_days` all daily inputs,
+`total_days` all matching source days and `missing_numeric_days` the inputs
+without a finite number. `input_truncated` marks the 400-day input cap;
+the envelope is partial and names its actual first/last source dates.
+Missing numeric values are never zero-filled. Fewer than three numeric days
+is `insufficient`; reported and nonnumeric series are `unsupported`, with
+an explicit `reason` and day/stats guidance, rather than a catalogue fallback.
+Incomplete numeric coverage also yields partial status. Compact output shows
+the same statistics, shape, units and coverage as the REST rows.
+
+Trend citation definitions store the series, actual input date span,
+`view=trend` and `basis=day_authority`, without derived values. Resolving one
+reuses the same elected-or-newest daily selection as the query, so other
+intraday readings are not presented as contributors. Sources are read live
+after amendments or erasure, within the same person and conversation.
 
 Raw and latest rows, and the records list, show the reading's local time with
 its stored microseconds when it has any (`2026-06-01 12:00:00.000001`), trailing

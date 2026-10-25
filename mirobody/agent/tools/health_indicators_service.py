@@ -148,9 +148,10 @@ class HealthIndicatorsService(RecordTool):
         With no `keywords`/`indicators` it returns the CATALOGUE of what this
         person actually has, reported entries first, which is the right first
         call when you do not know the names. Ask for the shape you need:
-        `view="stats"` for change, a baseline or how often, `view="day"` for a
-        trend line, `view="latest"` for "what is it now", never raw rows you
-        would reduce yourself.
+        `view="stats"` for totals, a baseline or how often, `view="day"` for
+        a chart or dated reported entries, `view="trend"` for numeric direction
+        and shape, `view="latest"` for "what is it now". A partial trend covers
+        only the displayed source days; narrow the window for a complete result.
 
         DO NOT use it for medications (`query_medications`) or for general
         medical knowledge or reference ranges. Do not call it twice with the same arguments:
@@ -162,7 +163,7 @@ class HealthIndicatorsService(RecordTool):
             whether they were cut. `truncated` means narrow the window or ask
             for `view="stats"` (or a coarser view). No dates means the whole
             record. Caps: 50 raw rows and 92 minute…month points per
-            indicator (the newest), 200 catalogue names.
+            indicator (the newest), 400 daily inputs per trend, 200 catalogue names.
 
         Notes for LLMs:
             - No data for an indicator means it was never recorded. It does NOT
@@ -235,8 +236,8 @@ class HealthIndicatorsService(RecordTool):
         if method == "buckets":
             return await awaited(hq.buckets(subject_id, sel, window, resolution=request.view, limit=self._bucket_cap))
         if method == "trend":
-            daily = await awaited(hq.buckets(subject_id, sel, window, resolution="day", limit=max(self._bucket_cap, 400)))
-            return _trend_rows(daily)
+            daily = await awaited(hq.buckets(subject_id, sel, window, resolution="day", limit=400))
+            return query.trend_rows(daily)
         if method == "stats":
             return await awaited(hq.stats(subject_id, sel, window))
         if method == "latest":
@@ -276,88 +277,6 @@ async def _with_rids(session_id: str, subject_id: str, method: str, request: que
 
 
 
-def _trend_rows(daily):
-    """The shape of each series: thirds, the delta between them, and a slope.
-
-    A trend read off `first`/`last` is decided by two single days; on the sleep series that
-    made a 9 % decline look like a rise (6.18 -> 7.2 while the thirds went 7.66 -> 6.96).
-    The first and last thirds are averaged, the delta is taken between them, and a least
-    squares slope is normalised per day; `direction` is decided here, with one threshold, so
-    every caller classifies the same series the same way.
-    """
-    grouped = {}
-    meta = {}
-    for row in daily:
-        indicator = str(row.get("indicator") or row.get("series") or "")
-        value = row.get("avg", row.get("value"))
-        period = str(row.get("period") or row.get("date") or "")
-        try:
-            number = float(value)
-        except (TypeError, ValueError):
-            continue
-        grouped.setdefault(indicator, []).append((period, number))
-        meta.setdefault(indicator, row)
-
-    out = []
-    for indicator, points in grouped.items():
-        points.sort()
-        values = [value for _, value in points]
-        n = len(values)
-        if n < 3:
-            out.append({"indicator": indicator, "n": n, "direction": "insufficient",
-                        "first_date": points[0][0] if points else "",
-                        "last_date": points[-1][0] if points else ""})
-            continue
-        cut = max(1, n // 3)
-        first_third = sum(values[:cut]) / cut
-        last_third = sum(values[-cut:]) / cut
-        delta = last_third - first_third
-        mean = sum(values) / n
-        delta_pct = (delta / abs(mean) * 100) if mean else 0.0
-        xs = list(range(n))
-        x_mean = sum(xs) / n
-        denom = sum((x - x_mean) ** 2 for x in xs)
-        slope = (sum((x - x_mean) * (y - mean) for x, y in zip(xs, values, strict=False)) / denom) if denom else 0.0
-        if abs(delta_pct) < 2.0:
-            direction = "flat"
-        elif delta > 0:
-            direction = "up"
-        else:
-            direction = "down"
-        # A hump, a dip and a swing are what "flat between the ends" hides: the third means
-        # agree while the series travels. Name the shape so a question offering "a single
-        # hump" or "swings up and down" can be answered from the tool rather than by eye.
-        span = max(values) - min(values)
-        travel = abs(values[-1] - values[0])
-        shape = direction
-        if span and travel < 0.5 * span:
-            peak_at = values.index(max(values)) / max(n - 1, 1)
-            trough_at = values.index(min(values)) / max(n - 1, 1)
-            if 0.2 < peak_at < 0.8 and max(values) - max(values[0], values[-1]) > 0.25 * span:
-                shape = "hump"
-            elif 0.2 < trough_at < 0.8 and min(values[0], values[-1]) - min(values) > 0.25 * span:
-                shape = "dip"
-            else:
-                shape = "swing"
-        source = meta.get(indicator) or {}
-        out.append({
-            "indicator": indicator,
-            "n": n,
-            "first_date": points[0][0],
-            "last_date": points[-1][0],
-            "first_third_mean": round(first_third, 3),
-            "last_third_mean": round(last_third, 3),
-            "delta": round(delta, 3),
-            "delta_pct": round(delta_pct, 2),
-            "slope_per_day": round(slope, 4),
-            "direction": direction,
-            "shape": shape,
-            "min": round(min(values), 3),
-            "max": round(max(values), 3),
-            "unit": source.get("unit") or "",
-        })
-    return out
-
 def _envelope_for(
     method: str,
     request: query.QueryRequest,
@@ -374,13 +293,20 @@ def _envelope_for(
     total = max((int(r.get("total") or 0) for r in rows), default=0)
     # A catalogue row's `total` is the catalogue's size, not its series' row
     # count: read per indicator, every complete catalogue of two was "cut".
-    truncated = bool(total and total > len(rows)) or (method != "catalog" and bool(_cut_indicators(rows)))
+    truncated = (any(r.get("input_truncated") for r in rows) if method == "trend" else
+                 bool(total and total > len(rows)) or (method != "catalog" and bool(_cut_indicators(rows))))
+    unavailable = method == "trend" and any(
+        r.get("direction") in {"unsupported", "insufficient", "incomparable"} or r.get("missing_numeric_days")
+        for r in rows
+    )
     semantics = _semantics(rows)
     cut = ""
     if truncated and method == "buckets":
         cut = _cut_note(request.view, rows, bucket_cap)
     elif truncated and method == "readings":
         cut = _raw_cut_note(rows, row_cap)
+    elif truncated and method == "trend":
+        cut = _trend_cut_note(rows)
     meta = tools.Meta(
         window=(window.start, window.end) if dated else ("", ""),
         tz=window.tz,
@@ -417,16 +343,21 @@ def _envelope_for(
                 else:
                     assumptions.append(f"this person's records span {first} .. {last}")
     if method == "trend" and rows:
-        # The table hoists constant columns, and a single-row answer is all constants: the
-        # direction would be hidden in a line the model skims. State the verdict here, where
-        # every rendering shows it.
-        shape = []
+        summaries = []
         for row in rows[:4]:
-            if row.get("direction"):
-                shape.append(f"{row.get('indicator')}: {row['direction']} "
-                             f"({row.get('delta_pct')}% between thirds, {row.get('n')} points)")
-        if shape:
-            assumptions.append("trend: " + "; ".join(shape))
+            description = f"{row.get('indicator')}: direction={row.get('direction')}, shape={row.get('shape')}"
+            if row.get("delta_pct") is not None:
+                description += f" ({row['delta_pct']}% normalized change, {row.get('n')} numeric days)"
+            else:
+                description += f" ({row.get('n')} numeric days; relative change unavailable)"
+            summaries.append(description)
+        assumptions.append("trend: " + "; ".join(summaries))
+        assumptions.append("trend compares the first and last thirds of numeric observed days; "
+                           "the 2% threshold uses mean absolute magnitude and is descriptive, not a clinical threshold")
+        assumptions.append(_DAY_VALUE_NOTE)
+        if unavailable:
+            assumptions.append("some series cannot supply a complete numeric trend; inspect each row's reason; "
+                               "view=day shows dated values or reported entries, and view=stats summarizes the record")
     if method == "catalog" and request.view_unapplied:
         assumptions.append(
             f"view={request.view} was not applied: with no keywords or indicators the answer is this catalogue; "
@@ -463,8 +394,10 @@ def _envelope_for(
         next_steps.append(tools.NEXT_PICK_FROM_CATALOG)
     elif truncated:
         next_steps.extend((tools.NEXT_NARROW_WINDOW, tools.NEXT_VIEW_STATS))
+    if unavailable:
+        next_steps.append(tools.NEXT_VIEW_STATS)
 
-    status = tools.STATUS_PARTIAL if truncated else tools.STATUS_OK
+    status = tools.STATUS_PARTIAL if truncated or unavailable else tools.STATUS_OK
     return tools.Envelope(
         status,
         data=rows,
@@ -480,6 +413,13 @@ def _envelope_for(
 #: last, among the notes after the table, answered that March and April had
 #: no data (benchmarks/local_models small-v2, 2026-10-07).
 _NOT_MISSING = "exists and is not shown here; it is not missing"
+
+
+def _trend_cut_note(rows: Sequence[Mapping[str, Any]]) -> str:
+    spans = [f"{r.get('indicator')}: newest {r.get('source_days')} of {r.get('total_days')} recorded days, "
+             f"{r.get('first_date')} to {r.get('last_date')}" for r in rows if r.get("input_truncated")]
+    return ("Only part of the data was used for the trend: " + "; ".join(spans)
+            + f". Earlier data {_NOT_MISSING}. Narrow the window before describing its whole-period trend.")
 
 
 def _cut_note(view: str, rows: Sequence[Mapping[str, Any]], cap: int) -> str:

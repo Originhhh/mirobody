@@ -45,7 +45,8 @@ _COLUMNS: dict[str, tuple[str, ...]] = {
     "readings": ("indicator", "name", "time", "value", "unit", "ref", "flag", "system", "code", "file"),
     "buckets": ("indicator", "period", "avg", "min", "max", "n", "unit", "system", "code"),
     "trend": ("indicator", "n", "first_date", "last_date", "first_third_mean", "last_third_mean",
-              "delta", "delta_pct", "slope_per_day", "direction", "min", "max", "unit"),
+              "delta", "delta_pct", "slope_per_day", "direction", "shape", "min", "max", "unit", "system", "code",
+              "source_days", "total_days", "missing_numeric_days", "mixed_units", "reason"),
     "stats": ("indicator", "count", "min", "max", "avg", "sum", "first", "first_date", "last", "last_date",
               "change", "unit", "mixed_units", "system", "code"),
     "latest": ("indicator", "name", "date", "time", "value", "unit", "ref", "flag", "system", "code", "file"),
@@ -60,7 +61,8 @@ _REPORTED_COLUMNS: dict[str, tuple[str, ...]] = {
     "readings": ("indicator", "name", "kind", "time", "system", "code", "reason", "note"),
     "buckets": ("indicator", "period", "n", "system", "code"),
     "trend": ("indicator", "n", "first_date", "last_date", "first_third_mean", "last_third_mean",
-              "delta", "delta_pct", "slope_per_day", "direction", "min", "max", "unit"),
+              "delta", "delta_pct", "slope_per_day", "direction", "shape", "min", "max", "unit", "system", "code",
+              "source_days", "total_days", "missing_numeric_days", "mixed_units", "reason"),
     "stats": ("indicator", "count", "first_date", "last_date", "system", "code"),
     "latest": ("indicator", "name", "kind", "date", "time", "system", "code", "reason", "note"),
 }
@@ -78,6 +80,8 @@ async def awaited(value: Any) -> Any:
 def _method_of(first: Mapping[str, Any]) -> str:
     """Which leaf produced a readings result. Derived from the row shape rather
     than passed down, so a renderer can never disagree with its data."""
+    if "direction" in first:
+        return "trend"
     if "period" in first:
         return "buckets"
     if "avg" in first and "count" in first:

@@ -2,17 +2,16 @@
 
 ### Added
 
-- **`view="trend"` answers the shape of a series instead of leaving it to the reader.**
-  `stats` reports `first` and `last`, which are single readings: on a sleep series that fell
-  from 7.66 to 6.96 between its thirds, `first`/`last` read 6.18 -> 7.2 and every model asked
-  to classify it answered "no trend". The new view returns `first_third_mean`,
-  `last_third_mean`, `delta`, `delta_pct`, `slope_per_day`, a `direction` (up/down/flat, one
-  2 % threshold) and a `shape` that can say `hump`, `dip` or `swing` - the words a person uses
-  and the ones `stats` had no field for. The verdict is also written into the envelope notes,
-  because a single-row table has every column hoisted into `(constants: ...)` where a reader
-  skims past it.
-
-### Added
+- **`view="trend"` describes numeric direction and shape from daily source values.**
+  Single first/last readings can conceal a hump, dip or repeated swings. The new view
+  compares the first and last thirds of observed numeric days and returns their means,
+  delta, relative delta, an elapsed-calendar-day slope, direction and shape. Compatible
+  multiplicative units are normalized before comparison; unsafe conversions abstain.
+  The 2% threshold uses mean absolute magnitude and describes change, not clinical
+  significance. Both compact and REST results retain identity, units, source warnings
+  and coverage. More than 400 source days returns a partial result with the actual span;
+  insufficient, nonnumeric and reported series retain an explicit reason. Citations
+  identify the daily contributors, remain distinct from stats and resolve from live data.
 
 - **Answers can cite visible record values without guessing their source.**
   Automatic citations check the metric, recorded unit and any stated encounter

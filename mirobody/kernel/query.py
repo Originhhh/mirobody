@@ -34,14 +34,16 @@ import csv
 import io
 import json
 import logging
+import math
 import re
+import statistics
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, field
 from datetime import date, datetime, timedelta
 from importlib import resources
 from typing import Protocol
 
-from mirobody import lexical
+from mirobody import lexical, units
 from .series import zone
 
 logger = logging.getLogger(__name__)
@@ -352,6 +354,141 @@ def compact(
     return "\n".join(out)
 
 
+def _trend_shape(values: Sequence[float], magnitude: float, direction: str) -> str:
+    span = max(values) - min(values)
+    if not span or span < 0.02 * magnitude:
+        return "flat"
+    # A reversal must travel a quarter of the range; tiny daily jitter must not
+    # turn a smooth hump into several apparent peaks.
+    prominence = max(0.25 * span, 0.02 * magnitude)
+    movement, extreme = 0, values[0]
+    turns: list[str] = []
+    for value in values[1:]:
+        if movement == 0:
+            if value - extreme >= prominence:
+                movement, extreme = 1, value
+            elif extreme - value >= prominence:
+                movement, extreme = -1, value
+        elif movement == 1:
+            if value >= extreme:
+                extreme = value
+            elif extreme - value >= prominence:
+                turns.append("hump")
+                movement, extreme = -1, value
+        elif value <= extreme:
+            extreme = value
+        elif value - extreme >= prominence:
+            turns.append("dip")
+            movement, extreme = 1, value
+    return "swing" if len(turns) > 1 else turns[0] if turns else direction
+
+
+def trend_rows(daily: Sequence[Mapping[str, object]]) -> list[dict[str, object]]:
+    """Summarize observed daily values without losing units, identity or coverage.
+
+    Thirds refer to observed numeric days, not equal calendar intervals. The
+    descriptive direction threshold is 2% of mean absolute magnitude; it is not a
+    clinical significance test. A slope uses actual elapsed local calendar days.
+    Missing numeric days are counted, never filled with zero. Offset or unknown
+    cross-unit conversions abstain rather than fabricate a common numeric basis.
+    """
+    grouped: dict[tuple[str, ...], list[Mapping[str, object]]] = {}
+    for row in daily:
+        series_id = str(row.get("series") or "")
+        key = (("series", series_id) if series_id else
+               ("identity", *(str(row.get(k) or "") for k in ("indicator", "system", "code"))))
+        grouped.setdefault(key, []).append(row)
+
+    out: list[dict[str, object]] = []
+    for source in grouped.values():
+        ordered = sorted(source, key=lambda row: str(row.get("period") or row.get("date") or ""))
+        latest = ordered[-1]
+        periods = [str(row.get("period") or row.get("date") or "") for row in ordered]
+        numeric: list[tuple[Mapping[str, object], float]] = []
+        for row in ordered:
+            raw = row.get("avg", row.get("value"))
+            if raw is None or isinstance(raw, bool):
+                continue
+            try:
+                value = float(raw)
+            except (TypeError, ValueError, OverflowError):
+                continue
+            if math.isfinite(value):
+                numeric.append((row, value))
+        totals = [len(source)]
+        for row in source:
+            try:
+                totals.append(int(row.get("total") or 0))
+            except (TypeError, ValueError, OverflowError):
+                continue
+        reported = any(row.get("provenance") == "reported" for row in source)
+        result: dict[str, object] = {
+            **{k: str(latest.get(k) or "") for k in ("indicator", "series", "system", "code")},
+            "n": len(numeric), "source_days": len(source), "total_days": max(totals),
+            "input_truncated": max(totals) > len(source),
+            "missing_numeric_days": len(source) - len(numeric),
+            "unverified": any(bool(row.get("unverified")) for row in source),
+            "day_known": all(bool(row.get("day_known", True)) for row in source),
+            "provenance": "reported" if reported else str(latest.get("provenance") or "computed"),
+            "first_date": periods[0], "last_date": periods[-1],
+            "unit": "", "direction": "unsupported", "shape": "unavailable", "reason": "",
+            **dict.fromkeys(("first_third_mean", "last_third_mean", "delta", "delta_pct",
+                             "slope_per_day", "min", "max")),
+        }
+        if latest.get("kind"):
+            result["kind"] = latest["kind"]
+        out.append(result)
+        if reported or not numeric:
+            result["reason"] = "reported_entries" if reported else "no_numeric_values"
+            continue
+        try:
+            days = [date.fromisoformat(period) for period in periods]
+        except ValueError:
+            result["reason"] = "invalid_dates"
+            continue
+        if len(set(days)) != len(days):
+            result["reason"] = "invalid_dates"
+            continue
+        first_unit = str(numeric[0][0].get("unit") or "")
+        target = units.normalize_unit(first_unit) or first_unit
+        result["unit"] = target
+        values: list[float] = []
+        for row, value in numeric:
+            raw_unit = str(row.get("unit") or "")
+            incoming = units.normalize_unit(raw_unit) or raw_unit
+            system = str(row.get("system") or "").casefold()
+            code = str(row.get("code") or "") if system in {"loinc", "http://loinc.org", "https://loinc.org"} else ""
+            factor = units.conversion_factor(incoming, target, loinc_code=code)
+            if factor is None or not math.isfinite(value * factor):
+                result.update(direction="incomparable", reason="incompatible_units")
+                break
+            values.append(value * factor)
+        if result["direction"] == "incomparable":
+            continue
+        if len(values) < 3:
+            result.update(direction="insufficient", reason="insufficient_points")
+            continue
+        n = len(values)
+        cut = n // 3
+        first_third, last_third = statistics.mean(values[:cut]), statistics.mean(values[-cut:])
+        delta = last_third - first_third
+        magnitude = statistics.mean(abs(value) for value in values)
+        relative = delta / magnitude * 100 if magnitude else None
+        direction = "flat" if relative is None or abs(relative) < 2 else "up" if delta > 0 else "down"
+        origin = days[0]
+        xs = [(date.fromisoformat(str(row.get("period") or row.get("date"))) - origin).days for row, _ in numeric]
+        x_mean, mean = statistics.mean(xs), statistics.mean(values)
+        denominator = sum((x - x_mean) ** 2 for x in xs)
+        slope = sum((x - x_mean) * (value - mean) for x, value in zip(xs, values, strict=True)) / denominator
+        result.update(
+            first_third_mean=round(first_third, 3), last_third_mean=round(last_third, 3),
+            delta=round(delta, 3), delta_pct=round(relative, 2) if relative is not None else None,
+            slope_per_day=round(slope, 4), direction=direction,
+            shape=_trend_shape(values, magnitude, direction), min=round(min(values), 3), max=round(max(values), 3),
+        )
+    return out
+
+
 # --- the tool: schema and dispatch -------------------------------------------------------
 
 #: One value per bucket of this size; day and coarser read the elected day.
@@ -402,7 +539,7 @@ TOOL_SCHEMA: dict[str, object] = {
             "type": "string",
             "enum": list(VIEWS),
             "default": "raw",
-            "description": "raw: the readings, newest first, each with the file it came from. minute/hour/day/week/month: one point per period, for a trend or a chart. stats: count/min/max/avg/sum/first/last/change over the window, for totals, 'how did it change' and a baseline. trend: the shape over the window - first_third_mean, last_third_mean, delta, delta_pct, slope_per_day and direction (up/down/flat) - for a question that asks whether a value rose, fell, plateaued or swung. latest: the most recent value per indicator.",
+            "description": "raw: the readings, newest first, each with the file it came from. minute/hour/day/week/month: one point per period, for a chart. stats: count/min/max/avg/sum/first/last/change over the window, for totals and a baseline. trend: numeric direction and shape, observed-day third means, delta, delta_pct and elapsed-day slope; at most 400 daily inputs, with partial coverage explicit. Unsupported or incomparable data keeps a reason; use day/stats for reported entries. The 2% direction threshold is descriptive, not clinical. latest: the most recent value per indicator.",
         },
     },
 }
@@ -576,5 +713,6 @@ __all__ = [
     "reject_dates",
     "reject_unknown",
     "resolve_window",
+    "trend_rows",
     "validate_request",
 ]
