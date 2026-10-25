@@ -19,7 +19,11 @@ _FENCE = re.compile(r"```.*?```", re.S)
 _RID = re.compile(r"^r\d+$")
 _UNIT = re.compile(r"\s?(?:[a-zA-Zµμ%/][a-zA-Zµμ%^0-9/\-.]{0,23})?")
 _CONSTANTS = re.compile(r"^\(constants:\s*(.*?)\)\s*$")
-_FIELDS = ("value", "avg", "min", "max", "sum", "first", "last", "change")
+#: A row is citable through any number it reports: a reading's value, a stats aggregate, or
+#: the thirds a trend row compares. Without the trending fields an answer like "it fell 9 %
+#: between the thirds" had nothing to cite.
+_FIELDS = ("value", "avg", "min", "max", "sum", "first", "last", "change",
+           "first_third_mean", "last_third_mean", "delta")
 _DATE = re.compile(r"\d{4}-\d{2}-\d{2}")
 _DATE_TIME = re.compile(r"\d{4}-\d{2}-\d{2}(?:[T ][0-9:.+Z-]+)?|\d{4}年\d{1,2}月\d{1,2}日|\d{1,2}:\d{2}(?::\d{2})?")
 _GENERIC = re.compile(r"(?:\s|[:：*()=]|latest|previous|last|result|value|was|is|the|at|and|最新|上次|之前|结果|数值|是|为)*", re.I)
@@ -102,6 +106,14 @@ def _aliases(row: dict[str, Any]) -> set[str]:
 def _choose(before: str, context: str, unit: str, candidates: list[dict[str, Any]],
             names: set[str]) -> dict[str, Any] | None:
     candidates = list({(r["rid"], r["_value"], r.get("unit", "")): r for r in candidates}.values())
+    # An average and a maximum of one row are one source: the answer quotes two figures from
+    # the same aggregate, and asking which figure "the" row is has no answer. Only a row that
+    # reports aggregates qualifies - a plain reading must still pass the checks below, or an
+    # unrelated sentence would borrow the one reading's identity.
+    if len({r["rid"] for r in candidates}) == 1 and any(
+            r.get("avg") or r.get("max") or r.get("min") or r.get("sum") or r.get("first_third_mean")
+            for r in candidates):
+        return candidates[0]
     original_count = len(candidates)
     dates = set(_DATE.findall(context))
     dates.update(f"{int(y):04d}-{int(m):02d}-{int(d):02d}"
@@ -120,7 +132,17 @@ def _choose(before: str, context: str, unit: str, candidates: list[dict[str, Any
         candidates = named
     elif original_count != 1 or not _GENERIC.fullmatch(_DATE_TIME.sub("", window).strip()):
         return None
-    candidates = [r for r in candidates if normalize_unit(unit) == normalize_unit(str(r.get("unit") or ""))]
+    # A unit that does not normalize - a word in another language, or "steps" written "步" -
+    # must not erase a citation: the row was identified by its value and its label already.
+    # A unit that normalizes is a claim about the reading and must still match; a unit the
+    # normalizer does not recognise ("步", "次/分") is not a claim at all, and dropping the row
+    # over it is how "平均 6978.5 步" was left with no source.
+    wanted = normalize_unit(unit)
+    same_unit = [r for r in candidates if wanted and wanted == normalize_unit(str(r.get("unit") or ""))]
+    if wanted:
+        candidates = same_unit
+    elif unit.strip():
+        candidates = same_unit or candidates
     return candidates[0] if len(candidates) == 1 else None
 
 
