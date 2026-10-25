@@ -30,6 +30,8 @@
 
 - [x] Update CHANGELOG and `docs/answers.md`; remove the duplicate Added heading and stale comments describing the old trend contract.
 - [x] Run targeted red/green tests, full app suite, full minimal suite, ruff, compileall, PHI/comment checks, all six import contracts and bare library imports against source.
-- [ ] Independently verify the nine original findings, commit and push `codex/fix-trend-view`, open a new PR against main, attach it to this task, and leave an evidence-backed comment on PR180 linking the replacement. Verify CI on the final head. Do not merge either PR.
+- [x] Independently verify the nine original findings, commit and push `codex/fix-trend-view`, open a new PR against main, attach it to this task, and leave an evidence-backed comment on PR180 linking the replacement. Verify CI on the final head. Do not merge either PR.
 
 Verified locally: app 989 pass / 114 skip / 12 xfail; minimal 555 / 174 / 12; PostgreSQL 111 pass; 25 pure trend and 6 service controls; ruff, compileall, six contracts, bare imports, PHI baseline and comment style pass. Delivery and CI are tracked in the replacement PR.
+
+Delivered as https://github.com/thetahealth/mirobody/pull/182, with the review response on PR180. Python 3.12/3.13, Windows benchmark and Linux/macOS/Windows import CI passed on implementation head e74b71a8. Final documentation-only head is rechecked by CI. The separate PR181 review and probe corrections do not modify this branch.
