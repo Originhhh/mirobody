@@ -8,6 +8,7 @@ remote Docker context cannot move computation off this machine.
 
 from __future__ import annotations
 
+import base64
 import io
 import json
 import logging
@@ -26,6 +27,7 @@ from deepagents.backends.sandbox import BaseSandbox
 
 logger = logging.getLogger(__name__)
 
+_CHUNK_CHARS = 30000
 _WORKSPACE = PurePosixPath("/workspace")
 _FILE_LIMIT = 8 * 1024 * 1024
 _RUNNER = b"""import json, runpy
@@ -165,9 +167,21 @@ class LocalPythonSandbox(BaseSandbox):
                     info = tarfile.TarInfo(relative)
                     info.size, info.mode, info.uid, info.gid = len(content), 0o600, 65534, 65534
                     bundle.addfile(info, io.BytesIO(content))
-                # Docker's archive API cannot see a live tmpfs on a read-only
-                # rootfs (Docker 29 returns 400); exec writes into the actual mount.
-                _, code, _ = self._command(["tar", "-xf", "-", "-C", str(_WORKSPACE)], stdin=archive.getvalue())
+                # Docker 29's archive API misses read-only tmpfs; some SDK attach
+                # paths also lose stdin. Exec writes into the actual mount.
+                # Keep each chunk below Linux's ~128 KiB single-argument limit:
+                # a whole base64 argument failed near 64 KiB of input.
+                archive.seek(0)
+                payload = base64.b64encode(archive.getvalue()).decode("ascii")
+                stage = "/tmp/.mirobody-upload.b64"
+                _, code, _ = self._command(["/bin/sh", "-c", f": > {stage}"])
+                for start in range(0, len(payload), _CHUNK_CHARS):
+                    chunk = payload[start:start + _CHUNK_CHARS]
+                    _, code, _ = self._command(["/bin/sh", "-c", f"printf %s '{chunk}' >> {stage}"])
+                    if code != 0:
+                        raise OSError("input transfer failed")
+                script = (f"base64 -d {stage} | tar -xf - -C '{_WORKSPACE}' && rm -f {stage}")
+                _, code, _ = self._command(["/bin/sh", "-c", script])
                 if code != 0:
                     raise OSError("input transfer failed")
                 responses.append(FileUploadResponse(path))
