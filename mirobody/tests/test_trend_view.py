@@ -230,3 +230,14 @@ def test_small_scale_extrema_are_not_flattened() -> None:
     from mirobody.kernel.query import _significant
     assert _significant(min([0.0001, 0.0002, 0.0003])) == 0.0001
     assert _significant(max([0.0001, 0.0002, 0.0003])) == 0.0003
+
+def test_a_series_that_opens_on_its_midpoint_still_reads_as_swing() -> None:
+    """The first sample used to fix the extreme, so the opening reversal was invisible.
+
+    `[100, 101.5, 98.5, 100, 101.5, 98.5, 100]` read as flat while the same series without
+    its first value read as swing.
+    """
+    from mirobody.kernel.query import _trend_shape
+    series = [100, 101.5, 98.5, 100, 101.5, 98.5, 100]
+    assert _trend_shape(series, 100, "flat") == "swing"
+    assert _trend_shape(series, 100, "flat") == _trend_shape(series[1:], 100, "flat")

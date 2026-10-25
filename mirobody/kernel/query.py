@@ -372,13 +372,21 @@ def _trend_shape(values: Sequence[float], magnitude: float, direction: str) -> s
     # turn a smooth hump into several apparent peaks.
     prominence = max(0.25 * span, 0.02 * magnitude)
     movement, extreme = 0, values[0]
+    # While no direction is established the running high and low both matter: keeping only
+    # one of them (the latest sample) hid the first reversal when a series opened on its
+    # midpoint - [100, 101.5, 98.5, ...] read as flat, yet the same series without its first
+    # value read as swing.
+    high, low = values[0], values[0]
     turns: list[str] = []
     for value in values[1:]:
         if movement == 0:
-            if value - extreme >= prominence:
+            high, low = max(high, value), min(low, value)
+            if value - low >= prominence and high - value < prominence:
                 movement, extreme = 1, value
-            elif extreme - value >= prominence:
+            elif high - value >= prominence and value - low < prominence:
                 movement, extreme = -1, value
+            elif high - low >= prominence:
+                movement, extreme = (1 if value >= (high + low) / 2 else -1), value
         elif movement == 1:
             if value >= extreme:
                 extreme = value
