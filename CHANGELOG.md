@@ -28,6 +28,13 @@
 
 ### Fixed
 
+- **Automatic aggregate citations retain the claim's identity.** A same-row
+  shortcut could cite a glucose average for calcium, the wrong unit or another
+  day. Aggregates now pass metric, unit and date/window checks before matching
+  fields are combined by citation id. Chinese units use the existing unit
+  normalizer, unknown explicit units stay uncited, and citations follow the
+  complete unit. Correct named stats and trend values remain citable.
+
 - **A summarized conversation can retain valid citations.** Rids are minted
   for the conversation and subject, and remain valid when messages are folded
   into a summary. The prompt now follows that lifetime; an unminted id or one

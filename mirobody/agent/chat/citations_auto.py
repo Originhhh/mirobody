@@ -17,17 +17,17 @@ _NUM = re.compile(r"(?<![A-Za-z0-9_.])[-+]?\d+(?:,\d{3})*(?:\.\d+)?(?:[eE][-+]?\
 _CITE = re.compile(r"<cite>.*?</cite>", re.S)
 _FENCE = re.compile(r"```.*?```", re.S)
 _RID = re.compile(r"^r\d+$")
-_UNIT = re.compile(r"\s?(?:[a-zA-Zµμ%/][a-zA-Zµμ%^0-9/\-.]{0,23})?")
+_UNIT = re.compile(r"[ \t]*([\wµμ%°/\[\]{][\wµμ%°/^*.\-\[\]{}]{0,47})")
+_PROSE_AFTER_VALUE = frozenset({"to", "from", "between", "and", "on", "at", "in", "for",
+                               "before", "after", "today", "this", "the", "was", "is"})
 _CONSTANTS = re.compile(r"^\(constants:\s*(.*?)\)\s*$")
-#: A row is citable through any number it reports: a reading's value, a stats aggregate, or
-#: the thirds a trend row compares. Without the trending fields an answer like "it fell 9 %
-#: between the thirds" had nothing to cite.
+#: Keep numeric stats and observed-day trend values tied to their source row.
 _FIELDS = ("value", "avg", "min", "max", "sum", "first", "last", "change",
            "first_third_mean", "last_third_mean", "delta")
 _DATE = re.compile(r"\d{4}-\d{2}-\d{2}")
 _DATE_TIME = re.compile(r"\d{4}-\d{2}-\d{2}(?:[T ][0-9:.+Z-]+)?|\d{4}年\d{1,2}月\d{1,2}日|\d{1,2}:\d{2}(?::\d{2})?")
-_GENERIC = re.compile(r"(?:\s|[:：*()=]|latest|previous|last|result|value|was|is|the|at|and|最新|上次|之前|结果|数值|是|为)*", re.I)
-_BINDING = re.compile(r"(?:\s|[:：*()=]|is|was|at|averaged|average|measured|recorded|result|value|的|是|为|均值|平均|测得|结果|数值)*", re.I)
+_GENERIC = re.compile(r"(?:\s|[:：*()=]|latest|previous|last|result|value|was|is|the|at|and|average|mean|maximum|minimum|sum|最新|上次|之前|结果|数值|是|为|均值|平均|最大|最小|总和)*", re.I)
+_BINDING = re.compile(r"(?:\s|[:：*()=]|is|was|at|averaged|average|mean|maximum|minimum|sum|measured|recorded|result|value|fell|rose|from|to|by|and|的|是|为|均值|平均|测得|结果|数值|最大|最小|总和)*", re.I)
 
 
 def _tolerance(target: float) -> float:
@@ -103,47 +103,69 @@ def _aliases(row: dict[str, Any]) -> set[str]:
     return {str(row.get(key) or "").strip().casefold() for key in ("name", "indicator")} - {""}
 
 
+def _unit_after(text: str, start: int) -> tuple[int, str]:
+    match = _UNIT.match(text, start)
+    if match is None or match.group(1).casefold().rstrip(".") in _PROSE_AFTER_VALUE:
+        return start, ""
+    token = match.group(1).rstrip(".")
+    return match.start(1) + len(token), token
+
+
+def _binding_text(text: str) -> str:
+    text = _DATE_TIME.sub("", text)
+    out, cursor = [], 0
+    for match in _NUM.finditer(text):
+        if match.start() < cursor:
+            continue
+        end, unit = _unit_after(text, match.end())
+        out.append(text[cursor:match.start()])
+        out.append(" ")
+        cursor = end if unit and normalize_unit(unit) else match.end()
+    return "".join([*out, text[cursor:]]).strip()
+
+
+def _date_matches(row: dict[str, Any], dates: set[str]) -> bool:
+    bounds = {str(row.get(k) or "")[:10] for k in ("first_date", "last_date")} - {""}
+    if bounds and len(bounds) == 2:
+        return bounds == dates
+    observed = {str(row.get(k) or "")[:10] for k in ("time", "date", "period")} - {""}
+    return len(dates) == 1 and bool(dates & (observed | bounds))
+
+
+def _unit_matches(row: dict[str, Any], unit: str) -> bool:
+    if not unit:
+        return True
+    wanted = normalize_unit(unit)
+    if wanted is None:
+        return False
+    recorded = normalize_unit(str(row.get("unit") or ""))
+    # A generic count gains its entity only from the named metric, never from
+    # dimensional equivalence between unrelated counted things.
+    return wanted == recorded or (recorded == "{#}" and wanted.startswith("{") and wanted.endswith("}")
+                                  and any(normalize_unit(n) == wanted for n in _aliases(row)))
+
+
 def _choose(before: str, context: str, unit: str, candidates: list[dict[str, Any]],
             names: set[str]) -> dict[str, Any] | None:
     candidates = list({(r["rid"], r["_value"], r.get("unit", "")): r for r in candidates}.values())
-    # An average and a maximum of one row are one source: the answer quotes two figures from
-    # the same aggregate, and asking which figure "the" row is has no answer. Only a row that
-    # reports aggregates qualifies - a plain reading must still pass the checks below, or an
-    # unrelated sentence would borrow the one reading's identity.
-    if len({r["rid"] for r in candidates}) == 1 and any(
-            r.get("avg") or r.get("max") or r.get("min") or r.get("sum") or r.get("first_third_mean")
-            for r in candidates):
-        return candidates[0]
-    original_count = len(candidates)
+    original_count = len({r["rid"] for r in candidates})
     dates = set(_DATE.findall(context))
     dates.update(f"{int(y):04d}-{int(m):02d}-{int(d):02d}"
                  for y, m, d in re.findall(r"(\d{4})年(\d{1,2})月(\d{1,2})日", context))
-    if len(dates) > 1:
-        return None
     if dates:
-        candidates = [r for r in candidates if any(d in str(r.get(k, "")) for d in dates for k in ("time", "date", "period"))]
+        candidates = [r for r in candidates if _date_matches(r, dates)]
     window = re.sub(r"<[^>]+>", "", before).casefold()
     matched = [(window.rfind(name) + len(name), len(name), name) for name in names if name in window]
     name_end, _, nearest = max(matched, default=(-1, 0, ""))
     named = [r for r in candidates if nearest and nearest in _aliases(r)]
     if nearest:
-        if not _BINDING.fullmatch(_DATE_TIME.sub("", window[name_end:]).strip()):
+        if not _BINDING.fullmatch(_binding_text(window[name_end:])):
             return None
         candidates = named
     elif original_count != 1 or not _GENERIC.fullmatch(_DATE_TIME.sub("", window).strip()):
         return None
-    # A unit that does not normalize - a word in another language, or "steps" written "步" -
-    # must not erase a citation: the row was identified by its value and its label already.
-    # A unit that normalizes is a claim about the reading and must still match; a unit the
-    # normalizer does not recognise ("步", "次/分") is not a claim at all, and dropping the row
-    # over it is how "平均 6978.5 步" was left with no source.
-    wanted = normalize_unit(unit)
-    same_unit = [r for r in candidates if wanted and wanted == normalize_unit(str(r.get("unit") or ""))]
-    if wanted:
-        candidates = same_unit
-    elif unit.strip():
-        candidates = same_unit or candidates
-    return candidates[0] if len(candidates) == 1 else None
+    candidates = [r for r in candidates if _unit_matches(r, unit)]
+    return candidates[0] if len({r["rid"] for r in candidates}) == 1 else None
 
 
 def attach_citations(text: str, rows: list[dict[str, Any]]) -> tuple[str, int, list[str]]:
@@ -163,17 +185,12 @@ def attach_citations(text: str, rows: list[dict[str, Any]]) -> tuple[str, int, l
             continue
         value = float(match.group().replace(",", ""))
         candidates = [r for r in rows if abs(value - r["_value"]) <= _tolerance(r["_value"])]
-        end = match.end()
-        unit_match = _UNIT.match(text, end)
-        if unit_match:
-            end = unit_match.end()
-            while end > match.end() and text[end - 1] == ".":
-                end -= 1
+        end, unit = _unit_after(text, match.end())
         left = max([0, *(i + 1 for i in boundaries if i < match.start())])
         right = min([len(text), *(i for i in boundaries if i >= end)])
         before = text[max(left, match.start() - 120):match.start()]
         context = text[max(left, match.start() - 120):min(right, end + 80)]
-        chosen = _choose(before, context, text[match.end():end].strip(), candidates, names)
+        chosen = _choose(before, context, unit, candidates, names)
         out.append(text[cursor:end])
         if chosen is not None:
             if not text[end:end + 6].startswith("<cite>"):

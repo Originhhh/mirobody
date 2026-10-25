@@ -328,6 +328,14 @@ A chat answer cites what it rests on, in the LongCite form
   It is stdlib only, so the agent, the benchmark and a training judge run the
   same copy.
 
+Automatic row citations check the metric, stated unit and encounter date or
+aggregate bounds before combining matching numeric fields by rid. A shared
+aggregate rid does not endorse another metric or unit. Units, including
+Chinese forms such as `公斤`, `毫克/分升` and `次/分`, use the shared unit
+normalizer; an explicit unknown unit remains `auto_uncited`. A generic count
+can be called `步` only when the source metric identifies steps. Missing units
+do not assert a conversion. Citation markers follow the complete unit.
+
 The web client draws each cite as a numbered chip; clicking it shows the
 reading, its date and range, and the file it came from.
 
