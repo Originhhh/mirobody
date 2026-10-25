@@ -364,13 +364,24 @@ def _significant(value: float, digits: int = 6) -> float:
     return round(value, digits - 1 - exponent)
 
 
+def _below(value: float, threshold: float) -> bool:
+    """Whether `value` is under `threshold`, ignoring floating point noise at the boundary."""
+    return round(value - threshold, 9) < 0
+
+
 def _trend_shape(values: Sequence[float], magnitude: float, direction: str) -> str:
     span = max(values) - min(values)
-    if not span or span < 0.02 * magnitude:
+    # A threshold compared with `<` flips on floating point noise: the same readings expressed
+    # in mmol/L and in umol/L landed on opposite sides of 2 %. The comparison is made on a
+    # quantised difference so equivalent representations agree.
+    if not span or _below(span, 0.02 * magnitude):
         return "flat"
     # A reversal must travel a quarter of the range; tiny daily jitter must not
     # turn a smooth hump into several apparent peaks.
-    prominence = max(0.25 * span, 0.02 * magnitude)
+    # Prominence from the span alone. The old floor `0.02 * magnitude` used the level of the
+    # series, not its movement, so the same readings in mmol/L and in umol/L sat on opposite
+    # sides of it - one shape came out flat and the other hump.
+    prominence = 0.25 * span
     movement, extreme = 0, values[0]
     # While no direction is established the running high and low both matter: keeping only
     # one of them (the latest sample) hid the first reversal when a series opened on its
@@ -492,7 +503,8 @@ def trend_rows(daily: Sequence[Mapping[str, object]]) -> list[dict[str, object]]
         delta = last_third - first_third
         magnitude = statistics.mean(abs(value) for value in values)
         relative = delta / magnitude * 100 if magnitude else None
-        direction = "flat" if relative is None or abs(relative) < 2 else "up" if delta > 0 else "down"
+        direction = ("flat" if relative is None or _below(abs(relative), 2.0)
+                     else "up" if delta > 0 else "down")
         origin = days[0]
         xs = [(date.fromisoformat(str(row.get("period") or row.get("date"))) - origin).days for row, _ in numeric]
         x_mean, mean = statistics.mean(xs), statistics.mean(values)

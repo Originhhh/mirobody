@@ -241,3 +241,20 @@ def test_a_series_that_opens_on_its_midpoint_still_reads_as_swing() -> None:
     series = [100, 101.5, 98.5, 100, 101.5, 98.5, 100]
     assert _trend_shape(series, 100, "flat") == "swing"
     assert _trend_shape(series, 100, "flat") == _trend_shape(series[1:], 100, "flat")
+
+def test_equivalent_units_reach_the_same_direction_and_shape() -> None:
+    """The same readings in mmol/L and umol/L must not straddle a threshold.
+
+    `[9.9, 10, 10.1]` landed on `flat` in one unit and `up` in the other; the same happened to
+    the shape of `[9.9, 10.1, 10.1, 9.9]`. The comparisons now ignore floating point noise.
+    """
+    from mirobody.kernel.query import trend_rows
+
+    def verdict(values: list[float], unit: str) -> tuple[str, str]:
+        rows = [{"indicator": "g", "period": f"2026-01-{i + 1:02d}", "avg": value, "unit": unit}
+                for i, value in enumerate(values)]
+        row = trend_rows(rows)[0]
+        return row["direction"], row["shape"]
+
+    assert verdict([9.9, 10, 10.1], "mmol/L") == verdict([9900, 10000, 10100], "umol/L")
+    assert verdict([9.9, 10.1, 10.1, 9.9], "mmol/L") == verdict([9900, 10100, 10100, 9900], "umol/L")
