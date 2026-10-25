@@ -31,7 +31,13 @@ _BINDING = re.compile(r"(?:\s|[:：*()=]|is|was|at|averaged|average|mean|maximum
 
 
 def _tolerance(target: float) -> float:
-    return max(0.011, abs(target) * 0.002)
+    """How close two numbers must be to be the same reading, in the value's own scale.
+
+    The floor used to be 0.011 absolute, which for a concentration of 0.003 g/L makes every
+    figure in the row "match": a row with min=0.002, avg=0.003, max=0.004 endorsed "0.01 g/L".
+    The tolerance now follows the magnitude, with only a tiny floor for floating point.
+    """
+    return max(abs(target) * 0.002, 1e-9)
 
 
 def _cells(line: str) -> list[str]:
@@ -155,6 +161,26 @@ def _unit_matches(row: dict[str, Any], unit: str) -> bool:
     # dimensional equivalence between unrelated counted things.
     return wanted == recorded or (recorded == "{#}" and wanted.startswith("{") and wanted.endswith("}")
                                   and any(normalize_unit(n) == wanted for n in _aliases(row)))
+
+
+#: The words an answer uses for each statistic a row reports.
+_STATISTIC_WORDS = {
+    "maximum": "max", "max": "max", "highest": "max", "peak": "max", "最高": "max", "最大": "max",
+    "minimum": "min", "min": "min", "lowest": "min", "最低": "min", "最小": "min",
+    "average": "avg", "mean": "avg", "averaged": "avg", "平均": "avg", "均值": "avg",
+    "sum": "sum", "total": "sum", "总和": "sum", "合计": "sum",
+    "median": "median",
+}
+
+
+def _statistic_before(window: str) -> str:
+    """The field an answer is talking about, or "" when it names no statistic."""
+    recent = window[-60:]
+    found = [(recent.rfind(word), field) for word, field in _STATISTIC_WORDS.items() if word in recent]
+    if not found:
+        return ""
+    position, field = max(found)
+    return field
 
 
 def _choose(before: str, context: str, unit: str, candidates: list[dict[str, Any]],

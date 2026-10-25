@@ -129,3 +129,13 @@ def test_a_unit_inside_formatting_wrappers_is_still_a_claim() -> None:
         _, cited, uncited = attach_citations(text, rows)
         assert cited == 0, f"{text} states a different unit and must not be cited"
         assert "5.5" in uncited
+
+def test_a_tolerance_that_scales_with_the_value_keeps_unrelated_numbers_out() -> None:
+    """The old floor of 0.011 absolute made every figure of a small row "match".
+
+    A row with min=0.002, avg=0.003, max=0.004 endorsed the sentence "Analyte is 0.01 g/L".
+    """
+    rows = rows_from_result("(constants: rid=r1, indicator=Analyte, min=0.002, avg=0.003, max=0.004, unit=g/L)")
+    _, cited, uncited = attach_citations("Analyte is 0.01 g/L.", rows)
+    assert cited == 0
+    assert "0.01" in uncited
