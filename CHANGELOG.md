@@ -23,6 +23,12 @@
 
 ### Fixed
 
+- **The personal-record judge could borrow a unit from another table column.**
+  Adjacent-unit matching now stays within one line and cell; explicit table unit
+  columns and adjacent labeled value/unit fields retain their own binding. The
+  evaluator version is bumped so old cached verdicts cannot masquerade as new
+  checks. Five regression cases cover cross-column, cross-line and valid layouts.
+
 - **The 100-question local benchmark failed correct numeric answers.** Sleep
   totals and means were expected in minutes within 0.1, so "47.6 hours" or
   "2858 minutes" for 2858.25 minutes failed, and most device means allowed

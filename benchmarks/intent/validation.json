@@ -1001,5 +1001,55 @@
       "model": "nano",
       "issue": "Judge r2 similarly confuses context seeking with invention; r1 correctly observes glucose dates listed as 2025, 2024, 2026 rather than chronological order. The ordering defect independently supports nonpass."
     }
-  ]
+  ],
+  "post_review_unit_regrade": {
+    "evaluator_version": "intent-evaluator-7",
+    "source_evaluator_version": "intent-evaluator-6",
+    "method": "Offline regrade of the same saved verdicts; no new model calls",
+    "models": {
+      "deepseek": {
+        "previous_valid_reviews": 28,
+        "unchanged_valid_reviews": 28,
+        "changed": [],
+        "previous_unresolved": 4
+      },
+      "nano": {
+        "previous_valid_reviews": 28,
+        "unchanged_valid_reviews": 28,
+        "changed": [],
+        "previous_unresolved": 4
+      }
+    },
+    "regression_tests": 38,
+    "reason": "Reject units borrowed from another table column or unrelated line, while retaining explicit same-row unit columns and adjacent labeled value/unit fields.",
+    "pr179_checks": {
+      "pytest": {
+        "passed": 898,
+        "skipped": 110,
+        "xfailed": 12
+      },
+      "intent_tests": 38,
+      "ruff": "passed",
+      "comment_style": "0 problems",
+      "compileall": "passed",
+      "import_contracts": {
+        "kept": 6,
+        "broken": 0
+      },
+      "bare_library_import": "passed against repository source"
+    },
+    "combined_with_pr178": {
+      "pr178_head": "14f3b62080df2ef42a4c8cd2f7834e86bd24d223",
+      "pr179_base_head": "2d2a4eb56a956783a55066ec2bbc6ea78181d43f",
+      "pytest": {
+        "passed": 917,
+        "skipped": 110,
+        "xfailed": 12
+      },
+      "long_context_explicit_tests": 6,
+      "code_conflicts": 0,
+      "changelog_conflicts": 1,
+      "comment_style_gate": "PR178 sandbox comment block exceeds the 8-line gate"
+    }
+  }
 }

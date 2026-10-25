@@ -233,6 +233,36 @@ def test_table_units_bind_only_to_the_actual_numeric_column(case):
         grade(case, answer, v)
 
 
+@pytest.mark.parametrize("answer", [
+    "| Weight (lb) | Height (kg) |\n| --- | --- |\n| 69.5 | 180 |",
+    "| Weight | Height |\n| --- | --- |\n| 69.5 lb | 180 kg |",
+    "69.5 lb\nUnrelated unit label: kg",
+])
+def test_cited_lines_cannot_lend_a_unit_across_cells_or_lines(case, answer):
+    v = verdict_for(case, answer)
+    v["facts"][0]["answer_line_ids"] = [f"a{i + 1}" for i in range(len(answer.splitlines()))]
+    with pytest.raises(ValueError, match="unit"):
+        grade(case, answer, v)
+
+
+def test_an_explicit_unit_column_binds_to_its_own_data_row(case):
+    answer = "| Date | Result | Unit |\n| --- | --- | --- |\n| 2026-01-01 | 69.5 | kg |\n| 2026-02-01 | 180 | cm |"
+    v = verdict_for(case, answer)
+    v["facts"][0]["answer_line_ids"] = ["a3"]
+    assert grade(case, answer, v)["facts"][0]["ok"]
+
+
+def test_adjacent_labeled_value_unit_fields_remain_valid(case):
+    answer = "Value: 69.5\nUnit: kg\nValue: 180\nUnit: cm"
+    v = verdict_for(case, answer)
+    v["facts"][0]["answer_line_ids"] = ["a1", "a2"]
+    assert grade(case, answer, v)["facts"][0]["ok"]
+    v["facts"][0]["answer_line_ids"] = ["a1", "a4"]
+    v["facts"][0]["unit"] = "cm"
+    with pytest.raises(ValueError, match="unit"):
+        grade(case, answer, v)
+
+
 def test_section_unit_stops_at_the_next_heading(case):
     answer = "**Weight (kg)**\n- 2026-01-01: 69.5\n**Height (cm)**\n- 2026-02-01: 69.5"
     v = verdict_for(case, answer)

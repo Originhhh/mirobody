@@ -153,7 +153,9 @@ The judge cites numbered **actual answer lines**, evaluates each rubric and
 extracts each fact as stated. Programs validate IDs and visible references,
 check that extracted numbers occur in those lines, bind units to adjacent
 numbers, their actual Markdown table column or enclosing section heading, then apply unit normalization
-and numerical tolerances. Counts and Pearson r are dimensionless. Charts must
+and numerical tolerances. Unit matching stays within a line and cell; explicit
+unit columns and adjacent labeled value/unit fields bind to their own result.
+Counts and Pearson r are dimensionless. Charts must
 parse and match their source-derived oracle. Semantic fact identities and
 paraphrased dates still depend on a fallible LLM judge; disputed cases require
 adjudication, not blind acceptance.
