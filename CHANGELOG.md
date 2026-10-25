@@ -18,7 +18,9 @@
   executable facts; optional external LLM review checks answer evidence and
   reports judge failures separately. Capability and regression scores stay
   separate. Claude Opus 5.5 and GPT-6 Luna now review and calibrate the suite
-  with explicit reasoning budgets. Personal-day joins use Asia/Shanghai; the
+  with explicit reasoning budgets. Nebula's DeepSeek V4 Pro can independently
+  review the same saved answers through an explicit provider and model selection.
+  Personal-day joins use Asia/Shanghai; the
   21/7 baseline, full three-result comparisons and task rubrics are aligned.
   Run `python -m benchmarks.intent.run validate`; its READMEs explain
   calibration scope and how actual product answers can be graded. The maintained
@@ -39,6 +41,13 @@
   strength and keep it separate from any explicit per-dose instructions; a
   missing instruction cannot be inferred from strength. Earlier medication
   verdicts are invalidated until reviewed against the corrected rubric.
+
+- **The external judge rejected quantities beside dates and units in headings.**
+  Chinese commas and commas after ISO dates no longer merge a date or word
+  with the next quantity; numeric thousands separators remain supported.
+  A plain value column can inherit its enclosing section's unit, while an
+  explicit column or row unit takes precedence and a new heading ends the
+  binding. Evaluator 9 revalidates saved verdicts without regenerating answers.
 
 - **The 100-question local benchmark failed correct numeric answers.** Sleep
   totals and means were expected in minutes within 0.1, so "47.6 hours" or

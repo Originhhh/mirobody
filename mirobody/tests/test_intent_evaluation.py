@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import copy
+import io
 import json
 from datetime import date, timedelta
 from pathlib import Path
@@ -16,7 +17,7 @@ from benchmarks.intent.schema import read_jsonl, verify_bundle
 from benchmarks.intent.analytics import compute
 from benchmarks.intent.oracles import recompute
 from benchmarks.intent.compare import compare
-from benchmarks.intent.models import request_body
+from benchmarks.intent.models import call, request_body
 
 DATA = Path(__file__).resolve().parents[2] / "demo" / "intent"
 
@@ -161,6 +162,22 @@ def test_partial_unit_cannot_hide_a_concentration(case):
         grade(case, "69.5 kg/L", verdict_for(case, "69.5 kg/L", unit="kg"))
 
 
+@pytest.mark.parametrize("answer", ["2026-01-24，69.5 kg", "Recorded，69.5 kg"])
+def test_chinese_comma_does_not_merge_the_quantity_with_a_date_or_word(case, answer):
+    assert grade(case, answer, verdict_for(case, answer))["evidence_conditioned_pass"]
+    with pytest.raises(ValueError, match="number"):
+        grade(case, answer.replace("69.5", "6.95"), verdict_for(case, answer))
+
+
+def test_date_separator_is_not_a_thousands_separator(case):
+    case["facts"][0]["value"] = case["evidence"][0]["data"]["value"] = 165
+    answer = "2026-01-24,165 kg"
+    assert grade(case, answer, verdict_for(case, answer, value=165))["evidence_conditioned_pass"]
+    case["facts"][0]["value"] = case["evidence"][0]["data"]["value"] = 1650
+    answer = "1,650 kg"
+    assert grade(case, answer, verdict_for(case, answer, value=1650))["evidence_conditioned_pass"]
+
+
 def test_native_work_is_never_claimed_from_an_authored_history(case):
     case["execution"]["requirements"] = ["native_summaries>=2"]
     result = grade(case, "69.5 kg", verdict_for(case, "69.5 kg"))
@@ -209,6 +226,35 @@ def test_reasoning_models_omit_unsupported_sampling_and_keep_budget_in_cache(cas
                           reasoning_effort="medium", max_output_tokens=8192)
     assert direct["max_completion_tokens"] == 8192 and "max_tokens" not in direct
     assert direct["reasoning_effort"] == "medium" and "temperature" not in direct
+
+
+def test_nebula_uses_only_its_matching_key_and_keeps_reasoning_identity(case, tmp_path, monkeypatch):
+    monkeypatch.delenv("NEUBULA_API_KEY", raising=False)
+    monkeypatch.setenv("OPENROUTER_API_KEY", "unrelated-key")
+    env = tmp_path / "private.env"
+    env.write_text('NEUBULA_API_KEY="synthetic-nebula-key"\n')
+    seen = []
+
+    class Opener:
+        def open(self, request, timeout):
+            seen.append((request, timeout))
+            return io.StringIO(json.dumps({"id": "synthetic-id", "model": "deepseek-v4-pro",
+                "choices": [{"finish_reason": "stop", "message": {"content": '{"ok":true}'}}]}))
+
+    monkeypatch.setattr("benchmarks.intent.models.urllib.request.build_opener", lambda *_: Opener())
+    messages = messages_for("audit", case)
+    settings = {"reasoning_effort": "high", "max_output_tokens": 8192, "timeout_seconds": 180}
+    result = call("nebula", "deepseek-v4-pro", messages, env, json_output=True, **settings)
+    request, timeout = seen[0]
+    assert request.full_url == "https://llm.ai-nebula.com/v1/chat/completions"
+    assert request.get_header("Authorization") == "Bearer synthetic-nebula-key" and timeout == 180
+    body = json.loads(request.data)
+    assert body["thinking"] == {"type": "enabled"} and body["reasoning_effort"] == "high"
+    assert body["max_tokens"] == 8192 and "temperature" not in body
+    assert result["provider"] == "nebula" and result["response_model"] == "deepseek-v4-pro"
+    assert "synthetic-nebula-key" not in json.dumps(result)
+    assert identity("audit", case, "nebula", "deepseek-v4-pro", messages, {}, settings) != identity(
+        "audit", case, "openrouter", "deepseek-v4-pro", messages, {}, settings)
 
 
 def test_frozen_bundle_counts_and_source_derived_fact_integrity():
@@ -348,6 +394,22 @@ def test_section_unit_stops_at_the_next_heading(case):
     v["facts"][0]["answer_line_ids"] = ["a4"]
     with pytest.raises(ValueError, match="unit"):
         grade(case, answer, v)
+
+
+def test_section_units_bind_to_plain_value_columns_in_their_own_table(case):
+    answer = "### Weight (kg)\n| Date | Value | Source |\n| --- | --- | --- |\n| 2026-01-01 | 69.5 | e1 |"
+    verdict = verdict_for(case, answer)
+    verdict["facts"][0]["answer_line_ids"] = ["a1", "a4"]
+    assert grade(case, answer, verdict)["facts"][0]["ok"]
+    for variant in (
+        answer.replace("Value", "Value (lb)"),
+        answer.replace("69.5 |", "69.5 lb |"),
+        answer.replace("Source", "Unit").replace("| e1 |", "| lb |"),
+        answer + "\n### Height (cm)\n| Date | Value |\n| --- | --- |\n| 2026-02-01 | 69.5 |",
+    ):
+        verdict["facts"][0]["answer_line_ids"] = [f"a{len(variant.splitlines())}"]
+        with pytest.raises(ValueError, match="unit"):
+            grade(case, variant, verdict)
 
 
 def test_gold_values_are_withheld_from_answer_fact_extraction(case):

@@ -162,8 +162,8 @@ def main() -> int:
         parser.error("Use a nonnegative limit and 1–8 workers")
     if not 1 <= args.max_output_tokens <= 128000 or not 1 <= args.timeout_seconds <= 600:
         parser.error("Use 1–128000 output tokens and a 1–600 second request timeout")
-    if args.reasoning_effort is not None and args.provider not in {"openrouter", "openai"}:
-        parser.error("Reasoning effort requires the OpenAI or OpenRouter provider")
+    if args.reasoning_effort is not None and args.provider not in {"openrouter", "openai", "nebula"}:
+        parser.error("Reasoning effort requires OpenAI, OpenRouter or Nebula")
     validated = verify_bundle(args.data)
     if args.operation == "validate":
         print(json.dumps(validated, ensure_ascii=False, indent=2))

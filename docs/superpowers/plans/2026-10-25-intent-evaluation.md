@@ -83,3 +83,39 @@ Create English and Chinese benchmark READMEs, add the benchmark index entry and 
   report records these limits; older model totals above are historical.
 - The eight held-out tasks remain uncalled. Raw responses, source packets and
   revalidation scripts are preserved outside the tracked tree.
+
+## Additional independent judge
+
+The user authorized DeepSeek V4 Pro on Nebula after the supplied key was found
+to lack Claude/Luna access. Preserve both existing answer sets and earlier
+partial judgments. Run a separate common judge over the full fixed development
+set, and audit all 32 corrected tasks, including the medication rubrics.
+
+- [x] Bind `nebula` to its fixed HTTPS endpoint and the existing
+  `NEUBULA_API_KEY` environment entry; preserve actual response model identity,
+  high reasoning settings, output budget and request provenance.
+- [x] Verify key isolation, payload and cache identity with the targeted suite.
+- [x] Complete the 32-task audit and two 32-answer score runs; retain failures
+  and every retry attempt without regenerating answers.
+- [x] Independently inspect meaningful score differences and any audit issues.
+- [ ] Update both READMEs, measured validation, cloud reproduction bundle and
+  PR179; run source gates and verify CI on the pushed commit.
+
+### Additional-judge outcome
+
+- DeepSeek V4 Pro returned all 96 valid records after four invalid/incomplete
+  evaluations alone were retried. Initial requests used high thinking,
+  8192 tokens and 180 seconds; those retries used 16384 tokens and 300 seconds.
+  No saved answer was regenerated. All request/case/answer identities checked.
+- Evaluator 9 fixed date/quantity comma tokenization and table values whose
+  unit is in the enclosing section heading. Two saved valid verdicts recovered
+  offline; raw versions and original failures remain immutable.
+- Raw scores: Opus 32/32, Luna 29/32. Source-contract adjudication: Opus 31/32,
+  Luna 29/32. Both infer an unsupported per-dose amount in medication02;
+  one Luna date exclusion was wrongly failed by the judge. Raw and adjudicated
+  metrics are separate; this is not clinical expert validation.
+- Only two confirmed capability differences remain, both in date alignment.
+  Opus is near ceiling (23/24 capability). Predeclare six harder replacements
+  within the same quota for a later revision; this frozen set is unchanged.
+- Source gates: 55 targeted tests; 915 passed, 110 skipped, 12 xfailed overall;
+  ruff, compile, bare imports and all six import contracts pass.

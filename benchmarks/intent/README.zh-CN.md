@@ -101,7 +101,20 @@ python -m benchmarks.intent.run score \
   --reasoning-effort medium --max-output-tokens 8192 --timeout-seconds 180 \
   --env-file /private/mirobody.env \
   --answers internal/intent-answers/answers.jsonl --out internal/intent-score
+
+# 用同一批原答案追加独立裁判。
+python -m benchmarks.intent.run score \
+  --provider nebula --model deepseek-v4-pro \
+  --reasoning-effort high --max-output-tokens 8192 --timeout-seconds 180 \
+  --env-file /private/mirobody.env \
+  --answers internal/intent-answers/answers.jsonl --out internal/intent-nebula-score
 ```
+
+`nebula` 绑定固定端点 `https://llm.ai-nebula.com/v1`，读取项目现有环境变量
+`NEUBULA_API_KEY`。DeepSeek V4 Pro 显式启用 thinking，并设置 `reasoning_effort`，
+不发送采样温度。追加裁判复用原答案，不重新作答；不同裁判的分数分别保留。
+参数依据 [Nebula 模型接口文档](https://docs.ai-nebula.com/en/api-reference/endpoint/list-models)
+和 [DeepSeek thinking 文档](https://api-docs.deepseek.com/guides/thinking_mode/)。
 
 `--smoke` 选择每类前两题，共 12 题；`--limit` 可再缩小，答题与评分须用同一选择。
 `--dataset reliability` 选择八个对照 episode。密钥来自环境或 `--env-file`，
@@ -157,12 +170,36 @@ OpenAI 直连使用 `max_completion_tokens`，OpenRouter 使用 `max_tokens`。
 独立逐题复核发现了模型外审漏掉的两处假区分：剔除日期按列举顺序判分，以及把
 药品规格当成每次剂量。评测器8允许两个不同的剔除日期按任意顺序列出；药物事实
 明确提取记录的规格，与已有的每次剂量指示分别处理。4道药物题的评审输入已更改，
-旧评语不能计入新 rubric，必须重评。相邻键值表格中的纯数字与本组引用的单位行
+旧评语不能计入新 rubric；追加的 DeepSeek 外审已覆盖这4道修订题。相邻键值表格中的纯数字与本组引用的单位行
 可以绑定，跨记录借用单位仍然拒绝。
 
-两种答题模型均已得到32份有效答案。当前每个模型的题目外审保留28份有效结果，
-另4道药物题待重审。评分尚未齐全：OpenRouter 额度用尽，提供的 Nebula Key 仅
-开放 DeepSeek，对 Claude/Luna 实测返回403。没有把替代模型标成这两个请求型号。
-`validation.json` 保留固定分母、待评项目和原始响应来源。条件配对成员与当地日期
-连续区间已有两道独立核对的真实差异；完整评分补齐前，不给模型排名或声称整套题
-已经充分检验了饱和程度。
+评测器9还支持从所属小节标题读取纯数值列的单位，不跨标题借用、不覆盖明确的
+行列单位。中文逗号和 ISO 日期后的分隔逗号不会与后续数字拼接，数字千分位仍
+正常解析。原始评语在新版本下离线重验；仅校验失败或截断的评审可以按明确的
+更大输出预算补跑，每次原始尝试及参数均保留。
+
+两种答题模型均已得到32份有效答案。OpenRouter 额度用尽后，用户授权通过 Nebula
+追加 **DeepSeek V4 Pro 同一裁判**，现已完成 **32题外审＋64份答案评审**。基础参数
+为 high thinking、8192输出 token、180秒超时；仅4个校验失败或截断的评审以16384
+输出 token、300秒超时补跑，没有重新生成答案。另两份有效原评语由评测器9离线
+重验恢复，不再调用模型。原始尝试、实际型号、参数、裁判原分与来源复核分分别保留。
+
+| 答题模型 | DeepSeek原始能力题／回归题 | 来源复核后能力题／回归题 | 来源复核后合计 |
+| --- | --- | --- | --- |
+| Claude Opus 5.5 | 24/24 · 8/8 | 23/24 · 8/8 | 31/32 |
+| GPT-6 Luna | 21/24 · 8/8 | 21/24 · 8/8 | 29/32 |
+
+来源复核纠正了一次 Luna 剔除日期的误扣分，以及双方共有的一次漏判：只有规格
+500 mg 的早期记录不能推出每次500 mg。这是 coding agent 对源记录、规则和算术的
+核对，**不是临床专家验证**。Luna 两项相反修正恰好抵消，总分没变，所以必须看逐题
+记录。题目外审的两条数值异议都把 UTC 日期当成当地日；另一次 abstention 把审题
+误当成审答案。原意见与独立计算均保留。
+
+当前只有 **2道能力题**形成已确认的模型差异：条件配对成员、当地日界的连续区间。
+Opus 来源复核后仍为23/24，接近上限。这版适合作为小型回归基础，单独用于衡量
+头部模型的 harness 提升还不够。下一版应预先定义6道更难的替换题，仍放在原来的
+24道能力题配额内：修订报告与日期角色、设备重复上传与日界变化、规格／每次剂量／
+版本／实际服药区分、稀疏跨指标配对、受限且可追溯的就诊摘要，以及有真实执行收据
+的上下文压缩后事实保留。先独立验证金标，再调用模型，不按谁赢筛题。本次冻结集
+没有暗中加入这些替换题。早前未完成的 OpenRouter 评审作为历史保留，不混入本轮
+DeepSeek 同裁判统计。

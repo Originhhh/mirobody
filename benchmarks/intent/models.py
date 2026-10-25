@@ -12,6 +12,7 @@ PROVIDERS = {
     "deepseek": ("https://api.deepseek.com/v1", "DEEPSEEK_API_KEY"),
     "openrouter": ("https://openrouter.ai/api/v1", "OPENROUTER_API_KEY"),
     "openai": ("https://api.openai.com/v1", "OPENAI_API_KEY"),
+    "nebula": ("https://llm.ai-nebula.com/v1", "NEUBULA_API_KEY"),
 }
 
 
@@ -49,14 +50,14 @@ def request_body(provider: str, model: str, messages: list[dict], *, json_output
         body["temperature"] = 0
     elif provider == "openrouter":
         body["reasoning"] = {"effort": reasoning_effort}
-    elif provider == "openai":
+    elif provider in {"openai", "nebula"}:
         body["reasoning_effort"] = reasoning_effort
     else:
-        raise ValueError("Reasoning effort requires the OpenAI or OpenRouter provider")
+        raise ValueError("Reasoning effort requires OpenAI, OpenRouter or Nebula")
     if json_output:
         body["response_format"] = {"type": "json_object"}
-    if provider == "deepseek":
-        body["thinking"] = {"type": "disabled"}
+    if provider == "deepseek" or (provider == "nebula" and model.startswith("deepseek")):
+        body["thinking"] = {"type": "enabled" if reasoning_effort not in {None, "none"} else "disabled"}
     return body
 
 

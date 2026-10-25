@@ -133,7 +133,22 @@ python -m benchmarks.intent.run score \
   --reasoning-effort medium --max-output-tokens 8192 --timeout-seconds 180 \
   --env-file /private/mirobody.env \
   --answers internal/intent-answers/answers.jsonl --out internal/intent-score
+
+# Additional independent judge on the same saved answers.
+python -m benchmarks.intent.run score \
+  --provider nebula --model deepseek-v4-pro \
+  --reasoning-effort high --max-output-tokens 8192 --timeout-seconds 180 \
+  --env-file /private/mirobody.env \
+  --answers internal/intent-answers/answers.jsonl --out internal/intent-nebula-score
 ```
+
+The `nebula` provider uses the fixed `https://llm.ai-nebula.com/v1` endpoint
+and reads `NEUBULA_API_KEY`, matching the existing project environment entry.
+DeepSeek V4 Pro requests explicitly enable thinking and use `reasoning_effort`;
+sampling temperature is omitted. This optional judge does not regenerate the
+saved answers. Scores from different judges remain separate.
+See the [Nebula model-list contract](https://docs.ai-nebula.com/en/api-reference/endpoint/list-models)
+and [DeepSeek thinking controls](https://api-docs.deepseek.com/guides/thinking_mode/).
 
 `--smoke` selects the first two tasks per domain (12 tasks); `--limit` further
 bounds a run. Use the same selection for answers and scores. Reasoning models accept
@@ -207,17 +222,51 @@ Independent inspection found two false distinctions that the model audits had
 missed: the excluded dates were graded in listing order, and medication strength
 was treated as a per-dose amount. Evaluator 8 accepts either order of the two
 distinct dates and extracts recorded strength separately from any explicit dose
-instructions. All four changed medication review packets require new reviews;
-old verdicts cannot count against the corrected rubric. Adjacent key/value table
+instructions. All four changed medication review packets required new reviews;
+old verdicts cannot count against the corrected rubric. The additional DeepSeek run now reviews all four corrected packets. Adjacent key/value table
 rows now bind a pure numeric value to their own cited unit row, while borrowing
 units across records remains invalid.
 
-Both answering models produced 32 usable answers. Current audits retain 28
-valid reviews per model, with four medication reviews pending. Scoring is
-incomplete: OpenRouter exhausted its allowance, and the supplied Nebula key
-exposes only DeepSeek models and returns 403 for Claude/Luna. No substitute
-model is presented as either requested model. `validation.json` records the
-fixed denominators, unresolved items and original response provenance. Two
-independently checked differences (conditional-pair membership and local-date
-streak boundaries) remain; aggregate model ranking and suite-wide saturation
-claims await complete review.
+Evaluator 9 also accepts a plain value column under its own unit-bearing
+section heading, without borrowing units across headings or overriding an
+explicit row/column unit. Chinese commas and separators after ISO dates do not
+merge into the next number; thousands separators still work. Saved raw verdicts
+are revalidated under the new version. Invalid or truncated evaluations alone
+may be retried with an explicit larger output budget; each original attempt
+and its settings remain available.
+
+Both answering models produced 32 usable answers. After OpenRouter's allowance
+was exhausted, the user authorized a separate **DeepSeek V4 Pro common judge
+through Nebula**. It completed all **32 task audits and 64 answer reviews**.
+Requests use high thinking, 8192 output tokens and a 180-second timeout. Only
+four invalid or truncated evaluations were retried with 16384 tokens and a
+300-second timeout; no answer was regenerated. Two valid saved reviews were
+recovered by evaluator 9 without another model call. Original attempts, actual
+response models, settings and raw versus adjudicated grades remain separate.
+
+| Answer model | Raw DeepSeek capability / regression | Source-adjudicated capability / regression | Source-adjudicated total |
+| --- | --- | --- | --- |
+| Claude Opus 5.5 | 24/24 · 8/8 | 23/24 · 8/8 | 31/32 |
+| GPT-6 Luna | 21/24 · 8/8 | 21/24 · 8/8 | 29/32 |
+
+Source inspection corrects one false failure for Luna's excluded dates and one
+shared false pass: both models infer a 500 mg per-dose amount from a record
+that supplies only strength. These are coding-agent checks of source contracts
+and arithmetic, **not clinical expert validation**. Luna's aggregate stays the
+same because two opposite corrections cancel; per-item records are essential.
+The audit's two numerical objections use UTC dates rather than the declared
+local days, and one abstention mistakes task auditing for answer auditing. All
+raw objections and the independent calculations are retained.
+
+Only **two confirmed capability items** distinguish these answer sets:
+conditional-pair membership and local-date streak boundaries. Opus is near the
+ceiling at 23/24 after adjudication. The current set is useful as a compact
+regression foundation, but insufficient alone for measuring frontier-model
+harness improvements. A next revision should predeclare six harder replacements
+within the existing 24 capability slots: corrected-document date roles,
+overlapping device uploads and local-day changes, dose/strength/version/intake
+separation, sparse cross-signal joins, constrained source-traceable handoffs, and
+actual context-summary retention with execution receipts. Validate keys before
+model calls; do not select questions by which model wins. No such replacements
+were silently added to this frozen run. Earlier partial OpenRouter reviews stay
+historical and are not mixed into the DeepSeek common-judge totals.
