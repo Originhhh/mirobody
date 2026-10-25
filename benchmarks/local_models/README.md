@@ -284,20 +284,56 @@ not as a replacement for the maintained `harness100` suite, and report the two s
 
 ## Capability probes
 
-`probes.py` turns one corpus person into a few questions whose answers are known from the
-build itself, so a failure names a capability instead of lowering a total:
+`probes.py` builds a small diagnostic set from generator truth and the pinned loading
+plan. It reads the actual flat `devices.jsonl` records (`metric`, `indicator`, `time`,
+`value`, `unit`) in the account's time zone. Gold never comes from a product response.
+The default selects at most two metrics, with at most **19 questions per person**;
+`--max-metrics 1|2|3` changes that bound (10/19/28).
 
-| probe | question | gold |
+| capability | question | acceptance |
 | --- | --- | --- |
-| C3 window | "average <metric> from A to B" over three disjoint slices | the slice's mean |
-| C4 aggregate | record count and maximum over the same slice | computed from the build |
-| C6 provenance | does a numeric answer carry a `<cite>` | counted over the answers |
-| C7 absence | a metric never recorded, asked directly | must be reported as not recorded |
+| C3 window | average over an explicit historical window | source-derived mean in the requested unit |
+| C4 aggregate | distinct recorded days or maximum in that window | source-derived day count or maximum |
+| C6 provenance | numeric answer's citation | known row ID, with numeric support in the actual tool evidence |
+| C7 absence | a metric absent from loaded source truth | explicit absence without a fabricated numeric reading |
+
+Candidate windows occupy three disjoint thirds of the record, using up to 7, 14 and
+21 observed days. Mean and maximum answers must differ by more than their combined
+1%/0.05 tolerances; counts must differ exactly. Each retained operation needs at least
+two distinguishable windows. A constant answer cannot pass all of them. Metrics with
+no discriminating means are skipped, with reasons saved; they do not establish C3.
+
+Duplicate local-day readings, nonfinite values and mixed units are omitted rather
+than assigned an ambiguous gold. Windows cannot overlap loaded document readings of
+the same metric. Sleep uses source intervals in minutes and the existing evening-date
+policy. Absence checks all loaded document truth, including unreadable rows, short
+device series and journal mentions; if absence cannot be established, C7 is omitted.
+These are bounded record-access diagnostics, not a clinical reasoning benchmark or
+an independent held-out test. C6 checks numeric traceability, not whether a clinical
+interpretation follows from the evidence.
+
+First inspect the source-derived questions without signing in or calling a model:
 
 ```bash
-python benchmarks/local_models/probes.py --corpus <build> --person p001 \
-    --email probe-p001@example.org --out results/probes/p001.json
+python benchmarks/local_models/probes.py --corpus <build> --plan <plan.json> \
+    --person p001 --email <existing-loaded-account> \
+    --out results/probes/p001.json --dry-run
 ```
 
-The slices are three disjoint windows spread over the record rather than "last week", because
-a model that always answers about the newest week passes a "last week" question by luck.
+Remove `--dry-run` to ask the already-loaded account. The plan's source hashes and
+the account's person, completed loading state and record identity must match. A new
+empty email account is rejected. The run uses the account's planned time zone,
+English questions and the frozen evaluation clock (`2026-09-02`). It does not switch
+models or reload records.
+
+Results save the complete question manifest and its hash, source hashes, per-window
+points and policy, full answers and tool transcripts, and citation diagnostics.
+Numeric extraction excludes dates and citation IDs and rejects ambiguous multiple
+values. Explicit incompatible units fail. Per-capability counts keep selected,
+completed, passed, failed runs and unattempted questions separate; C6 uses the same
+selected numeric denominator. An incomplete turn stops further calls and leaves the
+remaining questions unattempted. Results are saved after each answer.
+
+Exit status is 0 only when all selected checks pass, 1 for a failed answer, citation
+or run, and 2 when there are no discriminating C3 windows (including dry runs). A dry
+run with usable C3 windows exits 0 without creating quality grades.
