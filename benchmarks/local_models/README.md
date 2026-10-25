@@ -281,3 +281,23 @@ append them to a copy of `cases.jsonl`, recompute `plan.json`'s `cases_sha256`, 
 relax `provenance.validate_cases`'s "exactly 100" rule in that copy — that is what the
 extras were developed against. Treat the result as an extended set with its own name,
 not as a replacement for the maintained `harness100` suite, and report the two separately.
+
+## Capability probes
+
+`probes.py` turns one corpus person into a few questions whose answers are known from the
+build itself, so a failure names a capability instead of lowering a total:
+
+| probe | question | gold |
+| --- | --- | --- |
+| C3 window | "average <metric> from A to B" over three disjoint slices | the slice's mean |
+| C4 aggregate | record count and maximum over the same slice | computed from the build |
+| C6 provenance | does a numeric answer carry a `<cite>` | counted over the answers |
+| C7 absence | a metric never recorded, asked directly | must be reported as not recorded |
+
+```bash
+python benchmarks/local_models/probes.py --corpus <build> --person p001 \
+    --email probe-p001@example.org --out results/probes/p001.json
+```
+
+The slices are three disjoint windows spread over the record rather than "last week", because
+a model that always answers about the newest week passes a "last week" question by luck.
