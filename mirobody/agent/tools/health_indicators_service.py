@@ -234,6 +234,9 @@ class HealthIndicatorsService(RecordTool):
             return await awaited(hq.readings(subject_id, sel, window, limit=self._row_cap))
         if method == "buckets":
             return await awaited(hq.buckets(subject_id, sel, window, resolution=request.view, limit=self._bucket_cap))
+        if method == "trend":
+            daily = await awaited(hq.buckets(subject_id, sel, window, resolution="day", limit=max(self._bucket_cap, 400)))
+            return _trend_rows(daily)
         if method == "stats":
             return await awaited(hq.stats(subject_id, sel, window))
         if method == "latest":
@@ -271,6 +274,89 @@ async def _with_rids(session_id: str, subject_id: str, method: str, request: que
 
 # --- envelope and renderings (pure) -----------------------------------------
 
+
+
+def _trend_rows(daily):
+    """The shape of each series: thirds, the delta between them, and a slope.
+
+    A trend read off `first`/`last` is decided by two single days; on the sleep series that
+    made a 9 % decline look like a rise (6.18 -> 7.2 while the thirds went 7.66 -> 6.96).
+    The first and last thirds are averaged, the delta is taken between them, and a least
+    squares slope is normalised per day; `direction` is decided here, with one threshold, so
+    every caller classifies the same series the same way.
+    """
+    grouped = {}
+    meta = {}
+    for row in daily:
+        indicator = str(row.get("indicator") or row.get("series") or "")
+        value = row.get("avg", row.get("value"))
+        period = str(row.get("period") or row.get("date") or "")
+        try:
+            number = float(value)
+        except (TypeError, ValueError):
+            continue
+        grouped.setdefault(indicator, []).append((period, number))
+        meta.setdefault(indicator, row)
+
+    out = []
+    for indicator, points in grouped.items():
+        points.sort()
+        values = [value for _, value in points]
+        n = len(values)
+        if n < 3:
+            out.append({"indicator": indicator, "n": n, "direction": "insufficient",
+                        "first_date": points[0][0] if points else "",
+                        "last_date": points[-1][0] if points else ""})
+            continue
+        cut = max(1, n // 3)
+        first_third = sum(values[:cut]) / cut
+        last_third = sum(values[-cut:]) / cut
+        delta = last_third - first_third
+        mean = sum(values) / n
+        delta_pct = (delta / abs(mean) * 100) if mean else 0.0
+        xs = list(range(n))
+        x_mean = sum(xs) / n
+        denom = sum((x - x_mean) ** 2 for x in xs)
+        slope = (sum((x - x_mean) * (y - mean) for x, y in zip(xs, values, strict=False)) / denom) if denom else 0.0
+        if abs(delta_pct) < 2.0:
+            direction = "flat"
+        elif delta > 0:
+            direction = "up"
+        else:
+            direction = "down"
+        # A hump, a dip and a swing are what "flat between the ends" hides: the third means
+        # agree while the series travels. Name the shape so a question offering "a single
+        # hump" or "swings up and down" can be answered from the tool rather than by eye.
+        span = max(values) - min(values)
+        travel = abs(values[-1] - values[0])
+        shape = direction
+        if span and travel < 0.5 * span:
+            peak_at = values.index(max(values)) / max(n - 1, 1)
+            trough_at = values.index(min(values)) / max(n - 1, 1)
+            if 0.2 < peak_at < 0.8 and max(values) - max(values[0], values[-1]) > 0.25 * span:
+                shape = "hump"
+            elif 0.2 < trough_at < 0.8 and min(values[0], values[-1]) - min(values) > 0.25 * span:
+                shape = "dip"
+            else:
+                shape = "swing"
+        source = meta.get(indicator) or {}
+        out.append({
+            "indicator": indicator,
+            "n": n,
+            "first_date": points[0][0],
+            "last_date": points[-1][0],
+            "first_third_mean": round(first_third, 3),
+            "last_third_mean": round(last_third, 3),
+            "delta": round(delta, 3),
+            "delta_pct": round(delta_pct, 2),
+            "slope_per_day": round(slope, 4),
+            "direction": direction,
+            "shape": shape,
+            "min": round(min(values), 3),
+            "max": round(max(values), 3),
+            "unit": source.get("unit") or "",
+        })
+    return out
 
 def _envelope_for(
     method: str,
@@ -312,6 +398,35 @@ def _envelope_for(
         assumptions.append(outside)
     if fell_back:
         assumptions.append("no indicator matched those terms; this is what this person has on file")
+        # A window outside the record answers nothing, and the model used today's date for a
+        # record that ended months ago: one note with the real span saves that round trip.
+        if dated:
+            spans = [(str(r.get("first_date") or ""), str(r.get("last_date") or "")) for r in rows]
+            firsts = [first for first, _ in spans if first]
+            lasts = [last for _, last in spans if last]
+            if firsts and lasts:
+                first, last = min(firsts), max(lasts)
+                if window.start and str(window.start)[:10] > last:
+                    assumptions.append(
+                        f"this person's records span {first} .. {last}; the window named starts after the last "
+                        f"record, so ask again ending at or before {last}")
+                elif window.end and str(window.end)[:10] < first:
+                    assumptions.append(
+                        f"this person's records span {first} .. {last}; the window named ends before the first "
+                        f"record, so ask again starting at or after {first}")
+                else:
+                    assumptions.append(f"this person's records span {first} .. {last}")
+    if method == "trend" and rows:
+        # The table hoists constant columns, and a single-row answer is all constants: the
+        # direction would be hidden in a line the model skims. State the verdict here, where
+        # every rendering shows it.
+        shape = []
+        for row in rows[:4]:
+            if row.get("direction"):
+                shape.append(f"{row.get('indicator')}: {row['direction']} "
+                             f"({row.get('delta_pct')}% between thirds, {row.get('n')} points)")
+        if shape:
+            assumptions.append("trend: " + "; ".join(shape))
     if method == "catalog" and request.view_unapplied:
         assumptions.append(
             f"view={request.view} was not applied: with no keywords or indicators the answer is this catalogue; "

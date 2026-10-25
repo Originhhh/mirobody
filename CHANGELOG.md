@@ -2,6 +2,18 @@
 
 ### Added
 
+- **`view="trend"` answers the shape of a series instead of leaving it to the reader.**
+  `stats` reports `first` and `last`, which are single readings: on a sleep series that fell
+  from 7.66 to 6.96 between its thirds, `first`/`last` read 6.18 -> 7.2 and every model asked
+  to classify it answered "no trend". The new view returns `first_third_mean`,
+  `last_third_mean`, `delta`, `delta_pct`, `slope_per_day`, a `direction` (up/down/flat, one
+  2 % threshold) and a `shape` that can say `hump`, `dip` or `swing` - the words a person uses
+  and the ones `stats` had no field for. The verdict is also written into the envelope notes,
+  because a single-row table has every column hoisted into `(constants: ...)` where a reader
+  skims past it.
+
+### Added
+
 - **Answers can cite visible record values without guessing their source.**
   Automatic citations check the metric, recorded unit and any stated encounter
   date, retaining ambiguous claims as `auto_uncited`. Compact tables preserve

@@ -356,7 +356,7 @@ def compact(
 
 #: One value per bucket of this size; day and coarser read the elected day.
 BUCKETS = ("minute", "hour", "day", "week", "month")
-VIEWS = ("raw", *BUCKETS, "stats", "latest")
+VIEWS = ("raw", *BUCKETS, "stats", "latest", "trend")
 #: Raw rows per indicator, newest first. A budget, not a question: the model
 #: that could raise it used to, and got a longer table instead of an answer.
 #: Narrowing the window or asking for `stats` is what a cut row count means.
@@ -402,7 +402,7 @@ TOOL_SCHEMA: dict[str, object] = {
             "type": "string",
             "enum": list(VIEWS),
             "default": "raw",
-            "description": "raw: the readings, newest first, each with the file it came from. minute/hour/day/week/month: one point per period, for a trend or a chart. stats: count/min/max/avg/sum/first/last/change over the window, for totals, 'how did it change' and a baseline. latest: the most recent value per indicator.",
+            "description": "raw: the readings, newest first, each with the file it came from. minute/hour/day/week/month: one point per period, for a trend or a chart. stats: count/min/max/avg/sum/first/last/change over the window, for totals, 'how did it change' and a baseline. trend: the shape over the window - first_third_mean, last_third_mean, delta, delta_pct, slope_per_day and direction (up/down/flat) - for a question that asks whether a value rose, fell, plateaued or swung. latest: the most recent value per indicator.",
         },
     },
 }
@@ -413,6 +413,11 @@ DISPATCH: dict[str, str] = {
     **dict.fromkeys(BUCKETS, "buckets"),
     "stats": "stats",
     "latest": "latest",
+    # A trend is a computation over the daily series, not another aggregation: first/last are
+    # single readings and a noisy day either end flips the sign (sleep 6.18 -> 7.2 while the
+    # third-to-third means fall 7.66 -> 6.96). `first_third`/`last_third`/`slope` are what a
+    # shape question can be answered from.
+    "trend": "trend",
 }
 
 
