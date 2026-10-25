@@ -497,7 +497,8 @@ def trend_rows(daily: Sequence[Mapping[str, object]]) -> list[dict[str, object]]
             first_third_mean=_significant(first_third), last_third_mean=_significant(last_third),
             delta=_significant(delta), delta_pct=round(relative, 2) if relative is not None else None,
             slope_per_day=_significant(slope, 6), direction=direction,
-            shape=_trend_shape(values, magnitude, direction), min=round(min(values), 3), max=round(max(values), 3),
+            shape=_trend_shape(values, magnitude, direction),
+            min=_significant(min(values)), max=_significant(max(values)),
         )
     return out
 

@@ -220,3 +220,13 @@ def test_a_small_scale_series_keeps_its_means_and_its_movement() -> None:
     assert first == 0.0001 and last == 0.0003
     assert _significant(last - first) == 0.0002
     assert _significant(0.0) == 0.0
+
+def test_small_scale_extrema_are_not_flattened() -> None:
+    """min/max kept three decimals while the means used significant figures.
+
+    `[0.0001, 0.0002, 0.0003] g/L` returned `min=0.0, max=0.0` beside a nonzero mean and an
+    upward direction - the row contradicted itself.
+    """
+    from mirobody.kernel.query import _significant
+    assert _significant(min([0.0001, 0.0002, 0.0003])) == 0.0001
+    assert _significant(max([0.0001, 0.0002, 0.0003])) == 0.0003
