@@ -354,6 +354,16 @@ def compact(
     return "\n".join(out)
 
 
+def _significant(value: float, digits: int = 6) -> float:
+    """A float kept to `digits` significant figures, so small scales survive rounding."""
+    if value == 0 or value != value:
+        return value
+    from math import floor, log10
+
+    exponent = floor(log10(abs(value)))
+    return round(value, digits - 1 - exponent)
+
+
 def _trend_shape(values: Sequence[float], magnitude: float, direction: str) -> str:
     span = max(values) - min(values)
     if not span or span < 0.02 * magnitude:
@@ -481,9 +491,12 @@ def trend_rows(daily: Sequence[Mapping[str, object]]) -> list[dict[str, object]]
         denominator = sum((x - x_mean) ** 2 for x in xs)
         slope = sum((x - x_mean) * (value - mean) for x, value in zip(xs, values, strict=True)) / denominator
         result.update(
-            first_third_mean=round(first_third, 3), last_third_mean=round(last_third, 3),
-            delta=round(delta, 3), delta_pct=round(relative, 2) if relative is not None else None,
-            slope_per_day=round(slope, 4), direction=direction,
+            # Significant figures, not decimal places: a hormone series in the 1e-4 range
+            # rounds to zero at three decimals while `direction` still reads "up", so the row
+            # would report a movement it cannot express.
+            first_third_mean=_significant(first_third), last_third_mean=_significant(last_third),
+            delta=_significant(delta), delta_pct=round(relative, 2) if relative is not None else None,
+            slope_per_day=_significant(slope, 6), direction=direction,
             shape=_trend_shape(values, magnitude, direction), min=round(min(values), 3), max=round(max(values), 3),
         )
     return out

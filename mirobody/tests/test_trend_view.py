@@ -207,3 +207,16 @@ def test_invalid_dates_abstain_instead_of_inventing_daily_spacing():
     result = trend_rows(rows)[0]
     assert result["direction"] == "unsupported" and result["reason"] == "invalid_dates"
     assert result["slope_per_day"] is None
+
+def test_a_small_scale_series_keeps_its_means_and_its_movement() -> None:
+    """The case a fixed decimal place destroys: 0.0001 -> 0.0003 g/L.
+
+    Rounded to three decimals every statistic became 0 while `direction` still read "up", so
+    the row claimed a movement it could not express. Significant figures keep both.
+    """
+    from mirobody.kernel.query import _significant
+    values = [0.0001, 0.0002, 0.0003]
+    first, last = _significant(values[0]), _significant(values[-1])
+    assert first == 0.0001 and last == 0.0003
+    assert _significant(last - first) == 0.0002
+    assert _significant(0.0) == 0.0
