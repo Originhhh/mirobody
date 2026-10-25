@@ -104,11 +104,23 @@ def _aliases(row: dict[str, Any]) -> set[str]:
 
 
 def _unit_after(text: str, start: int) -> tuple[int, str]:
-    match = _UNIT.match(text, start)
-    if match is None or match.group(1).casefold().rstrip(".") in _PROSE_AFTER_VALUE:
+    """The unit written after a number, through the wrappers a report puts around it.
+
+    "(mg/dL)" and "**mg/dL**" are the same claim as "mg/dL": reading only the first token
+    returns nothing for them, and an empty unit is accepted as "no claim", so a mmol/L row
+    could be cited to a sentence that explicitly said mg/dL.
+    """
+    stripped = text[start:start + 40].lstrip()
+    wrapper = len(text[start:start + 40]) - len(stripped)
+    while stripped[:1] in ("(", "[", "*", "_", '"', "'", "``", "`"):
+        stripped, wrapper = stripped[1:], wrapper + 1
+    match = _UNIT.match(stripped)
+    if match is None:
         return start, ""
     token = match.group(1).rstrip(".")
-    return match.start(1) + len(token), token
+    if token.casefold() in _PROSE_AFTER_VALUE:
+        return start, ""
+    return start + wrapper + match.start(1) + len(token), token
 
 
 def _binding_text(text: str) -> str:

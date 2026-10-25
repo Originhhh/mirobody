@@ -118,3 +118,14 @@ def test_aggregate_date_window_must_match_recorded_bounds(window, expected):
     row = {"rid": "r1", "indicator": "Glucose", "avg": 5.5, "unit": "mmol/L",
            "first_date": "2026-08-01", "last_date": "2026-08-31"}
     assert attach_citations(f"{window} Glucose averaged 5.5 mmol/L.", rows_from_result(compact([row])))[1] == expected
+
+def test_a_unit_inside_formatting_wrappers_is_still_a_claim() -> None:
+    """"(mg/dL)" and "**mg/dL**" must be read as mg/dL, not as no unit at all.
+
+    Read as no unit, the sentence was accepted and a mmol/L row was cited to it.
+    """
+    rows = rows_from_result("(constants: rid=r1, indicator=Glucose, value=5.5, unit=mmol/L)")
+    for text in ("Glucose is 5.5 (mg/dL).", "Glucose is 5.5 **mg/dL**."):
+        _, cited, uncited = attach_citations(text, rows)
+        assert cited == 0, f"{text} states a different unit and must not be cited"
+        assert "5.5" in uncited
