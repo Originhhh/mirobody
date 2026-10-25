@@ -60,7 +60,44 @@
   its own language). Answers use the account's local days and the suite's
   tolerances; the README says how to run them beside the maintained set.
 
+- **Personal-record evaluation could hide capability gaps behind easy retrieval.**
+  `benchmarks/intent` adds 32 source-grounded tasks (24 capability, 8 regression),
+  8 patient-disjoint held-out tasks and 4 reliability pairs, using PHIA,
+  LifeAgentBench, WearableQA and HealthBench task ideas on fresh synthetic data.
+  Conditional/lagged analysis, medication versions and clinician handoffs have
+  executable facts; optional external LLM review checks answer evidence and
+  reports judge failures separately. Capability and regression scores stay
+  separate. Claude Opus 5.5 and GPT-6 Luna now review and calibrate the suite
+  with explicit reasoning budgets. Nebula's DeepSeek V4 Pro can independently
+  review the same saved answers through an explicit provider and model selection.
+  Personal-day joins use Asia/Shanghai; the
+  21/7 baseline, full three-result comparisons and task rubrics are aligned.
+  Run `python -m benchmarks.intent.run validate`; its READMEs explain
+  calibration scope and how actual product answers can be graded. The maintained
+  100-question suite and product harness are unchanged.
+
 ### Fixed
+
+- **The personal-record judge could borrow a unit from another table column.**
+  Adjacent-unit matching now stays within one line and cell; explicit table unit
+  columns and adjacent labeled value/unit fields, including two-row key/value
+  tables, retain their own binding. The
+  evaluator version is bumped so old cached verdicts cannot masquerade as new
+  checks. Rejection controls cover cross-column, cross-line and valid layouts.
+
+- **Correct personal-record answers could fail on presentation or safe uncertainty.**
+  The two excluded dates are compared without imposing an unrequested listing
+  order, while duplicate dates still fail. Medication keys now ask for recorded
+  strength and keep it separate from any explicit per-dose instructions; a
+  missing instruction cannot be inferred from strength. Earlier medication
+  verdicts are invalidated until reviewed against the corrected rubric.
+
+- **The external judge rejected quantities beside dates and units in headings.**
+  Chinese commas and commas after ISO dates no longer merge a date or word
+  with the next quantity; numeric thousands separators remain supported.
+  A plain value column can inherit its enclosing section's unit, while an
+  explicit column or row unit takes precedence and a new heading ends the
+  binding. Evaluator 9 revalidates saved verdicts without regenerating answers.
 
 - **The 100-question local benchmark failed correct numeric answers.** Sleep
   totals and means were expected in minutes within 0.1, so "47.6 hours" or
