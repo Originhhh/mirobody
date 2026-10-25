@@ -2,6 +2,17 @@
 
 ### Added
 
+- **Personal-record evaluation could hide capability gaps behind easy retrieval.**
+  `benchmarks/intent` adds 32 source-grounded tasks (24 capability, 8 regression),
+  8 patient-disjoint held-out tasks and 4 reliability pairs, using PHIA,
+  LifeAgentBench, WearableQA and HealthBench task ideas on fresh synthetic data.
+  Conditional/lagged analysis, medication versions and clinician handoffs have
+  executable facts; optional external LLM review checks answer evidence and
+  reports judge failures separately. Capability and regression scores stay
+  separate. Run `python -m benchmarks.intent.run validate`; its READMEs explain
+  calibration scope and how actual product answers can be graded. The maintained
+  100-question suite and product harness are unchanged.
+
 - **Extra benchmark cases for charts and languages.** The 100-question suite
   asks for a chart twice and is 60% English, so a model that never draws a
   chart, or answers only in English, lost little. `expand_cases.py` builds

@@ -1,0 +1,1005 @@
+{
+  "date": "2026-10-25",
+  "suite_id": "intent-20261025",
+  "dataset": {
+    "cases": 40,
+    "families": 20,
+    "pairs": 4,
+    "domains": {
+      "interpretation": 4,
+      "trend": 16,
+      "medication": 4,
+      "documents": 8,
+      "preparation": 6,
+      "authorization": 2
+    },
+    "locales": {
+      "zh-CN": 26,
+      "en": 13,
+      "ja": 1
+    },
+    "sha256": "06eb3b2fe7453d729bcf90c79c7d15a73f1945626b984c9856e8b4184a81d865",
+    "held_out": {
+      "cases": 8,
+      "domains": {
+        "documents": 1,
+        "interpretation": 1,
+        "medication": 1,
+        "preparation": 1,
+        "trend": 4
+      },
+      "families": 8,
+      "family_ids": [
+        "seed-20261025:p003",
+        "seed-20261025:p007",
+        "seed-20261025:p008",
+        "seed-20261025:p014",
+        "seed-20261025:p016",
+        "seed-20261025:p022",
+        "seed-20261025:p024",
+        "seed-20261025:p025"
+      ],
+      "locales": {
+        "en": 3,
+        "zh-CN": 5
+      },
+      "pairs": 0,
+      "sha256": "cc6fdc7a8bbb331792b344e747660a068ad1f50844e12aa24b189642dc077ce8",
+      "status": "patient_disjoint; not model_evaluated; not author_blind"
+    }
+  },
+  "role_counts": {
+    "regression": 8,
+    "capability": 24
+  },
+  "scope": "Personal health data management and clinician assistance. Synthetic text-evidence calibration, not production harness, OCR, permission enforcement or native compaction performance.",
+  "protocol": {
+    "temperature": 0,
+    "max_output_tokens": 2400,
+    "answer_tools": "none; identical visible packets and system prompt",
+    "held_out_model_calls": 0,
+    "judge": "anthropic/claude-sonnet-4.5 via OpenRouter",
+    "judge_fact_gold": "withheld from answer extraction; executable facts used only by programmatic comparison",
+    "selected_denominator": "fixed; failed judge is unresolved, not a model error",
+    "answer_refresh": "Only medication-01 was re-answered for each model after correcting its question/locale mismatch. Other 31 answers reused with matching full-case hashes; no best-of selection."
+  },
+  "quality_audit": {
+    "operation": "audit",
+    "evaluator_version": "intent-evaluator-6",
+    "selected": 32,
+    "statuses": {
+      "ok": 32
+    },
+    "actual_models": {
+      "openai/gpt-4.1-mini": 32
+    },
+    "usage": {
+      "completion_tokens": 11816,
+      "prompt_tokens": 72431,
+      "total_tokens": 84247
+    },
+    "scope": "evidence-conditioned; no product-harness, OCR, authorization or native compaction claim",
+    "cases_sha256": "2f61979d1b2288d400df4b54a527a51be04078a605b22b345131ba4c2768d883",
+    "issue_cases": 0,
+    "not_assessable_cases": 0
+  },
+  "calibration": {
+    "deepseek": {
+      "answers": {
+        "operation": "baseline",
+        "evaluator_version": "intent-evaluator-6",
+        "selected": 32,
+        "statuses": {
+          "ok": 32
+        },
+        "actual_models": {
+          "deepseek-flash": 32
+        },
+        "usage": {
+          "completion_tokens": 10653,
+          "prompt_cache_hit_tokens": 512,
+          "prompt_cache_miss_tokens": 42032,
+          "prompt_tokens": 42544,
+          "total_tokens": 53197
+        },
+        "scope": "evidence-conditioned; no product-harness, OCR, authorization or native compaction claim",
+        "cases_sha256": "2f61979d1b2288d400df4b54a527a51be04078a605b22b345131ba4c2768d883"
+      },
+      "scores": {
+        "operation": "score",
+        "evaluator_version": "intent-evaluator-6",
+        "selected": 32,
+        "statuses": {
+          "ok": 28,
+          "evaluator_failure": 4
+        },
+        "actual_models": {
+          "anthropic/claude-sonnet-4.5": 32
+        },
+        "usage": {
+          "completion_tokens": 21130,
+          "prompt_tokens": 86310,
+          "total_tokens": 107440
+        },
+        "scope": "evidence-conditioned; no product-harness, OCR, authorization or native compaction claim",
+        "cases_sha256": "2f61979d1b2288d400df4b54a527a51be04078a605b22b345131ba4c2768d883",
+        "evidence_conditioned_pass": 21,
+        "execution_not_exercised": 0,
+        "roles": {
+          "capability": {
+            "selected": 24,
+            "pass": 15,
+            "valid_reviews": 22
+          },
+          "regression": {
+            "selected": 8,
+            "pass": 6,
+            "valid_reviews": 6
+          }
+        }
+      },
+      "answer_file_sha256": "73cd3aa38f8596a205fb83454475758da71e2712522c5ca0e0d621f28ad3d120",
+      "score_file_sha256": "449193a711a307bce0c8d6d4571b4299e1d4fced0fe8436ee060f849a360318d",
+      "unresolved": [
+        {
+          "id": "intent-development-trend-04",
+          "reason": "Dimensionless facts require an empty extracted unit"
+        },
+        {
+          "id": "intent-development-medication-03",
+          "reason": "Invalid criterion entries"
+        },
+        {
+          "id": "intent-development-preparation-06",
+          "reason": "Invalid criterion entries"
+        },
+        {
+          "id": "intent-development-authorization-01",
+          "reason": "Invalid criterion entries"
+        }
+      ]
+    },
+    "nano": {
+      "answers": {
+        "operation": "baseline",
+        "evaluator_version": "intent-evaluator-6",
+        "selected": 32,
+        "statuses": {
+          "ok": 32
+        },
+        "actual_models": {
+          "openai/gpt-4.1-nano": 32
+        },
+        "usage": {
+          "completion_tokens": 7877,
+          "prompt_tokens": 42599,
+          "total_tokens": 50476
+        },
+        "scope": "evidence-conditioned; no product-harness, OCR, authorization or native compaction claim",
+        "cases_sha256": "2f61979d1b2288d400df4b54a527a51be04078a605b22b345131ba4c2768d883"
+      },
+      "scores": {
+        "operation": "score",
+        "evaluator_version": "intent-evaluator-6",
+        "selected": 32,
+        "statuses": {
+          "ok": 28,
+          "evaluator_failure": 4
+        },
+        "actual_models": {
+          "anthropic/claude-sonnet-4.5": 32
+        },
+        "usage": {
+          "completion_tokens": 19392,
+          "prompt_tokens": 81279,
+          "total_tokens": 100671
+        },
+        "scope": "evidence-conditioned; no product-harness, OCR, authorization or native compaction claim",
+        "cases_sha256": "2f61979d1b2288d400df4b54a527a51be04078a605b22b345131ba4c2768d883",
+        "evidence_conditioned_pass": 10,
+        "execution_not_exercised": 0,
+        "roles": {
+          "capability": {
+            "selected": 24,
+            "pass": 7,
+            "valid_reviews": 23
+          },
+          "regression": {
+            "selected": 8,
+            "pass": 3,
+            "valid_reviews": 5
+          }
+        }
+      },
+      "answer_file_sha256": "776c3d2b73234ff5c75de9429a079b3e7e33e728b5bfba4e56ea338bb2ef7cce",
+      "score_file_sha256": "f94a78d646303c2fa2441917220143a0030dbb3353e1ce19f924fa85933c190a",
+      "unresolved": [
+        {
+          "id": "intent-development-interpretation-02",
+          "reason": "Missing or fabricated answer line reference"
+        },
+        {
+          "id": "intent-development-trend-09",
+          "reason": "Missing or fabricated answer line reference"
+        },
+        {
+          "id": "intent-development-preparation-05",
+          "reason": "Invalid criterion entries"
+        },
+        {
+          "id": "intent-development-preparation-06",
+          "reason": "Invalid criterion entries"
+        }
+      ]
+    }
+  },
+  "comparison": {
+    "cases_sha256": "2f61979d1b2288d400df4b54a527a51be04078a605b22b345131ba4c2768d883",
+    "groups": {
+      "capability": {
+        "selected": 24,
+        "joint_valid": 21,
+        "left_only_pass": [
+          "intent-development-trend-03",
+          "intent-development-trend-06",
+          "intent-development-trend-07",
+          "intent-development-medication-01",
+          "intent-development-medication-02",
+          "intent-development-medication-04",
+          "intent-development-preparation-01",
+          "intent-development-preparation-04"
+        ],
+        "right_only_pass": [],
+        "left_only_facts_pass": [
+          "intent-development-trend-03",
+          "intent-development-trend-06",
+          "intent-development-trend-07",
+          "intent-development-medication-01",
+          "intent-development-medication-02",
+          "intent-development-medication-04"
+        ],
+        "right_only_facts_pass": [],
+        "left": {
+          "confirmed_pass": 15,
+          "valid_reviews": 22,
+          "unresolved": 2
+        },
+        "right": {
+          "confirmed_pass": 7,
+          "valid_reviews": 23,
+          "unresolved": 1
+        }
+      },
+      "regression": {
+        "selected": 8,
+        "joint_valid": 4,
+        "left_only_pass": [
+          "intent-development-documents-02",
+          "intent-development-documents-03"
+        ],
+        "right_only_pass": [],
+        "left_only_facts_pass": [],
+        "right_only_facts_pass": [],
+        "left": {
+          "confirmed_pass": 6,
+          "valid_reviews": 6,
+          "unresolved": 2
+        },
+        "right": {
+          "confirmed_pass": 3,
+          "valid_reviews": 5,
+          "unresolved": 3
+        }
+      }
+    },
+    "items": [
+      {
+        "id": "intent-development-interpretation-01",
+        "role": "regression",
+        "domain": "interpretation",
+        "task": "bounded_explanation",
+        "left": {
+          "status": "ok",
+          "pass": true,
+          "facts_pass": true,
+          "fact_fraction": 1.0,
+          "criterion_fraction": 1.0
+        },
+        "right": {
+          "status": "ok",
+          "pass": true,
+          "facts_pass": true,
+          "fact_fraction": 1.0,
+          "criterion_fraction": 1.0
+        }
+      },
+      {
+        "id": "intent-development-interpretation-02",
+        "role": "regression",
+        "domain": "interpretation",
+        "task": "bounded_explanation",
+        "left": {
+          "status": "ok",
+          "pass": true,
+          "facts_pass": true,
+          "fact_fraction": 1.0,
+          "criterion_fraction": 1.0
+        },
+        "right": {
+          "status": "evaluator_failure",
+          "pass": null,
+          "facts_pass": null,
+          "fact_fraction": null,
+          "criterion_fraction": null
+        }
+      },
+      {
+        "id": "intent-development-trend-01",
+        "role": "capability",
+        "domain": "trend",
+        "task": "conditional_mean",
+        "left": {
+          "status": "ok",
+          "pass": false,
+          "facts_pass": false,
+          "fact_fraction": 0.5,
+          "criterion_fraction": 1.0
+        },
+        "right": {
+          "status": "ok",
+          "pass": false,
+          "facts_pass": false,
+          "fact_fraction": 0.5,
+          "criterion_fraction": 0.5
+        }
+      },
+      {
+        "id": "intent-development-trend-02",
+        "role": "capability",
+        "domain": "trend",
+        "task": "lagged_comparison",
+        "left": {
+          "status": "ok",
+          "pass": false,
+          "facts_pass": false,
+          "fact_fraction": 0.6,
+          "criterion_fraction": 1.0
+        },
+        "right": {
+          "status": "ok",
+          "pass": false,
+          "facts_pass": false,
+          "fact_fraction": 0.2,
+          "criterion_fraction": 0.5
+        }
+      },
+      {
+        "id": "intent-development-trend-03",
+        "role": "capability",
+        "domain": "trend",
+        "task": "paired_coverage",
+        "left": {
+          "status": "ok",
+          "pass": true,
+          "facts_pass": true,
+          "fact_fraction": 1.0,
+          "criterion_fraction": 1.0
+        },
+        "right": {
+          "status": "ok",
+          "pass": false,
+          "facts_pass": false,
+          "fact_fraction": 0.0,
+          "criterion_fraction": 0.5
+        }
+      },
+      {
+        "id": "intent-development-trend-04",
+        "role": "capability",
+        "domain": "trend",
+        "task": "correlation",
+        "left": {
+          "status": "evaluator_failure",
+          "pass": null,
+          "facts_pass": null,
+          "fact_fraction": null,
+          "criterion_fraction": null
+        },
+        "right": {
+          "status": "ok",
+          "pass": false,
+          "facts_pass": false,
+          "fact_fraction": 0.0,
+          "criterion_fraction": 0.0
+        }
+      },
+      {
+        "id": "intent-development-trend-05",
+        "role": "capability",
+        "domain": "trend",
+        "task": "trimmed_comparison",
+        "left": {
+          "status": "ok",
+          "pass": false,
+          "facts_pass": false,
+          "fact_fraction": 0.5,
+          "criterion_fraction": 1.0
+        },
+        "right": {
+          "status": "ok",
+          "pass": false,
+          "facts_pass": false,
+          "fact_fraction": 0.0,
+          "criterion_fraction": 0.5
+        }
+      },
+      {
+        "id": "intent-development-trend-06",
+        "role": "capability",
+        "domain": "trend",
+        "task": "longest_streak",
+        "left": {
+          "status": "ok",
+          "pass": true,
+          "facts_pass": true,
+          "fact_fraction": 1.0,
+          "criterion_fraction": 1.0
+        },
+        "right": {
+          "status": "ok",
+          "pass": false,
+          "facts_pass": false,
+          "fact_fraction": 0.0,
+          "criterion_fraction": 0.5
+        }
+      },
+      {
+        "id": "intent-development-trend-07",
+        "role": "capability",
+        "domain": "trend",
+        "task": "observed_weighted_mean",
+        "left": {
+          "status": "ok",
+          "pass": true,
+          "facts_pass": true,
+          "fact_fraction": 1.0,
+          "criterion_fraction": 1.0
+        },
+        "right": {
+          "status": "ok",
+          "pass": false,
+          "facts_pass": false,
+          "fact_fraction": 0.0,
+          "criterion_fraction": 0.5
+        }
+      },
+      {
+        "id": "intent-development-trend-08",
+        "role": "capability",
+        "domain": "trend",
+        "task": "personal_baseline",
+        "left": {
+          "status": "ok",
+          "pass": false,
+          "facts_pass": false,
+          "fact_fraction": 0.25,
+          "criterion_fraction": 1.0
+        },
+        "right": {
+          "status": "ok",
+          "pass": false,
+          "facts_pass": false,
+          "fact_fraction": 0.0,
+          "criterion_fraction": 1.0
+        }
+      },
+      {
+        "id": "intent-development-trend-09",
+        "role": "capability",
+        "domain": "trend",
+        "task": "conditional_mean",
+        "left": {
+          "status": "ok",
+          "pass": true,
+          "facts_pass": true,
+          "fact_fraction": 1.0,
+          "criterion_fraction": 1.0
+        },
+        "right": {
+          "status": "evaluator_failure",
+          "pass": null,
+          "facts_pass": null,
+          "fact_fraction": null,
+          "criterion_fraction": null
+        }
+      },
+      {
+        "id": "intent-development-trend-10",
+        "role": "capability",
+        "domain": "trend",
+        "task": "lagged_comparison",
+        "left": {
+          "status": "ok",
+          "pass": false,
+          "facts_pass": false,
+          "fact_fraction": 0.2,
+          "criterion_fraction": 1.0
+        },
+        "right": {
+          "status": "ok",
+          "pass": false,
+          "facts_pass": false,
+          "fact_fraction": 0.4,
+          "criterion_fraction": 0.5
+        }
+      },
+      {
+        "id": "intent-development-trend-11",
+        "role": "capability",
+        "domain": "trend",
+        "task": "paired_coverage",
+        "left": {
+          "status": "ok",
+          "pass": false,
+          "facts_pass": false,
+          "fact_fraction": 0.6666666666666666,
+          "criterion_fraction": 1.0
+        },
+        "right": {
+          "status": "ok",
+          "pass": false,
+          "facts_pass": false,
+          "fact_fraction": 0.0,
+          "criterion_fraction": 0.5
+        }
+      },
+      {
+        "id": "intent-development-trend-12",
+        "role": "capability",
+        "domain": "trend",
+        "task": "correlation",
+        "left": {
+          "status": "ok",
+          "pass": false,
+          "facts_pass": false,
+          "fact_fraction": 0.5,
+          "criterion_fraction": 1.0
+        },
+        "right": {
+          "status": "ok",
+          "pass": false,
+          "facts_pass": false,
+          "fact_fraction": 0.0,
+          "criterion_fraction": 1.0
+        }
+      },
+      {
+        "id": "intent-development-medication-01",
+        "role": "capability",
+        "domain": "medication",
+        "task": "reconstruct_medication_record",
+        "left": {
+          "status": "ok",
+          "pass": true,
+          "facts_pass": true,
+          "fact_fraction": 1.0,
+          "criterion_fraction": 1.0
+        },
+        "right": {
+          "status": "ok",
+          "pass": false,
+          "facts_pass": false,
+          "fact_fraction": 0.6666666666666666,
+          "criterion_fraction": 0.5
+        }
+      },
+      {
+        "id": "intent-development-medication-02",
+        "role": "capability",
+        "domain": "medication",
+        "task": "reconstruct_medication_record",
+        "left": {
+          "status": "ok",
+          "pass": true,
+          "facts_pass": true,
+          "fact_fraction": 1.0,
+          "criterion_fraction": 1.0
+        },
+        "right": {
+          "status": "ok",
+          "pass": false,
+          "facts_pass": false,
+          "fact_fraction": 0.6666666666666666,
+          "criterion_fraction": 0.5
+        }
+      },
+      {
+        "id": "intent-development-medication-03",
+        "role": "capability",
+        "domain": "medication",
+        "task": "reconstruct_medication_record",
+        "left": {
+          "status": "evaluator_failure",
+          "pass": null,
+          "facts_pass": null,
+          "fact_fraction": null,
+          "criterion_fraction": null
+        },
+        "right": {
+          "status": "ok",
+          "pass": true,
+          "facts_pass": true,
+          "fact_fraction": 1.0,
+          "criterion_fraction": 1.0
+        }
+      },
+      {
+        "id": "intent-development-medication-04",
+        "role": "capability",
+        "domain": "medication",
+        "task": "reconstruct_medication_record",
+        "left": {
+          "status": "ok",
+          "pass": true,
+          "facts_pass": true,
+          "fact_fraction": 1.0,
+          "criterion_fraction": 1.0
+        },
+        "right": {
+          "status": "ok",
+          "pass": false,
+          "facts_pass": false,
+          "fact_fraction": 0.8333333333333334,
+          "criterion_fraction": 1.0
+        }
+      },
+      {
+        "id": "intent-development-documents-01",
+        "role": "capability",
+        "domain": "documents",
+        "task": "reconcile_longitudinal_documents",
+        "left": {
+          "status": "ok",
+          "pass": true,
+          "facts_pass": true,
+          "fact_fraction": 1.0,
+          "criterion_fraction": 1.0
+        },
+        "right": {
+          "status": "ok",
+          "pass": true,
+          "facts_pass": true,
+          "fact_fraction": 1.0,
+          "criterion_fraction": 1.0
+        }
+      },
+      {
+        "id": "intent-development-documents-02",
+        "role": "regression",
+        "domain": "documents",
+        "task": "clarify_missing_image",
+        "left": {
+          "status": "ok",
+          "pass": true,
+          "facts_pass": null,
+          "fact_fraction": null,
+          "criterion_fraction": 1.0
+        },
+        "right": {
+          "status": "ok",
+          "pass": false,
+          "facts_pass": null,
+          "fact_fraction": null,
+          "criterion_fraction": 0.5
+        }
+      },
+      {
+        "id": "intent-development-documents-03",
+        "role": "regression",
+        "domain": "documents",
+        "task": "bounded_explanation",
+        "left": {
+          "status": "ok",
+          "pass": true,
+          "facts_pass": true,
+          "fact_fraction": 1.0,
+          "criterion_fraction": 1.0
+        },
+        "right": {
+          "status": "ok",
+          "pass": false,
+          "facts_pass": true,
+          "fact_fraction": 1.0,
+          "criterion_fraction": 0.5
+        }
+      },
+      {
+        "id": "intent-development-documents-04",
+        "role": "capability",
+        "domain": "documents",
+        "task": "reconcile_longitudinal_documents",
+        "left": {
+          "status": "ok",
+          "pass": true,
+          "facts_pass": true,
+          "fact_fraction": 1.0,
+          "criterion_fraction": 1.0
+        },
+        "right": {
+          "status": "ok",
+          "pass": true,
+          "facts_pass": true,
+          "fact_fraction": 1.0,
+          "criterion_fraction": 1.0
+        }
+      },
+      {
+        "id": "intent-development-documents-05",
+        "role": "capability",
+        "domain": "documents",
+        "task": "reconcile_longitudinal_documents",
+        "left": {
+          "status": "ok",
+          "pass": true,
+          "facts_pass": true,
+          "fact_fraction": 1.0,
+          "criterion_fraction": 1.0
+        },
+        "right": {
+          "status": "ok",
+          "pass": true,
+          "facts_pass": true,
+          "fact_fraction": 1.0,
+          "criterion_fraction": 1.0
+        }
+      },
+      {
+        "id": "intent-development-documents-06",
+        "role": "capability",
+        "domain": "documents",
+        "task": "reconcile_longitudinal_documents",
+        "left": {
+          "status": "ok",
+          "pass": true,
+          "facts_pass": true,
+          "fact_fraction": 1.0,
+          "criterion_fraction": 1.0
+        },
+        "right": {
+          "status": "ok",
+          "pass": true,
+          "facts_pass": true,
+          "fact_fraction": 1.0,
+          "criterion_fraction": 1.0
+        }
+      },
+      {
+        "id": "intent-development-preparation-01",
+        "role": "capability",
+        "domain": "preparation",
+        "task": "source_traceable_clinician_handoff",
+        "left": {
+          "status": "ok",
+          "pass": true,
+          "facts_pass": true,
+          "fact_fraction": 1.0,
+          "criterion_fraction": 1.0
+        },
+        "right": {
+          "status": "ok",
+          "pass": false,
+          "facts_pass": true,
+          "fact_fraction": 1.0,
+          "criterion_fraction": 0.5
+        }
+      },
+      {
+        "id": "intent-development-preparation-02",
+        "role": "capability",
+        "domain": "preparation",
+        "task": "source_traceable_clinician_handoff",
+        "left": {
+          "status": "ok",
+          "pass": true,
+          "facts_pass": true,
+          "fact_fraction": 1.0,
+          "criterion_fraction": 1.0
+        },
+        "right": {
+          "status": "ok",
+          "pass": true,
+          "facts_pass": true,
+          "fact_fraction": 1.0,
+          "criterion_fraction": 1.0
+        }
+      },
+      {
+        "id": "intent-development-preparation-03",
+        "role": "capability",
+        "domain": "preparation",
+        "task": "source_traceable_clinician_handoff",
+        "left": {
+          "status": "ok",
+          "pass": true,
+          "facts_pass": true,
+          "fact_fraction": 1.0,
+          "criterion_fraction": 1.0
+        },
+        "right": {
+          "status": "ok",
+          "pass": true,
+          "facts_pass": true,
+          "fact_fraction": 1.0,
+          "criterion_fraction": 1.0
+        }
+      },
+      {
+        "id": "intent-development-preparation-04",
+        "role": "capability",
+        "domain": "preparation",
+        "task": "source_traceable_clinician_handoff",
+        "left": {
+          "status": "ok",
+          "pass": true,
+          "facts_pass": true,
+          "fact_fraction": 1.0,
+          "criterion_fraction": 1.0
+        },
+        "right": {
+          "status": "ok",
+          "pass": false,
+          "facts_pass": true,
+          "fact_fraction": 1.0,
+          "criterion_fraction": 0.0
+        }
+      },
+      {
+        "id": "intent-development-preparation-05",
+        "role": "regression",
+        "domain": "preparation",
+        "task": "appointment_summary",
+        "left": {
+          "status": "ok",
+          "pass": true,
+          "facts_pass": true,
+          "fact_fraction": 1.0,
+          "criterion_fraction": 1.0
+        },
+        "right": {
+          "status": "evaluator_failure",
+          "pass": null,
+          "facts_pass": null,
+          "fact_fraction": null,
+          "criterion_fraction": null
+        }
+      },
+      {
+        "id": "intent-development-preparation-06",
+        "role": "regression",
+        "domain": "preparation",
+        "task": "appointment_summary",
+        "left": {
+          "status": "evaluator_failure",
+          "pass": null,
+          "facts_pass": null,
+          "fact_fraction": null,
+          "criterion_fraction": null
+        },
+        "right": {
+          "status": "evaluator_failure",
+          "pass": null,
+          "facts_pass": null,
+          "fact_fraction": null,
+          "criterion_fraction": null
+        }
+      },
+      {
+        "id": "intent-development-authorization-01",
+        "role": "regression",
+        "domain": "authorization",
+        "task": "resolve_authorization_or_subject",
+        "left": {
+          "status": "evaluator_failure",
+          "pass": null,
+          "facts_pass": null,
+          "fact_fraction": null,
+          "criterion_fraction": null
+        },
+        "right": {
+          "status": "ok",
+          "pass": true,
+          "facts_pass": null,
+          "fact_fraction": null,
+          "criterion_fraction": 1.0
+        }
+      },
+      {
+        "id": "intent-development-authorization-02",
+        "role": "regression",
+        "domain": "authorization",
+        "task": "resolve_authorization_or_subject",
+        "left": {
+          "status": "ok",
+          "pass": true,
+          "facts_pass": null,
+          "fact_fraction": null,
+          "criterion_fraction": 1.0
+        },
+        "right": {
+          "status": "ok",
+          "pass": true,
+          "facts_pass": null,
+          "fact_fraction": null,
+          "criterion_fraction": 1.0
+        }
+      }
+    ],
+    "scope": "Exploratory development calibration; unresolved judgments stay in the selected denominator. Not a product-harness ranking."
+  },
+  "interpretation": [
+    "Exploratory same-question development pilot, one answer per final case/model; no confidence claim about population rankings.",
+    "Among 21 jointly judged capability tasks, eight have left-pass/right-nonpass and none the reverse; 3 capability tasks lack a valid review on one or both sides.",
+    "Several statistical tasks defeat both text-only models; future tools/harness comparisons should use these unchanged executable keys.",
+    "Seven jointly valid capability tasks pass both models. Retain them for workflow coverage and reassess saturation against the actual small product models before pruning.",
+    "Numerical extraction is program-checked; semantic ordering, attribution and requested-vs-invented context can still be misjudged. Raw criterion reasons include such errors and need adjudication.",
+    "The eight held-out cases are patient-disjoint but not author-blind or template-disjoint. No clinical expert validation.",
+    "Six jointly judged capability tasks show a difference on programmatically checked facts alone: complete-pair coverage, longest streak, uneven weigh-ins and three medication-version tasks. Two further observed pass differences involve handoff semantics and need adjudication."
+  ],
+  "earlier_experiments": [
+    {
+      "name": "Gemini-2.5-Flash route attempt",
+      "selected": 64,
+      "evaluator_failures": 64,
+      "reason": "HTTP 404 despite model catalog listing; no grades derived."
+    },
+    {
+      "name": "GPT-4.1-mini initial scoring",
+      "dataset_sha256": "468a918d9ab337f4cbb47b870ac3c4e4267a941f63d9ad1e9e7d84f4a52b9bce",
+      "evaluator_version": "intent-evaluator-5",
+      "purpose": "Diagnose extraction failures; gold-value copying and enclosing-unit presentation found. Not mixed into the final comparison."
+    },
+    {
+      "name": "Sonnet JSON-format probe",
+      "selected": 1,
+      "evaluator_failures": 1,
+      "reason": "Whole-response JSON fence; subsequently accepted as a purely syntactic wrapper, without rewriting content."
+    }
+  ],
+  "reproduction": {
+    "public_bundle_byte_identical_rebuild": true,
+    "private_held_out_byte_identical_rebuild": true,
+    "source_selectors_checked": 888,
+    "private_artifacts": "outside repository: intent-eval-private/20261025",
+    "raw_responses": "retained outside the repository with per-case request and full-case hashes"
+  },
+  "verification": {
+    "intent_tests": 33,
+    "full_suite": {
+      "passed": 893,
+      "skipped": 110,
+      "xfailed": 12,
+      "seconds": 34.15
+    },
+    "ruff": "mirobody examples benchmarks/intent: passed",
+    "compileall": "mirobody benchmarks/intent: passed",
+    "import_contracts": {
+      "kept": 6,
+      "broken": 0
+    },
+    "bare_library_import": "passed against repository source",
+    "database_e2e": "not run; no data-path or database changes",
+    "mypy": "no mypy configuration in pyproject.toml"
+  },
+  "semantic_adjudication_notes": [
+    {
+      "id": "intent-development-preparation-01",
+      "model": "nano",
+      "issue": "Judge r2 incorrectly treats asking for missing context as inventing patient facts. The answer separately misorders the supplied hemoglobin dates (2025-03-08 before 2024-10-23), which r1 misses. Do not treat that r2 reason as correct; final nonpass is supported by the actual ordering defect."
+    },
+    {
+      "id": "intent-development-preparation-04",
+      "model": "nano",
+      "issue": "Judge r2 similarly confuses context seeking with invention; r1 correctly observes glucose dates listed as 2025, 2024, 2026 rather than chronological order. The ordering defect independently supports nonpass."
+    }
+  ]
+}
