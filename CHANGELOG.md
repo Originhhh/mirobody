@@ -60,6 +60,17 @@
   its own language). Answers use the account's local days and the suite's
   tolerances; the README says how to run them beside the maintained set.
 
+- **Capability probes diagnose record-access failures on source-grounded windows.**
+  `benchmarks/local_models/probes.py` reads the generator's flat device records,
+  selects disjoint windows with answers separated beyond tolerance, and checks means,
+  day counts, maxima, citation traceability and proven absence. The default is at
+  most 19 questions per person. Source/account provenance is checked before calls;
+  ambiguous source data is omitted with reasons. Full questions and tool evidence
+  are saved, while incomplete runs and unattempted questions remain separate from
+  answer quality. `--dry-run` inspects the set without account or model calls.
+  Explicit units retain their meaning inside parentheses, brackets and quoted
+  formatting, so `70 (lb)` cannot pass a `70 kg` gold through an empty unit match.
+
 - **Personal-record evaluation could hide capability gaps behind easy retrieval.**
   `benchmarks/intent` adds 32 source-grounded tasks (24 capability, 8 regression),
   8 patient-disjoint held-out tasks and 4 reliability pairs, using PHIA,
