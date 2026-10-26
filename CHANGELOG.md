@@ -2,6 +2,17 @@
 
 ### Added
 
+- **`view="trend"` describes numeric direction and shape from daily source values.**
+  Single first/last readings can conceal a hump, dip or repeated swings. The new view
+  compares the first and last thirds of observed numeric days and returns their means,
+  delta, relative delta, an elapsed-calendar-day slope, direction and shape. Compatible
+  multiplicative units are normalized before comparison; unsafe conversions abstain.
+  The 2% threshold uses mean absolute magnitude and describes change, not clinical
+  significance. Both compact and REST results retain identity, units, source warnings
+  and coverage. More than 400 source days returns a partial result with the actual span;
+  insufficient, nonnumeric and reported series retain an explicit reason. Citations
+  identify the daily contributors, remain distinct from stats and resolve from live data.
+
 - **Answers can cite visible record values without guessing their source.**
   Automatic citations check the metric, recorded unit and any stated encounter
   date, retaining ambiguous claims as `auto_uncited`. Compact tables preserve
@@ -16,6 +27,20 @@
   stays MCP-only.
 
 ### Fixed
+
+- **Change citations preserve the metric and explicit sign.** Change/endpoint
+  grammar could bypass metric binding, and a stated negative delta could cite
+  an increase. Those checks now remain active for every arithmetic role.
+  Statistic words are parsed outside the metric name, retaining valid Vitamin D
+  and mean corpuscular volume citations. Low-scale trend shapes use a relative
+  tolerance, so expressing the same concentration in g/L or ng/L preserves its shape.
+
+- **Automatic aggregate citations retain the claim's identity.** A same-row
+  shortcut could cite a glucose average for calcium, the wrong unit or another
+  day. Aggregates now pass metric, unit and date/window checks before matching
+  fields are combined by citation id. Chinese units use the existing unit
+  normalizer, unknown explicit units stay uncited, and citations follow the
+  complete unit. Correct named stats and trend values remain citable.
 
 - **A summarized conversation can retain valid citations.** Rids are minted
   for the conversation and subject, and remain valid when messages are folded
