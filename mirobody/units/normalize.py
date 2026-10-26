@@ -77,6 +77,7 @@ _SYMBOL_FOLD: dict[str, str] = {
     " ":  "",    # collapse internal whitespace
     "\t": "",
 }
+_FOLD_TABLE = str.maketrans(_SYMBOL_FOLD)
 
 
 # UCUM annotations ``{xxx}`` carry semantic meaning only, they do not
@@ -91,13 +92,11 @@ _ANNOTATION = re.compile(r"/?\s*\{[^}]*\}")
 
 def _clean(s: str) -> str:
     """Unicode-normalize and symbol-fold without case changes."""
-    s = unicodedata.normalize("NFKC", s).strip()
-    if not s:
-        return s
-    out = []
-    for ch in s:
-        out.append(_SYMBOL_FOLD.get(ch, ch))
-    return "".join(out)
+    # NFKC is the identity on ASCII, and space and tab are the only ASCII
+    # keys in _SYMBOL_FOLD, so most lab-report units skip the normalizer.
+    if s.isascii():
+        return s.strip().replace(" ", "").replace("\t", "")
+    return unicodedata.normalize("NFKC", s).strip().translate(_FOLD_TABLE)
 
 
 def _strip_annotations(s: str) -> str:
@@ -276,6 +275,10 @@ def normalize_unit(text: str | None) -> str | None:
     """
     if not isinstance(text, str) or not text:
         return None
+    # Alias keys are _clean's own output, so an exact hit needs no cleaning.
+    hit = _alias_table().get(text)
+    if hit is not None:
+        return hit
     cleaned = _clean(text)
     if not cleaned:
         return None
