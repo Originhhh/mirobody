@@ -329,7 +329,9 @@ models or reload records.
 Results save the complete question manifest and its hash, source hashes, per-window
 points and policy, full answers and tool transcripts, and citation diagnostics.
 Numeric extraction excludes dates and citation IDs and rejects ambiguous multiple
-values. Explicit incompatible units fail. Per-capability counts keep selected,
+values. Explicit incompatible units fail, including units inside parentheses,
+brackets, quotes and nested formatting. UCUM's own brackets, such as `[IU]/L`,
+are retained while outer formatting is removed. Per-capability counts keep selected,
 completed, passed, failed runs and unattempted questions separate; C6 uses the same
 selected numeric denominator. An incomplete turn stops further calls and leaves the
 remaining questions unattempted. Session-creation failures are captured too. Results

@@ -68,6 +68,8 @@
   ambiguous source data is omitted with reasons. Full questions and tool evidence
   are saved, while incomplete runs and unattempted questions remain separate from
   answer quality. `--dry-run` inspects the set without account or model calls.
+  Explicit units retain their meaning inside parentheses, brackets and quoted
+  formatting, so `70 (lb)` cannot pass a `70 kg` gold through an empty unit match.
 
 - **Personal-record evaluation could hide capability gaps behind easy retrieval.**
   `benchmarks/intent` adds 32 source-grounded tasks (24 capability, 8 regression),

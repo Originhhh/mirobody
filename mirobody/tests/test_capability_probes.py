@@ -230,3 +230,18 @@ def test_session_creation_failure_is_saved_with_the_full_selected_denominator(so
     for capability in packet["capabilities"].values():
         assert capability["selected"] == capability["run_failure"] + capability["not_attempted"]
         assert capability["completed"] == capability["passed"] == 0
+
+
+@pytest.mark.parametrize("format_unit", [
+    "{}", "({})", "[{}]", "**({})**", "'{}'", "`{}`", "([{}])", "( {} )",
+])
+@pytest.mark.parametrize("unit, expected", [("kg", True), ("lb", False)])
+def test_unit_wrappers_do_not_change_the_quality_grade(format_unit, unit, expected):
+    answer = f"70 {format_unit.format(unit)}<cite>[r1]</cite>"
+    result = probes.grade({**NUMERIC, "unit": "kg"}, turn(answer))
+    assert result["ok"] is expected
+
+
+def test_wrappers_preserve_ucum_brackets_inside_a_compound_unit():
+    assert probes.units_match("70 ([IU]/L)", "[IU]/L")
+    assert not probes.units_match("70 ([IU]/L)", "kg")

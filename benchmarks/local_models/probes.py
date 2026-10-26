@@ -145,10 +145,31 @@ def answer_number(text: str) -> float | None:
     return next(iter(unique)) if len(unique) == 1 and all(math.isfinite(v) for v in values) else None
 
 
+_STATED_UNIT = re.compile(
+    r"[-−+]?\d[\d,.]*\s*"
+    r"((?:[([{\"'`_][ \t]*)*(?:[^\W\d_]|[%°µμ/])[\w/%°µμ.*^+\-\[\](){}\"'`]*"
+    r"(?:[ \t]*[)\]}\"'`_])*)"
+)
+_UNIT_WRAPPERS = {"(": ")", "[": "]", "{": "}", '"': '"', "'": "'", "`": "`", "_": "_"}
+
+
+def stated_unit(token: str) -> str | None:
+    token = token.strip().rstrip(".")
+    while token:
+        # UCUM brackets can belong to the unit, so resolve before peeling prose wrappers.
+        normalized = units.normalize_unit(token)
+        if normalized is not None:
+            return normalized
+        if _UNIT_WRAPPERS.get(token[0]) != token[-1]:
+            break
+        token = token[1:-1].strip()
+    return None
+
+
 def units_match(text: str, expected: str) -> bool:
     target = units.normalize_unit(expected)
     prose = score.strip_dates(score.prose_of(text)).replace("*", "")
-    stated = [units.normalize_unit(m.rstrip(".")) for m in re.findall(r"[-−]?\d[\d,.]*\s*([A-Za-z%][\w/%.\[\]]*)", prose)]
+    stated = [stated_unit(m.group(1)) for m in _STATED_UNIT.finditer(prose)]
     return not target or all(unit is None or unit == target for unit in stated)
 
 
