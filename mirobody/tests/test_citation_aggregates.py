@@ -152,3 +152,73 @@ def test_a_named_statistic_binds_to_that_field_only() -> None:
     assert attach_citations("Glucose mean is 6 mmol/L.", rows)[1] == 0
     assert attach_citations("Glucose maximum is 6 mmol/L.", rows)[1] == 1
     assert attach_citations("Glucose mean is 5.5 mmol/L.", rows)[1] == 1
+
+
+SLEEP_TREND = "(constants: rid=r7, indicator=Sleep, unit=h, first_third_mean=8, last_third_mean=6, delta=-2)"
+
+
+def test_an_inch_claim_cannot_cite_a_centimetre_reading() -> None:
+    """`in` used to be dropped as a connective, so the claim looked unitless.
+
+    "Height is 70 in." then received the citation of a record that says 70 cm.
+    """
+    rows = rows_from_result(compact([{"rid": "r1", "indicator": "Height", "value": 70, "unit": "cm"}]))
+    text, cited, uncited = attach_citations("Height is 70 in.", rows)
+    assert (cited, uncited) == (0, ["70"])
+    assert text == "Height is 70 in."
+
+
+def test_an_inch_reading_is_cited_in_inches() -> None:
+    rows = rows_from_result(compact([{"rid": "r1", "indicator": "Height", "value": 70, "unit": "in"}]))
+    text, cited, _ = attach_citations("Height is 70 in.", rows)
+    assert cited == 1 and "70 in<cite>[r1]</cite>" in text
+
+
+def test_in_as_a_preposition_is_not_a_unit() -> None:
+    """The same letters open a phrase here, so the reading is still citable."""
+    rows = rows_from_result("(constants: rid=r7, indicator=Sleep, unit=h, "
+                            "first_third_mean=7.659, last_third_mean=6.963, delta=-0.696)")
+    text, cited, _ = attach_citations("Sleep was 7.659 in the first third.", rows)
+    assert cited == 1 and "7.659<cite>[r7]</cite>" in text
+
+
+def test_a_change_claim_cites_the_change_field() -> None:
+    rows = rows_from_result(SLEEP_TREND)
+    text, cited, _ = attach_citations("Sleep fell by 2 h.", rows)
+    assert cited == 1 and "2 h<cite>[r7]</cite>" in text
+
+
+def test_a_change_claim_cannot_cite_an_endpoint_mean() -> None:
+    """Daily sleep [8, 7, 6] has delta -2; 6 is the last third, not the drop."""
+    rows = rows_from_result(SLEEP_TREND)
+    text, cited, uncited = attach_citations("Sleep fell by 6 h.", rows)
+    assert (cited, uncited) == (0, ["6"])
+    assert text == "Sleep fell by 6 h."
+
+
+def test_a_change_claim_must_agree_with_the_stated_direction() -> None:
+    rows = rows_from_result(SLEEP_TREND)
+    assert attach_citations("Sleep rose by 2 h.", rows)[1] == 0
+
+
+def test_a_change_of_form_is_bound_like_a_verb() -> None:
+    rows = rows_from_result(SLEEP_TREND)
+    text, cited, _ = attach_citations("Sleep fell, a drop of 2 h.", rows)
+    assert cited == 1 and "2 h<cite>[r7]</cite>" in text
+
+
+def test_reversed_endpoints_are_not_cited() -> None:
+    rows = rows_from_result(SLEEP_TREND)
+    assert attach_citations("Sleep fell from 6 to 8 h.", rows)[1] == 0
+
+
+def test_endpoints_cite_the_ends_they_state() -> None:
+    rows = rows_from_result(SLEEP_TREND)
+    text, cited, _ = attach_citations("Sleep fell from 8 to 6 h.", rows)
+    assert cited == 2
+    assert "8<cite>[r7]</cite>" in text and "6 h<cite>[r7]</cite>" in text
+
+
+def test_endpoints_must_move_the_way_the_sentence_says() -> None:
+    rows = rows_from_result(SLEEP_TREND)
+    assert attach_citations("Sleep rose from 6 to 8 h.", rows)[1] == 0

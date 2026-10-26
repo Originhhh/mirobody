@@ -20,6 +20,17 @@ _RID = re.compile(r"^r\d+$")
 _UNIT = re.compile(r"[ \t]*([\wµμ%°/\[\]{][\wµμ%°/^*.\-\[\]{}]{0,47})")
 _PROSE_AFTER_VALUE = frozenset({"to", "from", "between", "and", "on", "at", "in", "for",
                                "before", "after", "today", "this", "the", "was", "is"})
+#: One prose word is also a measured unit: "in" is inches after a value ("70 in") and a
+#: preposition in running text ("7.659 in the first third"). The word after it decides.
+_AMBIGUOUS_UNITS = frozenset({"in"})
+#: Words that follow a preposition and never follow a unit.
+_PROSE_FOLLOW = frozenset({
+    "the", "a", "an", "this", "that", "these", "those", "which", "what", "both", "each",
+    "every", "some", "any", "all", "most", "many", "few", "several", "one", "two", "my", "his",
+    "her", "their", "our", "your", "its", "order", "total", "general", "particular", "addition",
+    "comparison", "contrast", "fact", "practice", "detail", "short", "summary", "terms", "term",
+    "case", "cases", "front", "between", "place", "response",
+})
 _CONSTANTS = re.compile(r"^\(constants:\s*(.*?)\)\s*$")
 #: Keep numeric stats and observed-day trend values tied to their source row.
 _FIELDS = ("value", "avg", "min", "max", "sum", "first", "last", "change",
@@ -109,6 +120,21 @@ def _aliases(row: dict[str, Any]) -> set[str]:
     return {str(row.get(key) or "").strip().casefold() for key in ("name", "indicator")} - {""}
 
 
+def _looks_prepositional(rest: str) -> bool:
+    """Whether the word after a value opens a phrase, not a unit.
+
+    "7.659 in the first third" is prose; "Height is 70 in." is inches. A unit is never followed
+    by a determiner, a number or a proper noun, so those settle it.
+    """
+    match = re.match(r"[ \t]*([A-Za-z0-9][\w-]*)", rest)
+    if match is None:
+        return False
+    word = match.group(1)
+    if word[0].isdigit() or word[0].isupper():
+        return True
+    return word.casefold() in _PROSE_FOLLOW
+
+
 def _unit_after(text: str, start: int) -> tuple[int, str]:
     """The unit written after a number, through the wrappers a report puts around it.
 
@@ -124,7 +150,11 @@ def _unit_after(text: str, start: int) -> tuple[int, str]:
     if match is None:
         return start, ""
     token = match.group(1).rstrip(".")
-    if token.casefold() in _PROSE_AFTER_VALUE:
+    folded = token.casefold()
+    # An explicit unit must be validated even when the same letters also read as prose: dropping
+    # "in" let "Height is 70 in." cite a 70 cm record as if the sentence had stated no unit.
+    if folded in _PROSE_AFTER_VALUE and not (
+            folded in _AMBIGUOUS_UNITS and not _looks_prepositional(stripped[match.end(1):])):
         return start, ""
     return start + wrapper + match.start(1) + len(token), token
 
@@ -183,8 +213,111 @@ def _statistic_before(window: str) -> str:
     return field
 
 
+#: Verbs a sentence uses to state a direction, with the sign they assert.
+_CHANGE_WORDS = {
+    "fell": -1, "fall": -1, "falls": -1, "falling": -1, "fallen": -1, "dropped": -1, "drop": -1,
+    "drops": -1, "dropping": -1, "decreased": -1, "decrease": -1, "decreases": -1, "declined": -1,
+    "decline": -1, "declines": -1, "reduced": -1, "reduce": -1, "reduction": -1, "lowered": -1,
+    "down": -1, "lost": -1, "shrank": -1, "shrunk": -1,
+    "rose": 1, "rise": 1, "rises": 1, "rising": 1, "risen": 1, "increased": 1, "increase": 1,
+    "increases": 1, "gained": 1, "gain": 1, "gains": 1, "grew": 1, "grow": 1, "grows": 1,
+    "climbed": 1, "up": 1, "higher": 1,
+}
+_ZH_CHANGE = {"下降": -1, "降低": -1, "减少": -1, "下跌": -1, "回落": -1, "减轻": -1,
+              "上升": 1, "升高": 1, "增加": 1, "上涨": 1, "增长": 1}
+_CHANGE_VERB = "|".join(sorted(map(re.escape, _CHANGE_WORDS), key=len, reverse=True))
+#: "fell by 2", "dropped sharply by 2", and "a decrease of 2" state an amount of change.
+_CHANGE_BY = re.compile(rf"\b(?P<verb>{_CHANGE_VERB})\b[^.;:!?\d]{{0,24}}?\bby\s*$", re.I)
+_CHANGE_OF = re.compile(r"\b(?:change|difference|delta|decrease|increase|drop|rise|gain|loss|"
+                        r"reduction|decline)\s+of\s*$", re.I)
+_ZH_CHANGE_BEFORE = re.compile(r"(?:下降|降低|减少|下跌|回落|减轻|上升|升高|增加|上涨|增长)"
+                               r"(?:了|约|近|幅度为|幅度约|幅度)?\s*$")
+_FIRST_BOUND = re.compile(r"(?:^|[^\w])(?:from|从|between)\s*(?:about\s+|approximately\s+|roughly\s+|~|约)?$", re.I)
+_LAST_BOUND = re.compile(r"(?:^|[^\w])(?:to|到|至)\s*(?:about\s+|approximately\s+|roughly\s+|~|约)?$", re.I)
+
+
+def _direction(window: str) -> int:
+    """The direction a sentence states anywhere in its clause, or 0 when it states none."""
+    for word in re.findall(r"[A-Za-z]+", window):
+        sign = _CHANGE_WORDS.get(word.casefold())
+        if sign:
+            return sign
+    for word, sign in _ZH_CHANGE.items():
+        if word in window:
+            return sign
+    return 0
+
+
+def _claim(before: str, context: str) -> tuple[str, int] | None:
+    """What this number is in its own clause: an amount of change, or one end of a change.
+
+    A change claim binds to the record's `delta`/`change` field and must agree with the stated
+    sign; an endpoint claim binds to `first`/`last` (or the thirds' means) and must agree with
+    the direction the two ends actually moved. When the clause is ambiguous the answer stays
+    uncited: "Sleep fell by 6 h." was citing the last-third mean of 6 while the change was -2.
+    """
+    window = before[-80:].casefold()
+    after = context[len(before):][:80].casefold()
+    direction = _direction(window)
+    if _FIRST_BOUND.search(window):
+        opens_a_pair = bool(re.search(r"\bto\b|到|至|\band\b", after)) or "between" in window
+        if direction or opens_a_pair:
+            return "first", direction
+    if _LAST_BOUND.search(window) and any(word in window for word in ("from", "从", "between")):
+        return "last", direction
+    if re.search(r"\band\s*$", window) and "between" in window:
+        return "last", direction
+    match = _CHANGE_BY.search(window)
+    if match:
+        return "change", _CHANGE_WORDS.get(match.group("verb").casefold(), 0) or direction
+    if _CHANGE_OF.search(window) or _ZH_CHANGE_BEFORE.search(before):
+        return "change", direction
+    return None
+
+
+def _number(value: Any) -> float | None:
+    try:
+        return float(value)  # type: ignore[arg-type]
+    except (TypeError, ValueError):
+        return None
+
+
+def _endpoints_agree(row: dict[str, Any], direction: int) -> bool:
+    """Whether the row's two ends moved the way the sentence says they did."""
+    if not direction:
+        return True
+    first = _number(row.get("first_third_mean"))
+    if first is None:
+        first = _number(row.get("first"))
+    last = _number(row.get("last_third_mean"))
+    if last is None:
+        last = _number(row.get("last"))
+    if first is None or last is None:
+        return True
+    return (last - first) * direction > 0
+
+
+def _candidates(rows: list[dict[str, Any]], value: float,
+                claim: tuple[str, int] | None) -> list[dict[str, Any]]:
+    """Rows whose value the sentence's number states, honouring a change's sign.
+
+    "Sleep fell by 2" states a magnitude of 2 with a direction, so the record's -2 delta is the
+    matching row; matching only the signed number left every true change claim uncited.
+    """
+    targets = {value}
+    if claim and claim[0] == "change":
+        if claim[1] < 0:
+            targets = {-value}
+        elif claim[1] > 0:
+            targets = {value}
+        else:
+            targets = {value, -value}
+    return [row for row in rows
+            if any(abs(target - row["_value"]) <= _tolerance(row["_value"]) for target in targets)]
+
+
 def _choose(before: str, context: str, unit: str, candidates: list[dict[str, Any]],
-            names: set[str]) -> dict[str, Any] | None:
+            names: set[str], claim: tuple[str, int] | None = None) -> dict[str, Any] | None:
     # The field belongs in the key: an average and a minimum that happen to be the same number
     # are two claims about one row, and collapsing them kept whichever came last - which is how
     # "Body weight averaged 70" resolved to the row's minimum.
@@ -201,12 +334,27 @@ def _choose(before: str, context: str, unit: str, candidates: list[dict[str, Any
     name_end, _, nearest = max(matched, default=(-1, 0, ""))
     named = [r for r in candidates if nearest and nearest in _aliases(r)]
     if nearest:
-        if not _BINDING.fullmatch(_binding_text(window[name_end:])):
+        # A stated change or endpoint already supplies the grammar ("fell by", "from … to"), so
+        # the generic continuation check would only reject the words that carry the meaning.
+        if claim is None and not _BINDING.fullmatch(_binding_text(window[name_end:])):
             return None
         candidates = named
-    elif original_count != 1 or not _GENERIC.fullmatch(_DATE_TIME.sub("", window).strip()):
+    elif claim is None and (original_count != 1 or not _GENERIC.fullmatch(_DATE_TIME.sub("", window).strip())):
         return None
     candidates = [r for r in candidates if _unit_matches(r, unit)]
+    # A change sentence states the movement, not either end it moved between.
+    if claim is not None:
+        kind, direction = claim
+        if kind == "change":
+            candidates = [r for r in candidates if r.get("_field") in ("delta", "change")]
+            if direction:
+                candidates = [r for r in candidates if r["_value"] * direction > 0]
+        else:
+            fields = ("first", "first_third_mean") if kind == "first" else ("last", "last_third_mean")
+            candidates = [r for r in candidates
+                          if r.get("_field") in fields and _endpoints_agree(r, direction)]
+        if not candidates:
+            return None
     # A sentence that names a statistic means that field.
     statistic = _statistic_before(window)
     if statistic:
@@ -233,13 +381,13 @@ def attach_citations(text: str, rows: list[dict[str, Any]]) -> tuple[str, int, l
         if re.match(r"[A-Za-z]", text[match.end():]):
             continue
         value = float(match.group().replace(",", ""))
-        candidates = [r for r in rows if abs(value - r["_value"]) <= _tolerance(r["_value"])]
         end, unit = _unit_after(text, match.end())
         left = max([0, *(i + 1 for i in boundaries if i < match.start())])
         right = min([len(text), *(i for i in boundaries if i >= end)])
         before = text[max(left, match.start() - 120):match.start()]
         context = text[max(left, match.start() - 120):min(right, end + 80)]
-        chosen = _choose(before, context, unit, candidates, names)
+        claim = _claim(before, context)
+        chosen = _choose(before, context, unit, _candidates(rows, value, claim), names, claim)
         out.append(text[cursor:end])
         if chosen is not None:
             if not text[end:end + 6].startswith("<cite>"):
