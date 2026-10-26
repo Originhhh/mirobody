@@ -258,3 +258,20 @@ def test_equivalent_units_reach_the_same_direction_and_shape() -> None:
 
     assert verdict([9.9, 10, 10.1], "mmol/L") == verdict([9900, 10000, 10100], "umol/L")
     assert verdict([9.9, 10.1, 10.1, 9.9], "mmol/L") == verdict([9900, 10100, 10100, 9900], "umol/L")
+
+
+@pytest.mark.parametrize("values", [
+    [1e-8, 1.01e-8, 1e-8], [1e-8, 1.02e-8, 1e-8], [1e-8, 2e-8, 1e-8],
+])
+def test_low_scale_unit_conversion_preserves_shape(values):
+    from mirobody.units import conversion_factor
+
+    factor = conversion_factor("g/L", "ng/L")
+    assert factor is not None
+    def verdict(numbers, unit):
+        rows = series(numbers, "Synthetic concentration")
+        for row in rows:
+            row["unit"] = unit
+        result = trend_rows(rows)[0]
+        return result["direction"], result["shape"]
+    assert verdict(values, "g/L") == verdict([v * factor for v in values], "ng/L")

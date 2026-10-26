@@ -336,6 +336,12 @@ normalizer; an explicit unknown unit remains `auto_uncited`. A generic count
 can be called `步` only when the source metric identifies steps. Missing units
 do not assert a conversion. Citation markers follow the complete unit.
 
+Change and endpoint phrases retain the same metric binding. Explicit signs
+are preserved; only unsigned magnitudes infer direction from prose. Statistic
+operators are recognized outside the matched metric name, so `Mean corpuscular
+volume` is a metric and `Vitamin D` does not request a minimum. Trend threshold
+comparisons use relative tolerance rather than an absolute decimal cutoff.
+
 The web client draws each cite as a numbered chip; clicking it shows the
 reading, its date and range, and the file it came from.
 

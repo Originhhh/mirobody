@@ -222,3 +222,39 @@ def test_endpoints_cite_the_ends_they_state() -> None:
 def test_endpoints_must_move_the_way_the_sentence_says() -> None:
     rows = rows_from_result(SLEEP_TREND)
     assert attach_citations("Sleep rose from 6 to 8 h.", rows)[1] == 0
+
+
+@pytest.mark.parametrize("answer", [
+    "Exercise fell by 2 h.",
+    "Sleep was measured and Exercise fell by 2 h.",
+    "Exercise fell from 8 to 6 h.",
+])
+def test_change_grammar_still_requires_the_claimed_metric(answer):
+    assert attach_citations(answer, rows_from_result(SLEEP_TREND))[1] == 0
+
+
+@pytest.mark.parametrize("delta, token", [(2, "-2"), (2, "−2"), (-2, "+2")])
+def test_explicit_change_sign_cannot_match_the_opposite_delta(delta, token):
+    row = {"rid": "r7", "indicator": "Sleep", "unit": "h", "delta": delta}
+    assert attach_citations(f"Sleep had a change of {token} h.", rows_from_result(compact([row])))[1] == 0
+
+
+@pytest.mark.parametrize("delta, token", [(2, "+2"), (-2, "-2"), (-2, "−2")])
+def test_explicit_change_sign_keeps_its_correct_source(delta, token):
+    row = {"rid": "r7", "indicator": "Sleep", "unit": "h", "delta": delta}
+    assert attach_citations(f"Sleep had a change of {token} h.", rows_from_result(compact([row])))[1] == 1
+
+
+@pytest.mark.parametrize("indicator, value, unit", [
+    ("Vitamin D", 30, "ng/mL"), ("Mean corpuscular volume", 90, "fL"),
+])
+def test_metric_names_are_not_statistic_operators(indicator, value, unit):
+    row = {"rid": "r1", "indicator": indicator, "value": value, "unit": unit}
+    assert attach_citations(f"{indicator} is {value} {unit}.", rows_from_result(compact([row])))[1] == 1
+
+
+def test_statistic_word_outside_a_metric_name_still_selects_the_field():
+    row = {"rid": "r1", "indicator": "Vitamin D", "avg": 30, "min": 20, "max": 40, "unit": "ng/mL"}
+    rows = rows_from_result(compact([row]))
+    assert attach_citations("Average Vitamin D is 30 ng/mL.", rows)[1] == 1
+    assert attach_citations("Vitamin D mean is 40 ng/mL.", rows)[1] == 0

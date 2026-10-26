@@ -28,6 +28,13 @@
 
 ### Fixed
 
+- **Change citations preserve the metric and explicit sign.** Change/endpoint
+  grammar could bypass metric binding, and a stated negative delta could cite
+  an increase. Those checks now remain active for every arithmetic role.
+  Statistic words are parsed outside the metric name, retaining valid Vitamin D
+  and mean corpuscular volume citations. Low-scale trend shapes use a relative
+  tolerance, so expressing the same concentration in g/L or ng/L preserves its shape.
+
 - **Automatic aggregate citations retain the claim's identity.** A same-row
   shortcut could cite a glucose average for calcium, the wrong unit or another
   day. Aggregates now pass metric, unit and date/window checks before matching

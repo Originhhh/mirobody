@@ -13,7 +13,7 @@ from typing import Any
 
 from mirobody.units import normalize_unit
 
-_NUM = re.compile(r"(?<![A-Za-z0-9_.])[-+]?\d+(?:,\d{3})*(?:\.\d+)?(?:[eE][-+]?\d+)?")
+_NUM = re.compile(r"(?<![A-Za-z0-9_.])[-+−]?\d+(?:,\d{3})*(?:\.\d+)?(?:[eE][-+]?\d+)?")
 _CITE = re.compile(r"<cite>.*?</cite>", re.S)
 _FENCE = re.compile(r"```.*?```", re.S)
 _RID = re.compile(r"^r\d+$")
@@ -206,7 +206,8 @@ _STATISTIC_WORDS = {
 def _statistic_before(window: str) -> str:
     """The field an answer is talking about, or "" when it names no statistic."""
     recent = window[-60:]
-    found = [(recent.rfind(word), field) for word, field in _STATISTIC_WORDS.items() if word in recent]
+    found = [(match.start(), field) for word, field in _STATISTIC_WORDS.items()
+             for match in re.finditer(rf"(?<![A-Za-z]){re.escape(word)}(?![A-Za-z])", recent)]
     if not found:
         return ""
     position, field = max(found)
@@ -225,6 +226,18 @@ _CHANGE_WORDS = {
 }
 _ZH_CHANGE = {"下降": -1, "降低": -1, "减少": -1, "下跌": -1, "回落": -1, "减轻": -1,
               "上升": 1, "升高": 1, "增加": 1, "上涨": 1, "增长": 1}
+_CLAIM_WORDS = set(_CHANGE_WORDS) | {
+    "is", "was", "at", "measured", "recorded", "had", "a", "an", "the", "change", "difference",
+    "delta", "loss", "of", "by", "from", "to", "and", "between", "about", "approximately",
+    "roughly", "sharply", "slightly", "nearly", "around",
+}
+# A role such as "fell by" permits its grammar, never an unknown metric
+# between the source's name and the number.
+_CLAIM_BINDING = re.compile(
+    rf"(?:\s|[:：*()=]|(?<![A-Za-z])(?:{'|'.join(sorted(_CLAIM_WORDS, key=len, reverse=True))})(?![A-Za-z])"
+    rf"|{'|'.join(sorted(_ZH_CHANGE, key=len, reverse=True))}|了|约|近|幅度为|幅度约|幅度|从|到|至|的|是|为)*",
+    re.I,
+)
 _CHANGE_VERB = "|".join(sorted(map(re.escape, _CHANGE_WORDS), key=len, reverse=True))
 #: "fell by 2", "dropped sharply by 2", and "a decrease of 2" state an amount of change.
 _CHANGE_BY = re.compile(rf"\b(?P<verb>{_CHANGE_VERB})\b[^.;:!?\d]{{0,24}}?\bby\s*$", re.I)
@@ -298,14 +311,14 @@ def _endpoints_agree(row: dict[str, Any], direction: int) -> bool:
 
 
 def _candidates(rows: list[dict[str, Any]], value: float,
-                claim: tuple[str, int] | None) -> list[dict[str, Any]]:
+                claim: tuple[str, int] | None, *, signed: bool) -> list[dict[str, Any]]:
     """Rows whose value the sentence's number states, honouring a change's sign.
 
     "Sleep fell by 2" states a magnitude of 2 with a direction, so the record's -2 delta is the
     matching row; matching only the signed number left every true change claim uncited.
     """
     targets = {value}
-    if claim and claim[0] == "change":
+    if claim and claim[0] == "change" and not signed:
         if claim[1] < 0:
             targets = {-value}
         elif claim[1] > 0:
@@ -333,13 +346,13 @@ def _choose(before: str, context: str, unit: str, candidates: list[dict[str, Any
     matched = [(window.rfind(name) + len(name), len(name), name) for name in names if name in window]
     name_end, _, nearest = max(matched, default=(-1, 0, ""))
     named = [r for r in candidates if nearest and nearest in _aliases(r)]
+    grammar = _CLAIM_BINDING if claim is not None else _BINDING
     if nearest:
-        # A stated change or endpoint already supplies the grammar ("fell by", "from … to"), so
-        # the generic continuation check would only reject the words that carry the meaning.
-        if claim is None and not _BINDING.fullmatch(_binding_text(window[name_end:])):
+        if not grammar.fullmatch(_binding_text(window[name_end:])):
             return None
         candidates = named
-    elif claim is None and (original_count != 1 or not _GENERIC.fullmatch(_DATE_TIME.sub("", window).strip())):
+    elif original_count != 1 or not (grammar if claim is not None else _GENERIC).fullmatch(
+            _binding_text(window)):
         return None
     candidates = [r for r in candidates if _unit_matches(r, unit)]
     # A change sentence states the movement, not either end it moved between.
@@ -356,7 +369,8 @@ def _choose(before: str, context: str, unit: str, candidates: list[dict[str, Any
         if not candidates:
             return None
     # A sentence that names a statistic means that field.
-    statistic = _statistic_before(window)
+    operation = window[:name_end - len(nearest)] + " " + window[name_end:] if nearest else window
+    statistic = _statistic_before(operation)
     if statistic:
         by_field = [r for r in candidates if r.get("_field") == statistic]
         if not by_field:
@@ -380,14 +394,15 @@ def attach_citations(text: str, rows: list[dict[str, Any]]) -> tuple[str, int, l
             continue
         if re.match(r"[A-Za-z]", text[match.end():]):
             continue
-        value = float(match.group().replace(",", ""))
+        value = float(match.group().replace(",", "").replace("−", "-"))
         end, unit = _unit_after(text, match.end())
         left = max([0, *(i + 1 for i in boundaries if i < match.start())])
         right = min([len(text), *(i for i in boundaries if i >= end)])
         before = text[max(left, match.start() - 120):match.start()]
         context = text[max(left, match.start() - 120):min(right, end + 80)]
         claim = _claim(before, context)
-        chosen = _choose(before, context, unit, _candidates(rows, value, claim), names, claim)
+        signed = match.group().startswith(("+", "-", "−"))
+        chosen = _choose(before, context, unit, _candidates(rows, value, claim, signed=signed), names, claim)
         out.append(text[cursor:end])
         if chosen is not None:
             if not text[end:end + 6].startswith("<cite>"):

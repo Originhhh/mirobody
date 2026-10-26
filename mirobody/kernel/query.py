@@ -366,14 +366,13 @@ def _significant(value: float, digits: int = 6) -> float:
 
 def _below(value: float, threshold: float) -> bool:
     """Whether `value` is under `threshold`, ignoring floating point noise at the boundary."""
-    return round(value - threshold, 9) < 0
+    return value < threshold and not math.isclose(value, threshold, rel_tol=1e-12, abs_tol=0.0)
 
 
 def _trend_shape(values: Sequence[float], magnitude: float, direction: str) -> str:
     span = max(values) - min(values)
-    # A threshold compared with `<` flips on floating point noise: the same readings expressed
-    # in mmol/L and in umol/L landed on opposite sides of 2 %. The comparison is made on a
-    # quantised difference so equivalent representations agree.
+    # A relative tolerance absorbs boundary noise without changing the verdict
+    # when a small concentration is expressed in another unit.
     if not span or _below(span, 0.02 * magnitude):
         return "flat"
     # A reversal must travel a quarter of the range; tiny daily jitter must not
