@@ -1,5 +1,7 @@
 ## Unreleased
 
+## 1.5.9
+
 ### Added
 
 - **Queryable chemistry coverage comes from LOINC's Universal Lab Orders.**
@@ -49,6 +51,13 @@
 
 ### Changed
 
+- **The bundled web client no longer carries the hosted app's consent copy.**
+  `frontend/` is rebuilt from thetahealth/mirobody-web `4babe74`, which drops
+  19 strings nothing rendered, among them "Your data is securely stored with
+  Theta Health" and the CLEAR identity-verification text: a self-hosted
+  server's bundle said its data lived with Theta. To tell: `grep -c "Theta
+  Health" frontend/assets/*.js` finds nothing.
+
 - **The README, PyPI and Docker Hub open with what Mirobody is, in mirobody.ai's
   words.** They opened with "Turn scattered health data into answers you can
   trace" and "AI health data engine", while mirobody.ai defines Mirobody as
@@ -60,7 +69,13 @@
   (中文「你的健康数字分身。」). The English and Japanese READMEs also name the
   hosted app Theta, as mirobody.ai and thetahealth.ai do, instead of "Theta
   Wellness", and show its registered and daily-active users live from Theta's
-  public stats, the same figures mirobody.ai's proof bar reads.
+  public stats, the same figures mirobody.ai's proof bar reads. The stage
+  table now says what each stage is for: Collect and Standardize turn readings
+  from scattered sources, genetic files included, into rows of one table, and
+  the agent answers by querying that table with tools rather than from the
+  model's memory, so every number traces to its file. "Numbers you can check"
+  adds the genotype benchmark: five consumer exports and VCF on both reference
+  builds decode to the same 13 calls, tested on public 1000 Genomes samples.
 
 - **Stage ② is Standardize (标准化), not Translate (转译).** The stage never
   translates: it keeps the printed name verbatim and assigns a LOINC code, a
