@@ -69,6 +69,12 @@
 
 ### Fixed
 
+- **LOINC-derived aliases preserve ambiguity and explicit refusals.** The
+  generator counted repeated fields as different code owners, compared names
+  before folding and could emit targets requiring a second override hop.
+  It now counts distinct codes per folded key and emits only directly reachable
+  targets; synthetic release tests cover these cases and empty reruns.
+
 - **Catalogue names retain their measurement identity.** Serum chemistry and
   device names previously missed the catalogue or resolved to another concept.
   Display-name aliases and 18 chemistry rows now bridge that gap; serum sodium

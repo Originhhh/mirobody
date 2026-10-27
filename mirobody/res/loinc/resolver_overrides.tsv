@@ -1416,3 +1416,14 @@ Iron, refrigerated serum	Iron
 Cholesterol, refrigerated serum	Cholesterol
 Triglycerides, refrig serum	Triglycerides
 Calcium, total	Calcium
+
+# --- LOINC-derived names (2026-10-27, standardize_build/loinc_aliases.py) ---
+# Official designations of catalogue codes that the index did not answer yet.
+Oxygen consumption (VO2)/Body weight [Volume Rate Content] --peak during exercise	VO2/BW max dur exercise
+Oxygen consumption/Body weight^peak during exercise	VO2/BW max dur exercise
+Oxygen saturation in Arterial blood by Pulse oximetry	SaO2 % BldA PulseOx
+Alanine aminotransferase [Enzymatic activity/volume] in Serum or Plasma	Alanine aminotransferase
+Alkaline phosphatase [Enzymatic activity/volume] in Serum or Plasma	Alkaline phosphatase
+Aspartate aminotransferase [Enzymatic activity/volume] in Serum or Plasma	Aspartate aminotransferase
+Gamma glutamyl transferase [Enzymatic activity/volume] in Serum or Plasma	Gamma glutamyl transferase
+Lactate dehydrogenase [Enzymatic activity/volume] in Serum or Plasma by Lactate to pyruvate reaction	Lactate dehydrogenase
