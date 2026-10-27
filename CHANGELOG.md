@@ -2,6 +2,14 @@
 
 ### Added
 
+- **Queryable chemistry coverage comes from LOINC's Universal Lab Orders.**
+  The catalogue now carries 209 additional indicators after reusing the serum
+  chemistry rows added alongside them. Every generated row has a recognized
+  unit, a distinct internal name, a display that resolves to its code and all
+  six axes checked against LOINC 2.83. The combined catalogue covers 226 of the
+  1,519 universal orders. A source-axis manifest and synthetic generation tests
+  make the coverage and specimen distinctions reproducible.
+
 - **`view="trend"` describes numeric direction and shape from daily source values.**
   Single first/last readings can conceal a hump, dip or repeated swings. The new view
   compares the first and last thirds of observed numeric days and returns their means,
@@ -68,6 +76,13 @@
   `scan_value_units` match the previous code on 4.5M inputs.
 
 ### Fixed
+
+- **Catalogue generation refuses empty units and preserves specimen siblings.**
+  Missing or unrecognized example units previously produced unitless rows;
+  an existing serum member also suppressed different-specimen candidates.
+  Unit checks now fail closed and collisions are checked after specimen naming.
+  Twenty-four-hour results are summaries with no unsupported aggregation task.
+  Regenerating the combined catalogue emits zero additional rows.
 
 - **LOINC-derived aliases preserve ambiguity and explicit refusals.** The
   generator counted repeated fields as different code owners, compared names
