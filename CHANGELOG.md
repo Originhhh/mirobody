@@ -275,6 +275,15 @@
   "There is no genotype file" still passes. The suite is
   `harness100-20261023c`; the contract test has these cases.
 
+- **A self-hosted server introduces itself as Mirobody, not Theta.** With
+  `EMAIL_FROM_NAME` unset (it is commented out in `config.yaml`), sign-in codes
+  went out from "Theta Wellness", and with `WEBAUTHN_RP_NAME` unset the browser
+  offered to save a passkey for "Theta Health": the hosted product's names, on
+  a server Theta does not run. Both now default to "Mirobody", the sender
+  default lives in one place instead of four, and `config.yaml` documents both
+  keys. To tell: request a sign-in code without setting `EMAIL_FROM_NAME`; the
+  sender reads Mirobody.
+
 ## 1.5.8
 
 ### Added
