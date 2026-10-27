@@ -49,6 +49,19 @@
 
 ### Changed
 
+- **The README, PyPI and Docker Hub open with what Mirobody is, in mirobody.ai's
+  words.** They opened with "Turn scattered health data into answers you can
+  trace" and "AI health data engine", while mirobody.ai defines Mirobody as
+  the record itself: "Mirror Your Body in Data", "One standard, every source,
+  one complete picture of you". All three READMEs, the PyPI summary and the
+  Docker Hub copy now lead with that definition; tracing every number to its
+  source and MCP access follow as what this open-source edition does. To
+  tell: the bold line under `# Mirobody` reads "Mirror your body in data."
+  (中文「你的健康数字分身。」). The English and Japanese READMEs also name the
+  hosted app Theta, as mirobody.ai and thetahealth.ai do, instead of "Theta
+  Wellness", and show its registered and daily-active users live from Theta's
+  public stats, the same figures mirobody.ai's proof bar reads.
+
 - **Stage ② is Standardize (标准化), not Translate (转译).** The stage never
   translates: it keeps the printed name verbatim and assigns a LOINC code, a
   UCUM unit and a local day. The old name collided with real translation, which

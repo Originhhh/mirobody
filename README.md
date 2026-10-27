@@ -7,10 +7,11 @@
 
 # Mirobody
 
-**Turn scattered health data into answers you can trace.**
+**Mirror your body in data.**
 
-A self-hosted AI health data engine that brings lab reports, wearables and genetic files into one standardized record.<br>
-Standardize health data with one command. Try the full app in Codespaces with your own model key, or run the app, the data and the models 100% on your own machine.
+One standard, every source, one complete picture of you — building a lasting record to understand where your health is going.<br>
+This open-source edition builds that record on your own machine from lab reports, wearables and genetic files, traces every number to its source, and opens it to your AI agent over MCP.<br>
+Standardize health data with one command, try the full app in Codespaces with your own model key, or run the app, the data and the models 100% locally.
 
 **English** · **[中文](README.zh-CN.md)** · **[日本語](README.ja.md)**
 
@@ -35,7 +36,7 @@ Standardize health data with one command. Try the full app in Codespaces with yo
 | Try the full app in your browser | [GitHub Codespaces](#try-the-full-app-in-codespaces) | A GitHub account and your own model API key |
 | Keep the app, models and records on your machine | [100% local with Docker](#run-everything-100-locally) | Docker with Compose; 16 GB memory; no API key |
 | Keep the app and records on your machine, without Docker | [No Docker](#run-without-docker) | Debian or Ubuntu; PostgreSQL 16; Python 3.12; your own model API key |
-| Use it on your own records with nothing to run | [Theta](https://dr.thetahealth.ai/en/login?utm_source=mirobody&utm_medium=github&utm_campaign=mirobody-to-theta&utm_content=readme), built on Mirobody, on the web or as a mobile app | An account |
+| Use it on your own records with nothing to run | Try Mirobody in [Theta Web](https://dr.thetahealth.ai/?utm_source=mirobody&utm_medium=github&utm_campaign=mirobody-to-theta&utm_content=readme), or in the Theta mobile app | An account |
 
 ## Try the engine with one command
 
@@ -196,7 +197,8 @@ resolve("血脂").resolved                                     # False    a cate
 | The package names its vocabulary: `mirobody.BUNDLE_VERSION` is `loinc-2.83+2026.09.17-aacb2c715b56` | `python -c "import mirobody; print(mirobody.BUNDLE_VERSION)"` |
 | Public health-agent benchmarks: [ESL-Bench](https://huggingface.co/datasets/mirobody/ESL-Bench), [MedHall-Bench](https://huggingface.co/datasets/mirobody/MedHall-Bench), [MedHarm-Bench](https://huggingface.co/datasets/mirobody/MedHarm-Bench) | [`mirobody-eval`](https://github.com/thetahealth/mirobody-eval) · [`benchmarks/`](benchmarks/README.md) |
 
-Mirobody is the engine under [Theta Wellness](https://www.thetahealth.ai/), a live consumer health app on the web and mobile.
+Mirobody is the health data engine behind [Theta](https://www.thetahealth.ai/), a live consumer health app on the web and mobile, with these users today:<br>
+[![Theta registered users, live](https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fgeneral-api.thetahealth.ai%2Fsmart%2Fapi%2Fv1%2Fpublic%2Fstats&query=%24.data.registered_users.value&label=Theta%20users&color=0E3880&cacheSeconds=3600)](https://www.thetahealth.ai/) [![Theta daily active users, live](https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fgeneral-api.thetahealth.ai%2Fsmart%2Fapi%2Fv1%2Fpublic%2Fstats&query=%24.data.daily_active_users.value&label=daily%20active&color=0E3880&cacheSeconds=3600)](https://www.thetahealth.ai/)
 
 ## Contributing
 

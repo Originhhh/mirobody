@@ -7,9 +7,10 @@
 
 # Mirobody
 
-**把分散的健康数据，变成有据可查的答案。**
+**你的健康数字分身。**
 
-开源、自部署的 AI 健康数据引擎，把体检报告、可穿戴设备和基因数据汇成一份标准化的记录。<br>
+同一套标准，汇聚每一个来源，映出完整的你——让长期记录成为理解健康走向的依据。<br>
+开源版在你自己的机器上，把体检报告、可穿戴设备和基因数据整理成这份标准化记录，每个数字都能追溯到原始来源，并通过 MCP 交给你的 AI 助手。<br>
 一条命令体验健康数据标准化；在 Codespaces 填入自己的模型 Key，直接用浏览器体验完整应用；或让应用、数据和模型 100% 在本机运行。
 
 **[English](README.md)** · **中文** · **[日本語](README.ja.md)**
@@ -35,7 +36,7 @@
 | 在浏览器里体验完整应用 | [GitHub Codespaces](#在-codespaces-体验完整应用) | GitHub 账号和你自己的模型 API Key |
 | 应用、模型和记录都留在自己机器上 | [Docker 100% 本地部署](#100-本地部署应用数据和模型) | 带 Compose 的 Docker；16 GB 内存；无需 API Key |
 | 应用和记录留在自己机器上，且不用 Docker | [不用 Docker 运行](#不用-docker-运行) | Debian 或 Ubuntu；PostgreSQL 16；Python 3.12；你自己的模型 API Key |
-| 什么都不部署，直接用自己的记录 | 中国大陆：[chat.mirobody.cn](https://chat.mirobody.cn/)，或在微信小程序中搜索「Mirobody」。其他地区：基于 Mirobody 的 [Theta](https://dr.thetahealth.ai/zh/login?utm_source=mirobody&utm_medium=github&utm_campaign=mirobody-to-theta&utm_content=readme)，有网页版和移动 App | 注册账号 |
+| 什么都不部署，直接用自己的记录 | 中国大陆：在微信中搜索「Mirobody」小程序。其他地区：在 [Theta Web](https://dr.thetahealth.ai/?utm_source=mirobody&utm_medium=github&utm_campaign=mirobody-to-theta&utm_content=readme&lang=zh-cn) 体验 Mirobody，也可以用 Theta 移动 App | 注册账号 |
 
 ## 一条命令体验标准化引擎
 

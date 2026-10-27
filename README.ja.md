@@ -7,9 +7,10 @@
 
 # Mirobody
 
-**散らばった健康データを、出典までたどれる答えに。**
+**あなたのからだを、データに映す。**
 
-検査報告、ウェアラブル、遺伝子ファイルを1つの標準化された記録にまとめる、セルフホスト型の AI 健康データエンジンです。<br>
+ひとつの標準で、あらゆる情報源をまとめ、あなたの全体像を映し出す。健康の行方を理解するための、長く続く記録です。<br>
+このオープンソース版は、検査報告・ウェアラブル・遺伝子ファイルを手元のマシンで1つの標準化された記録にまとめ、すべての数値を出典までたどれるようにし、MCP で AI エージェントにつなぎます。<br>
 健康データの標準化はコマンド1つで試せます。自分のモデルキーを使って Codespaces でアプリ全体を試すことも、アプリ・データ・モデルを 100% 手元のマシンで動かすこともできます。
 
 **[English](README.md)** · **[中文](README.zh-CN.md)** · **日本語**
@@ -35,7 +36,7 @@
 | ブラウザでアプリ全体を試す | [GitHub Codespaces](#codespaces-でアプリ全体を試す) | GitHub アカウントと、自分のモデル API キー |
 | アプリ・モデル・記録をすべて手元に置く | [Docker で 100% ローカル](#すべてを-100-ローカルで動かす) | Compose 付きの Docker、メモリ 16 GB。API キー不要 |
 | Docker を使わずに、アプリと記録を手元に置く | [Docker なし](#docker-なしで動かす) | Debian または Ubuntu、PostgreSQL 16、Python 3.12、自分のモデル API キー |
-| 何も動かさずに、自分の記録で使う | Mirobody をベースにした [Theta](https://dr.thetahealth.ai/en/login?utm_source=mirobody&utm_medium=github&utm_campaign=mirobody-to-theta&utm_content=readme)（Web 版とモバイルアプリ） | アカウント |
+| 何も動かさずに、自分の記録で使う | [Theta Web](https://dr.thetahealth.ai/?utm_source=mirobody&utm_medium=github&utm_campaign=mirobody-to-theta&utm_content=readme) で Mirobody を試す（Theta のモバイルアプリでも利用可） | アカウント |
 
 ## コマンド1つでエンジンを試す
 
@@ -195,7 +196,8 @@ resolve("血脂").resolved                                     # False    1つ�
 | パッケージは自分の語彙を名乗ります：`mirobody.BUNDLE_VERSION` は `loinc-2.83+2026.09.17-aacb2c715b56` | `python -c "import mirobody; print(mirobody.BUNDLE_VERSION)"` |
 | 公開している健康エージェントのベンチマーク：[ESL-Bench](https://huggingface.co/datasets/mirobody/ESL-Bench)、[MedHall-Bench](https://huggingface.co/datasets/mirobody/MedHall-Bench)、[MedHarm-Bench](https://huggingface.co/datasets/mirobody/MedHarm-Bench) | [`mirobody-eval`](https://github.com/thetahealth/mirobody-eval) · [`benchmarks/`](benchmarks/README.md) |
 
-Mirobody は、Web とモバイルで提供中の個人向け健康アプリ [Theta Wellness](https://www.thetahealth.ai/) のエンジンでもあります。
+Mirobody は、Web とモバイルで提供中の個人向け健康アプリ [Theta](https://www.thetahealth.ai/) のエンジンでもあります。現在の利用者数：<br>
+[![Theta registered users, live](https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fgeneral-api.thetahealth.ai%2Fsmart%2Fapi%2Fv1%2Fpublic%2Fstats&query=%24.data.registered_users.value&label=Theta%20users&color=0E3880&cacheSeconds=3600)](https://www.thetahealth.ai/) [![Theta daily active users, live](https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fgeneral-api.thetahealth.ai%2Fsmart%2Fapi%2Fv1%2Fpublic%2Fstats&query=%24.data.daily_active_users.value&label=daily%20active&color=0E3880&cacheSeconds=3600)](https://www.thetahealth.ai/)
 
 ## コントリビューション
 
