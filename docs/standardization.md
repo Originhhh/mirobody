@@ -2,7 +2,7 @@
 
 **English** · **[中文](standardization.zh-CN.md)**
 
-The long form of the README's **② Translate (standardize)** stage: what the shipped
+The long form of the README's **② Standardize** stage: what the shipped
 vocabulary is, what it deliberately does not do, and which LOINC release it is
 cut from. Every exact figure here is the same
 one the README quotes; the README is held to the artifacts those figures come
@@ -10,9 +10,9 @@ from, and this page follows it.
 
 <p align="center">
 <picture>
-  <source media="(prefers-color-scheme: dark)" srcset="images/collect-translate-agent-dark.svg">
-  <source media="(prefers-color-scheme: light)" srcset="images/collect-translate-agent.svg">
-  <img src="images/collect-translate-agent.svg" alt="Collect, Translate, Agent: three stages, left to right" width="920">
+  <source media="(prefers-color-scheme: dark)" srcset="images/collect-standardize-agent-dark.svg">
+  <source media="(prefers-color-scheme: light)" srcset="images/collect-standardize-agent.svg">
+  <img src="images/collect-standardize-agent.svg" alt="Collect, Standardize, Agent: three stages, left to right" width="920">
 </picture>
 </p>
 
@@ -72,7 +72,7 @@ Standardization here is not a lookup table but a complete terminology-normalizat
   [`test_engine_coverage.py`](../mirobody/tests/test_engine_coverage.py) scores the offline
   resolver against the panels an ordinary checkup includes, written the way a report
   prints them, in English, 简体中文, 繁體中文, 日本語, Russian, Estonian and Turkish, plus
-  the wearable vocabulary the platform API teaches. **337/337 today; it scored 32/94 the day it
+  the wearable vocabulary the platform API teaches. **345/345 today; it scored 32/94 the day it
   was written.** It grades *clinical* correctness: answering `血红蛋白` with the
   HbA1c code is a failure, and `血脂` is required to resolve to nothing.
 
@@ -108,7 +108,7 @@ version number; `res/loinc/fhir_loinc_bundle.NOTICE` does, and
 `scripts/stamp_bundle_version.py --check` keeps the stamp honest.
 
 **What the cut contains.** 63,416 of the 99,737 ACTIVE codes in 2.83, chosen
-by rule rather than by hand (`translate_build/loinc_cut.py`): CLASSTYPE
+by rule rather than by hand (`standardize_build/loinc_cut.py`): CLASSTYPE
 laboratory or clinical; CLASS families that never hold a reading dropped
 (surveys, documents, radiology, administrative); SCALE_TYP `Doc`, `Nar`, `-`,
 `Set` and `Multi` dropped; physical-exam classes kept only at `Qn` or `Ord`;

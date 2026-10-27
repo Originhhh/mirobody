@@ -37,7 +37,7 @@ import pytest
 
 import mirobody
 from mirobody.engine import resolve, resolve_reading, standardize_reading
-from mirobody.translate import resolve_condition, resolve_symptom
+from mirobody.standardize import resolve_condition, resolve_symptom
 from mirobody.units import convert_value, normalize_unit, parse_value_unit, unit_family
 
 # Through the package, never by walking up from this file: the module has moved
@@ -49,8 +49,8 @@ _SKILLS = _ROOT / "skills"
 if not _SKILLS.is_dir():
     pytest.skip("skills/ ships in the repository, not in the wheel", allow_module_level=True)
 
-_SKILL_NAMES = ("mirobody", "translate-health-data")
-_REF = _SKILLS / "translate-health-data" / "reference.md"
+_SKILL_NAMES = ("mirobody", "standardize-health-data")
+_REF = _SKILLS / "standardize-health-data" / "reference.md"
 
 
 def _text(path: pathlib.Path) -> str:
@@ -112,7 +112,7 @@ def test_marketplace_names_every_skill() -> None:
 
 def test_every_skill_the_readmes_install_exists() -> None:
     """`npx skills add thetahealth/mirobody --skill X` only works for an X here."""
-    docs = [_SKILLS / "README.md", _ROOT / "README.md", _ROOT / "README.zh-CN.md"]
+    docs = [_SKILLS / "README.md", _ROOT / "README.md", _ROOT / "README.zh-CN.md", _ROOT / "README.ja.md"]
     named = set()
     for doc in docs:
         if doc.is_file():

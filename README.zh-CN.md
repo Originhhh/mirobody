@@ -12,7 +12,7 @@
 开源、自部署的 AI 健康数据引擎，把体检报告、可穿戴设备和基因数据汇成一份标准化的记录。<br>
 一条命令体验健康数据标准化；在 Codespaces 填入自己的模型 Key，直接用浏览器体验完整应用；或让应用、数据和模型 100% 在本机运行。
 
-**[English](README.md)** · **中文**
+**[English](README.md)** · **中文** · **[日本語](README.ja.md)**
 
 [![PyPI](https://badgen.net/pypi/v/mirobody?label=PyPI&color=3775A9&icon=pypi)](https://pypi.org/project/mirobody/)
 [![License: Apache-2.0](https://badgen.net/badge/license/Apache-2.0/blue)](LICENSE)
@@ -122,19 +122,19 @@ PIP_INDEX_URL=https://<镜像站>/simple scripts/install_native.sh
 - **查询基因数据。** 上传 23andMe、AncestryDNA、WeGene 的原始数据或 VCF，按 rsID、基因或区间查询。用药相关问题只给出 CPIC 覆盖情况，不建议调整用药。
 - **接入你自己的 agent。** 通过 MCP 连接 Claude Code、Codex 或 Cursor，或在 Python 里直接调用离线引擎。
 
-## 收集 · 转译 · 智能体
+## 收集 · 标准化 · 智能体
 
 <p align="center">
 <picture>
-  <source media="(prefers-color-scheme: dark)" srcset="docs/images/collect-translate-agent-dark.zh-CN.svg">
-  <img src="docs/images/collect-translate-agent.zh-CN.svg" alt="收集报告、设备数据和基因数据；统一名称与单位，让不同来源可比较；在整份记录上提问，每个回答都能追溯来源" width="920">
+  <source media="(prefers-color-scheme: dark)" srcset="docs/images/collect-standardize-agent-dark.zh-CN.svg">
+  <img src="docs/images/collect-standardize-agent.zh-CN.svg" alt="收集报告、设备数据和基因数据；统一名称与单位，让不同来源可比较；在整份记录上提问，每个回答都能追溯来源" width="920">
 </picture>
 </p>
 
 | 阶段 | 做什么 | 在哪 |
 | --- | --- | --- |
 | **① 收集 Collect** | 文件、设备和日记汇入系统；原始来源保留下来，每条读数都能指回它。 | [`collect/`](mirobody/collect/) |
-| **② 转译 Translate** | `A1c`、`HbA1c`、`糖化血红蛋白` 解析为同一个编码，单位统一到同一标准，全程离线。无法确定的名称保持未解析。 | [`engine/`](mirobody/engine/) · [`translate/`](mirobody/translate/) |
+| **② 标准化 Standardize** | `A1c`、`HbA1c`、`糖化血红蛋白` 解析为同一个编码，单位统一到同一标准，全程离线。无法确定的名称保持未解析。 | [`engine/`](mirobody/engine/) · [`standardize/`](mirobody/standardize/) |
 | **③ 智能体 Agent** | 在编码后的记录上提问：看趋势、跨医院和设备比较、画图，并标出每个数字来自哪份文件。 | [`agent/`](mirobody/agent/) |
 
 模型负责读取文档和推理；编码和单位来自随包发布的词表，不由模型生成。[一条读数如何走完整个流程](docs/pipeline.md)。
@@ -160,7 +160,7 @@ PIP_INDEX_URL=https://<镜像站>/simple scripts/install_native.sh
 | --- | --- | --- | --- |
 | 应用和存储的记录 | GitHub 云端的 Codespace 中 | 自己的机器上 | 自己的机器上 |
 | 需要模型处理的文档和提问 | 发给模型服务商，受其条款约束 | 发给模型服务商，受其条款约束 | 留在本机 |
-| 名称到编码、单位到 UCUM（**② 转译**） | Codespace 内，查随包词表 | 本机，不联网 | 本机，不联网 |
+| 名称到编码、单位到 UCUM（**② 标准化**） | Codespace 内，查随包词表 | 本机，不联网 | 本机，不联网 |
 | 模型权重 | 由模型服务商管理 | 由模型服务商管理 | 从 Hugging Face 下载一次 |
 
 命令行解析器也在自己的机器上运行，首次下载完成后不需要模型或网络连接。
@@ -173,7 +173,7 @@ PIP_INDEX_URL=https://<镜像站>/simple scripts/install_native.sh
 | --- | --- |
 | 在 Claude Code、Codex、Cursor 或 Gemini CLI 里查询你的记录 | **设置 → MCP 链接**，再按[各客户端的一行配置](https://docs.mirobody.ai/zh/tools/mcp-integration) |
 | 在自己的代码里解析名称和单位 | `pip install mirobody`：离线、无需 Key，只依赖 numpy（[库的用法](docs/quickstart.zh-CN.md#a--the-library)） |
-| 让你的编码 agent 学会这套流程 | `npx skills add thetahealth/mirobody --skill translate-health-data`（[skills](skills/README.md)） |
+| 让你的编码 agent 学会这套流程 | `npx skills add thetahealth/mirobody --skill standardize-health-data`（[skills](skills/README.md)） |
 | 新增设备 provider 或工具 | 把文件放进 `mirobody/collect/providers/` 或 `mirobody/agent/tools/`（[CONTRIBUTING](CONTRIBUTING.md)） |
 | 不部署，先体验应用 | [Mirobody 网页演示](https://chat.mirobody.cn/demo?ref=github-readme&lang=zh-cn)，使用同一套[合成演示文件](demo/README.md) |
 
@@ -195,7 +195,7 @@ resolve("血脂").resolved                                     # False    一个
 
 | 说法 | 怎么验证 |
 | --- | --- |
-| **337/337**：常规体检会打印的项目，覆盖英文、中文、日文、俄文、爱沙尼亚文和土耳其文 | 运行 [`test_engine_coverage.py`](mirobody/tests/test_engine_coverage.py) 会打印分数 |
+| **345/345**：常规体检会打印的项目，覆盖英文、中文、日文、俄文、爱沙尼亚文和土耳其文 | 运行 [`test_engine_coverage.py`](mirobody/tests/test_engine_coverage.py) 会打印分数 |
 | **330 个 UCUM 单位**，带量纲分析；**316 项标准设备指标** | [标准化详解](docs/standardization.zh-CN.md) · [设备对照表](docs/device-crosswalk.md) |
 | 包会说明是哪份词表在回答：`mirobody.BUNDLE_VERSION` 是 `loinc-2.83+2026.09.17-aacb2c715b56` | `python -c "import mirobody; print(mirobody.BUNDLE_VERSION)"` |
 | 公开的健康 agent 评测集：[ESL-Bench](https://huggingface.co/datasets/mirobody/ESL-Bench)、[MedHall-Bench](https://huggingface.co/datasets/mirobody/MedHall-Bench)、[MedHarm-Bench](https://huggingface.co/datasets/mirobody/MedHarm-Bench) | [`mirobody-eval`](https://github.com/thetahealth/mirobody-eval) · [`benchmarks/`](benchmarks/README.md) |

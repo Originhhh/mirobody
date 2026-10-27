@@ -26,7 +26,37 @@
   carry no user data, so the chat agent gets them too. `resolve_indicator`
   stays MCP-only.
 
+- **The README has a Japanese edition again.** Japanese readers had English
+  and Chinese only: the 1.4.0 `README.ja.md` was archived and then deleted in
+  1.5.2, while the engine kept resolving Japanese report terms. `README.ja.md`
+  follows the current English page, with its own stage and care-circle
+  diagrams (`docs/images/*.ja.svg`), and every edition links the other two.
+  Its examples were run against the bundle, which is why the stage table says
+  `ヘモグロビンA1c`: `グリコヘモグロビン` does not resolve. The coverage figure is
+  now 345/345 in all three editions, the `standardize-health-data` skill,
+  `docs/standardization*.md` and `docs/testing.md`; af62f885 and 2725c66e grew
+  the suite to 345 cases and every quote kept saying 337. To tell: the
+  language line under the README title lists 日本語, and
+  `pytest -s mirobody/tests/test_engine_coverage.py` prints 345/345.
+
 ### Changed
+
+- **Stage ② is Standardize (标准化), not Translate (转译).** The stage never
+  translates: it keeps the printed name verbatim and assigns a LOINC code, a
+  UCUM unit and a local day. The old name collided with real translation, which
+  the extraction prompts forbid ("do not translate") and `str.translate` does
+  in `zh_fold` and `lexical`, while the README tagline and
+  `docs/standardization.md` already called the stage "standardize". Renamed
+  with no shim: `mirobody.translate` → `mirobody.standardize` (same modules,
+  same exports), `translate_build/` → `standardize_build/`, the skill
+  `translate-health-data` → `standardize-health-data`, the import-linter
+  contract "standardize has one front door", and the diagrams
+  `docs/images/collect-standardize-agent*.svg`. `mirobody.collect` still
+  re-exports `StandardIndicator` and `UNIT_CONVERSIONS`, so provider plugins
+  need no edit. To tell: `python -c "import mirobody.standardize"` works and
+  `import mirobody.translate` raises `ModuleNotFoundError`; a skill installed
+  under the old name keeps working until you re-add it as
+  `npx skills add thetahealth/mirobody --skill standardize-health-data`.
 
 - **`normalize_unit` is faster, with the same answers.** Every call ran NFKC
   and folded symbols one character at a time, including an input that is

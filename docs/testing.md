@@ -77,7 +77,7 @@ two trees, and a third that is neither:
   only `test_skills.py` is carried into the wheel, and
   `scripts/check_wheel_data.py` fails if another test member turns up there.
 - `tests/` at the repo root — the maintainers' regression suite, one module per
-  package module (`mirobody/kernel/series.py`, `mirobody/translate/` and
+  package module (`mirobody/kernel/series.py`, `mirobody/standardize/` and
   `mirobody/collect/observations.py` each have one). It is gitignored except
   for the two published Python-analysis evidence modules above. A clone
   contains those two modules; the remaining regression tests stay local.
@@ -99,7 +99,7 @@ a clone can re-run it.
 
 | Module | Covers | Notes |
 | --- | --- | --- |
-| `test_engine_coverage.py` | **the published accuracy number** | 337 cases: the panels an ordinary checkup prints, in English, 简体中文, 繁體中文, 日本語, Russian, Estonian and Turkish, plus device vocabulary, report shapes (`名称(缩写)`, `Name-ABBREV`, snake_case, full-width), unit-dependent codes and non-numeric readings. Run with `-s` to print the score; `COVERAGE_FLOOR = 1.0` |
+| `test_engine_coverage.py` | **the published accuracy number** | 345 cases: the panels an ordinary checkup prints, in English, 简体中文, 繁體中文, 日本語, Russian, Estonian and Turkish, plus device vocabulary, report shapes (`名称(缩写)`, `Name-ABBREV`, snake_case, full-width), unit-dependent codes and non-numeric readings. Run with `-s` to print the score; `COVERAGE_FLOOR = 1.0` |
 | `test_cross_language_identity.py` | one analyte, one code, in every language | `SAME_ANALYTE` rows must agree; `KNOWN_SPLITS` are the rows that do not yet, each a strict xfail that fails once fixed, so the row moves up |
 | `test_skills.py` | agent skill commands, frontmatter, Compose names and resolver examples | ships in the wheel and sdist as public evidence; it skips the repository-only skill files when run from `site-packages` |
 | `test_security_gates.py` | the server's security decisions: the OAuth return URL, the second factor for a token in the query string, upload ownership, the placeholder `JWT_KEY`, the response headers | needs `[app]` and skips without it. Each case was reproduced on a running server before its fix |
@@ -138,7 +138,7 @@ application dependencies or an unreachable database fail the run.
 The daily-rollup aggregator has a maintainer script there too; it needs a
 live database and a real user id, and the day-boundary rule it checks (a
 night is filed on an 18:00-18:00 day, everything else on 00:00-24:00) is
-recorded with its measurement in `mirobody/translate/aggregate/windows.py`.
+recorded with its measurement in `mirobody/standardize/aggregate/windows.py`.
 
 Everything else lives in the gitignored `tests/` at the repo root: the golden
 LOINC codes, the units vectors, the gates on the READMEs' figures and links,
@@ -249,7 +249,7 @@ helpers raise.
 snapshot is reviewed before it becomes the baseline. Updating one is explicit:
 
 ```bash
-MIROBODY_UPDATE_GOLDEN=1 pytest tests/translate/test_indicators_info.py
+MIROBODY_UPDATE_GOLDEN=1 pytest tests/standardize/test_indicators_info.py
 ```
 
 A behaviour change is then a visible diff in review, never a silent
@@ -292,14 +292,14 @@ The six import-linter contracts, and what each one is for:
 | the library layer is stdlib + numpy | and no third-party distribution this project declares, except numpy |
 | engine does not import the agent layer | no seams: the health profile moved to `user/profile.py` |
 | collect has one front door | `agent` and `server` import `mirobody.collect`, never its submodules |
-| translate has one front door | and neither does `collect` reach past `mirobody.translate` |
+| standardize has one front door | and neither does `collect` reach past `mirobody.standardize` |
 
 The third is regenerated from `pyproject.toml`'s own dependency lists by the
 local suite, so adding a dependency without adding it to the contract fails.
 **A new library-layer module must be added to the first four contracts AND to
 that suite's list of library modules**, or the test is green for the wrong
 reason. The last two are the opposite shape: they forbid rather than permit, so
-a new submodule under `collect/` or `translate/` is covered the moment its
+a new submodule under `collect/` or `standardize/` is covered the moment its
 parent is listed.
 
 `lint-imports` must analyse the repo source: run it from a venv with this repo
