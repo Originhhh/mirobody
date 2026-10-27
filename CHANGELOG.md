@@ -10,6 +10,17 @@
   on the walking-or-running indicator and answered "how far did I walk" with
   the running figure. The catalogue carries the four now, so a source that
   knows the activity can file it where LOINC puts it.
+- **The alias index keeps the names LOINC actually prints.** The key cap was 50
+  characters, carried over from the index this replaced, and it dropped 81 of
+  the 287 codes this catalogue carries: their official long names are longer
+  ("Lactate dehydrogenase [Enzymatic activity/volume] in Serum or Plasma by
+  Lactate to pyruvate reaction" is 112). The cap is now 120, which is above
+  every laboratory designation in LOINC 2.83; the classifier-word cap still
+  refuses anything that names hundreds of codes. Measured on the catalogue:
+  long-name recall 73.9% -> 99.3%, short-name 99.3%, and the names a code
+  carried before its current one ("Lactate Dehydrogenase (LDH), Blood") answer
+  again — 721 -> 1,128 of 1,159 — so no override rows are needed for them. The
+  bundle grows 12.7 -> 17.1 MB.
 
 - **A keyword search reaches every series that shares a name.** `_by_keywords`
   kept one series per printed or display name (`dict.setdefault`), so when a
