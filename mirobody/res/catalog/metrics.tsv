@@ -29,7 +29,7 @@ CHOLESTEROL_HDL	bodyCholesterolHDL	Cholesterol HDL	Metabolic Metrics	mmol/L	mmol
 CHOLESTEROL_LDL	bodyCholesterolLDL	Cholesterol LDL	Metabolic Metrics	mmol/L	mmol/L	series	instant	last			00:00	lipids			Low-density lipoprotein cholesterol level	1.4.0
 CHOLESTEROL_TOTAL	bodyCholesterol	Cholesterol Total	Metabolic Metrics	mmol/L	mmol/L	series	instant	last			00:00	lipids			Total cholesterol level in blood	1.4.0
 CHOLESTEROL_TRIGLYCERIDES	bodyCholesterolTriglycerides	Cholesterol Triglycerides	Metabolic Metrics	mmol/L	mmol/L	series	instant	last			00:00	lipids			Triglyceride level in blood	1.4.0
-CYCLING_DISTANCE	cyclingDistances	Cycling Distance	Activity Metrics	m	m	series	cumulative	sum_delta			00:00		total		Total cycling distance	1.4.0
+CYCLING_DISTANCE	cyclingDistances	Cycling Distance	Activity Metrics	m	m	series	cumulative	sum_delta	93818-3	confident	00:00		total		Total cycling distance	1.4.0
 CYCLING_DURATION	cyclingDuration	Cycling Duration	Activity Metrics	ms	ms	series	instant	last			00:00				Duration of cycling	1.4.0
 CYCLING_SPEED	cyclingSpeeds	Cycling Speed	Activity Metrics	m/s	m/s	series	instant	last			00:00				Average cycling speed	1.4.0
 DAILY_CALORIES_ACTIVE	dailyCaloriesActive	Daily Calories Active	Activity Metrics	kcal	kcal	summary	provider_daily	provider_value	41979-6	confident	00:00				Daily summary of calories burned through exercise	1.4.0
@@ -299,8 +299,8 @@ REPRODUCTIVE_SEXUAL_ACTIVITY	reproductiveSexualActivity	Reproductive Sexual Acti
 SEDENTARY_TIME	sedentaryTime	Sedentary Time	Activity Metrics	min	min	summary	provider_daily	provider_value			00:00				Total sedentary time during the day	1.4.0
 RESTING_TIME	restingTime	Resting Time	Activity Metrics	min	min	summary	provider_daily	provider_value			00:00				Total resting time during the day	1.4.0
 DAILY_ACTIVITY_SCORE	dailyActivityScore	Daily Activity Score	Activity Metrics	score	{score}	summary	provider_daily	provider_value			00:00				Daily activity score (0-100)	1.4.0
-BODY_FAT_MASS	bodyFatMass	Body Fat Mass	Body Composition	kg	kg	mix	instant	last			00:00	body_composition			Absolute fat mass from bioelectrical impedance; distinct from the fat percentage	1.4.0
-BODY_MUSCLE_MASS	bodyMuscleMass	Muscle Mass	Body Composition	kg	kg	mix	instant	last			00:00	body_composition			Absolute muscle mass; distinct from the muscle percentage	1.4.0
+BODY_FAT_MASS	bodyFatMass	Body Fat Mass	Body Composition	kg	kg	mix	instant	last	73708-0	confident	00:00	body_composition			Absolute fat mass from bioelectrical impedance; distinct from the fat percentage	1.4.0
+BODY_MUSCLE_MASS	bodyMuscleMass	Muscle Mass	Body Composition	kg	kg	mix	instant	last	73964-9	confident	00:00	body_composition			Absolute muscle mass; distinct from the muscle percentage	1.4.0
 BODY_SKELETAL_MUSCLE_MASS	bodySkeletalMuscleMass	Skeletal Muscle Mass	Body Composition	kg	kg	mix	instant	last			00:00	body_composition			Skeletal muscle mass	1.4.0
 BODY_VISCERAL_FAT_LEVEL	bodyVisFatLevel	Visceral Fat Level	Body Composition	count	{#}	mix	instant	last			00:00	body_composition			Visceral fat as a scale level (device index), distinct from the visceral fat percentage	1.4.0
 BODY_WATER_MASS	bodyWaterMass	Body Water Mass	Body Composition	kg	kg	mix	instant	last	101683-1	confident	00:00	body_composition			Absolute body water mass; distinct from the water percentage	1.4.0
@@ -315,3 +315,21 @@ STAIR_ASCENT_SPEED	stairAscentSpeed	Stair Ascent Speed	Performance Metrics	m/s	m
 STAIR_DESCENT_SPEED	stairDescentSpeed	Stair Descent Speed	Performance Metrics	m/s	m/s	series	instant	last	112430-4	confident	00:00				Vertical speed descending stairs	1.5.0
 SIX_MINUTE_WALK_DISTANCE	sixMinuteWalkDistance	Six Minute Walk Distance	Performance Metrics	m	m	series	instant	last	64098-7	confident	00:00				Distance covered in the six-minute walk test	1.5.0
 BONE_PERCENTAGE	bonePercentage	Bone Percentage	Body Composition	%	%	mix	instant	last	101686-4	confident	00:00	body_composition			Bone mass as a share of body weight; distinct from the bone mass	1.5.1
+ALANINE_AMINOTRANSFERASE	alanineAminotransferase	Alanine aminotransferase	Medical Metrics	U/L	U/L	series	instant	last	1742-6	confident	00:00		last		Alanine aminotransferase [Enzymatic activity/volume] in Serum or Plasma	1.4.0
+ASPARTATE_AMINOTRANSFERASE	aspartateAminotransferase	Aspartate aminotransferase	Medical Metrics	U/L	U/L	series	instant	last	1920-8	confident	00:00		last		Aspartate aminotransferase [Enzymatic activity/volume] in Serum or Plasma	1.4.0
+ALKALINE_PHOSPHATASE	alkalinePhosphatase	Alkaline phosphatase	Medical Metrics	IU/L	[IU]/L	series	instant	last	6768-6	confident	00:00		last		Alkaline phosphatase [Enzymatic activity/volume] in Serum or Plasma	1.4.0
+GAMMA_GLUTAMYL_TRANSFERASE	gammaGlutamylTransferase	Gamma glutamyl transferase	Medical Metrics	IU/L	[IU]/L	series	instant	last	2324-2	confident	00:00		last		Gamma glutamyl transferase [Enzymatic activity/volume] in Serum or Plasma	1.4.0
+LACTATE_DEHYDROGENASE	lactateDehydrogenase	Lactate dehydrogenase	Medical Metrics	IU/L	[IU]/L	series	instant	last	14804-9	confident	00:00		last		Lactate dehydrogenase [Enzymatic activity/volume] in Serum or Plasma by Lactate to pyruvate reaction	1.4.0
+UREA_NITROGEN	ureaNitrogen	Urea nitrogen	Medical Metrics	mg/dL	mg/dL	series	instant	last	3094-0	confident	00:00		last		Urea nitrogen [Mass/volume] in Serum or Plasma	1.4.0
+CREATININE	creatinine	Creatinine	Medical Metrics	mg/dL	mg/dL	series	instant	last	2160-0	confident	00:00		last		Creatinine [Mass/volume] in Serum or Plasma	1.4.0
+URATE	urate	Urate	Medical Metrics	mg/dL	mg/dL	series	instant	last	3084-1	confident	00:00		last		Urate [Mass/volume] in Serum or Plasma	1.4.0
+BILIRUBIN	bilirubin	Bilirubin	Medical Metrics	mg/dL	mg/dL	series	instant	last	1975-2	confident	00:00		last		Bilirubin.total [Mass/volume] in Serum or Plasma	1.4.0
+ALBUMIN	albumin	Albumin	Medical Metrics	g/dL	g/dL	series	instant	last	1751-7	confident	00:00		last		Albumin [Mass/volume] in Serum or Plasma	1.4.0
+PROTEIN	protein	Protein	Medical Metrics	g/dL	g/dL	series	instant	last	2885-2	confident	00:00		last		Protein [Mass/volume] in Serum or Plasma	1.4.0
+SODIUM	serumSodium	Sodium	Medical Metrics	mmol/L	mmol/L	series	instant	last	2951-2	confident	00:00		last		Sodium [Moles/volume] in Serum or Plasma	1.4.0
+POTASSIUM	potassium	Potassium	Medical Metrics	mmol/L	mmol/L	series	instant	last	2823-3	confident	00:00		last		Potassium [Moles/volume] in Serum or Plasma	1.4.0
+CHLORIDE	chloride	Chloride	Medical Metrics	mmol/L	mmol/L	series	instant	last	2075-0	confident	00:00		last		Chloride [Moles/volume] in Serum or Plasma	1.4.0
+BICARBONATE	bicarbonate	Bicarbonate	Medical Metrics	mmol/L	mmol/L	series	instant	last	1959-6	confident	00:00		last		Bicarbonate [Moles/volume] in Blood	1.4.0
+CALCIUM	calcium	Calcium	Medical Metrics	mg/dL	mg/dL	series	instant	last	17861-6	confident	00:00		last		Calcium [Mass/volume] in Serum or Plasma	1.4.0
+PHOSPHATE	phosphate	Phosphate	Medical Metrics	mg/dL	mg/dL	series	instant	last	2777-1	confident	00:00		last		Phosphate [Mass/volume] in Serum or Plasma	1.4.0
+GLOBULIN	globulin	Globulin	Medical Metrics	g/dL	g/dL	series	instant	last	10834-0	confident	00:00		last		Globulin [Mass/volume] in Serum by calculation	1.4.0

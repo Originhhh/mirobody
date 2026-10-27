@@ -69,6 +69,19 @@
 
 ### Fixed
 
+- **Catalogue names retain their measurement identity.** Serum chemistry and
+  device names previously missed the catalogue or resolved to another concept.
+  Display-name aliases and 18 chemistry rows now bridge that gap; serum sodium
+  uses `serumSodium` separately from dietary `sodium`. Instantaneous walking
+  speed keeps its device identity because LOINC's code describes a 24-hour
+  maximum. Conflicting duplicate catalogue names now fail at load time.
+
+- **Printed unit spellings normalize without guessing between competing units.**
+  BMI exponents, cell-count spellings and preparation-prefixed units now
+  normalize to UCUM. A field such as `mg/dL, mmol/L` is refused rather than
+  silently choosing its last unit. Regression tests pin both the accepted
+  spellings and refused conversions.
+
 - **Change citations preserve the metric and explicit sign.** Change/endpoint
   grammar could bypass metric binding, and a stated negative delta could cite
   an increase. Those checks now remain active for every arithmetic role.
