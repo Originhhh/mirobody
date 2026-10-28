@@ -1448,3 +1448,62 @@ def test_a_posting_row_is_an_axis_row_and_never_a_skipped_code(resolver):
     skipped = set((read_member("loinc_skip.txt") or b"").split())
     assert skipped, "loinc_skip.txt is missing or empty"
     assert skipped.isdisjoint(axis.field_raw(row, AXIS_CODE) for row in range(len(axis)))
+
+
+def test_a_multi_metric_record_names_its_fields():
+    """A record that carries several metrics must say which field is which.
+
+    Health Connect's ActivityIntensityRecord reports MODERATE and VIGOROUS. Its
+    two crosswalk rows both left the field empty, so (type, field) identified a
+    group of two: records_router could not disambiguate, returned the raw
+    identifier as the metric, and *neither* row reached a metric — the reading
+    was dropped rather than mis-filed.
+
+    Rows with no metric are excluded: a blank there is a decision not to
+    publish the field. Records whose payload is one object the caller splits
+    (a blood-pressure pair) are allowlisted — records_router documents that
+    split, and the vendor's field names are unavailable for some of them
+    (Garmin's health-api reference returned 404).
+    """
+    from mirobody.standardize import devices
+
+    allowlisted = {
+        # One payload the caller splits; records_router documents the split.
+        "com.huawei.instantaneous.blood_pressure",
+        # Garmin's health-api field reference returned 404 (2026-10-28), so its
+        # three multi-metric records cannot be given real field names without
+        # guessing. Recorded here so the gap is visible rather than silent.
+        "Intensity Minutes", "Sleep", "Body Composition", "Blood Pressure",
+    }
+    problems = []
+    for vendor in devices.VENDORS:
+        seen: dict[tuple[str, str], str] = {}
+        for row in devices.vendor_fields(vendor):
+            if not row.metric or row.type in allowlisted:
+                continue
+            # A field naming several fields ("maxHeartRate / minHeartRate",
+            # "nightSegment[] / napSegment[]") is documentation shorthand: the
+            # runtime looks up the exact name and finds nothing, which the
+            # audit lists among the paper rows. It cannot be a duplicate key
+            # problem because it is not a key at all.
+            if "/" in row.field or "[" in row.field:
+                continue
+            key = (row.type, row.field)
+            if key in seen:
+                problems.append(f"{vendor}:{row.type}.{row.field or '(blank)'} "
+                                f"-> {seen[key]} and {row.metric}")
+            seen[key] = row.metric
+    assert not problems, problems[:6]
+
+
+def test_health_connect_activity_intensity_matches_its_two_levels():
+    """The record reports moderate and vigorous only; the codes must say so."""
+    from mirobody.standardize import devices
+
+    rows = {r.field: r for r in devices.vendor_fields("health_connect")
+            if r.type == "ActivityIntensityRecord"}
+    assert set(rows) == {"moderate", "vigorous"}, rows
+    assert rows["moderate"].metric == "dailyActivityIntensityMedium"
+    assert rows["moderate"].loinc == "101689-8"
+    assert rows["vigorous"].metric == "dailyActivityIntensityHigh"
+    assert rows["vigorous"].loinc == "101690-6"
