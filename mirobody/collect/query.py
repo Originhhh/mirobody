@@ -116,6 +116,24 @@ _STAT_AVG = (
     f" WHEN {_COMMON_CANONICAL} THEN AVG(value_canonical) END"
 )
 
+#: The median and the sample standard deviation, under the same unit guard as
+#: the mean: a median across mg/dL and mmol/L is not a median of anything.
+#:
+#: Their absence was a capability gap, not a modelling choice: 393 of PHIA's
+#: 4,000 objective questions ask for a median and 281 for a standard deviation,
+#: and `stats` returned min/max/avg/sum only — the model had to compute both
+#: from raw rows, which a 2B model does not do (asked for the median deep-sleep
+#: percentage it answered with a single day's value).
+_STAT_MEDIAN = (
+    "CASE WHEN COUNT(DISTINCT unit_ucum) <= 1 THEN PERCENTILE_CONT(0.5)"
+    " WITHIN GROUP (ORDER BY value_num)"
+    f" WHEN {_COMMON_CANONICAL} THEN PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY value_canonical) END"
+)
+_STAT_STDDEV = (
+    "CASE WHEN COUNT(DISTINCT unit_ucum) <= 1 THEN STDDEV_SAMP(value_num)"
+    f" WHEN {_COMMON_CANONICAL} THEN STDDEV_SAMP(value_canonical) END"
+)
+
 # Propagate the evidence status of the rows actually used by each result:
 # an out-of-window or unelected reading must not taint an unrelated answer.
 _UNVERIFIED_ROW = f"o.modality = '{MODALITY_UNVERIFIED}' AS unverified"
@@ -535,6 +553,8 @@ class PostgresHealthQuery:
                    {_STAT_VALUE.format(agg="MIN")} AS min,
                    {_STAT_VALUE.format(agg="MAX")} AS max,
                    {_STAT_AVG} AS avg,
+                   {_STAT_MEDIAN} AS median,
+                   {_STAT_STDDEV} AS stddev,
                    {_STAT_VALUE.format(agg="SUM")} AS sum,
                    (ARRAY_AGG(value_text ORDER BY at ASC))[1] AS first,
                    to_char((ARRAY_AGG(local_date ORDER BY at ASC))[1], 'YYYY-MM-DD') AS first_date,
@@ -922,6 +942,8 @@ def _stats_row(r: dict) -> dict:
         "min": _number(r.get("min")),
         "max": _number(r.get("max")),
         "avg": _number(r.get("avg")),
+        "median": _number(r.get("median")),
+        "stddev": _number(r.get("stddev")),
         "sum": _number(r.get("sum")),
         "first": _shown(r.get("first"), r.get("unit")),
         "first_date": r.get("first_date") or "",
