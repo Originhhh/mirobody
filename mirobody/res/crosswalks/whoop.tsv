@@ -49,7 +49,7 @@ sleep	nap	napDuration			布尔标记 + 时段；LOINC 无小睡码
 workout	score.strain	workoutStrain			厂商专有分
 workout	score.average_heart_rate	dailyHeartRateAvg	103205-1	unverified	单次运动均值,非日均;`103205-1` 的 TIME_ASPCT=XXX 可容纳,但口径须声明
 workout	score.max_heart_rate	dailyHeartRateMax	101692-2	unverified	同上
-workout	score.distance_meter		103208-5	unverified	generic distance, all activities; the catalogue's walkingRunningDistances is walking or running only (112427-0); spec 注：仅部分运动存在
+workout	score.distance_meter		103208-5	unverified	【未映射：本仓无该码的指标】 generic distance, all activities; the catalogue's walkingRunningDistances is walking or running only (112427-0); spec 注：仅部分运动存在
 workout	score.percent_recorded				心率数据完整度百分比。建议接进置信分级
 workout	score.zone_durations				WHOOP 五区与本仓五区、LOINC 三区+最大区互不对齐,不落码
 user	measurement.body.height_meter	heights	8302-2	confident	

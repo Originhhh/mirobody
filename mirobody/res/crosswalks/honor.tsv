@@ -32,7 +32,7 @@ RECORD_HEART_HEALTH	maxHeartRate / minHeartRate	dailyHeartRateMax	101692-2	unver
 RECORD_HEART_HEALTH	maxHeartRate / minHeartRate	dailyHeartRateMin	103222-6	unverified	side=android; 心率过速过缓事件内的极值（30,255），不是日统计极值 —— 语义不同，勿与上面共码
 RECORD_HEART_HEALTH	warningLimit / warningType				side=android; 告警阈值与类型（0过高/1过低）。阈值是设置值不是测量值
 BLOOD_OXYGEN	bloodOxygen	oxygenSaturations	59408-5	confident	side=cloud; %；采样数据
-BLOOD_OXYGEN (daily)	averageValue		103209-3	unverified	side=cloud; 血氧均值；`103209-3` PROPERTY=NRat 是 LOINC 缺陷(see docs/device-crosswalk.md)
+BLOOD_OXYGEN (daily)	averageValue		103209-3	unverified	【未映射：本仓无该码的指标】 side=cloud; 血氧均值；`103209-3` PROPERTY=NRat 是 LOINC 缺陷(see docs/device-crosswalk.md)
 BLOOD_OXYGEN (daily)	maxValue / minValue				side=cloud; LOINC 无日最高/最低血氧码
 BLOOD_PRESSURE	highPressure	systolicPressures	8480-6	confident	side=cloud; mmHg
 BLOOD_PRESSURE	lowPressure	diastolicPressures	8462-4	confident	side=cloud; mmHg
@@ -67,8 +67,8 @@ SAMPLE_MAX_VO2	maxVO2Level				side=android; 7 档（1低/2业余/3一般/4平均
 SAMPLE_MAX_VO2	sportType				side=android; 1户外跑步/2步行/3骑行/5室内跑步/21跳绳
 SAMPLE_STEPS	step	steps	55423-8	confident	side=android; 步；采样粒度固定 1 分钟一条（(0,500]），写入时会裁剪到整分钟
 STEPS (daily)	steps	dailySteps	41950-7	confident	side=cloud; 步，>=0
-distance.read			103208-5	confident	generic distance, all activities; the catalogue's walkingRunningDistances is walking or running only (112427-0); side=cloud; scope 描述原文「距离和爬高」—— 两者共用一个 scope
-distance.read			101687-2	unverified	generic distance, all activities; the catalogue's walkingRunningDistances is walking or running only (112427-0); side=cloud; 爬高走同一 scope，字段名未单独核实
+distance.read			103208-5	confident	【未映射：本仓无该码的指标】 generic distance, all activities; the catalogue's walkingRunningDistances is walking or running only (112427-0); side=cloud; scope 描述原文「距离和爬高」—— 两者共用一个 scope
+distance.read		altitudeGain	101687-2	unverified	爬高与距离共用 scope，字段名未单独核实 → 先挂 altitudeGain (101687-2)
 calories.read		activeCalories	41981-2	unverified	side=cloud; scope 描述原文「热量（包括基础代谢）」—— 与本仓 activeCalories（仅活动能量）口径不同，须核是否可分离
 strength.read		exerciseMinutes	101691-4	unverified	side=cloud; 中高强度数据；口径同华为，比 `101691-4`（全部身体活动）窄
 speed.read		speeds			side=cloud; LOINC 无 Pt 瞬时速度码

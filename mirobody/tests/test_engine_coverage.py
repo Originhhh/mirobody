@@ -1448,3 +1448,29 @@ def test_a_posting_row_is_an_axis_row_and_never_a_skipped_code(resolver):
     skipped = set((read_member("loinc_skip.txt") or b"").split())
     assert skipped, "loinc_skip.txt is missing or empty"
     assert skipped.isdisjoint(axis.field_raw(row, AXIS_CODE) for row in range(len(axis)))
+
+
+def test_a_row_that_names_a_code_but_no_metric_says_so():
+    """A crosswalk row may record "this vendor field is this LOINC" without the
+    catalogue carrying an indicator for it. That is a legitimate note, but a
+    reader cannot tell it from a mapping that works: the runtime keys on the
+    metric, so loinc alone stores nothing. Such rows carry an explicit marker.
+
+    19 rows were in that state on 2026-10-28; one of them (Honor's elevation)
+    had an indicator available and was mapped, the rest are marked.
+    """
+    from mirobody.standardize import devices
+
+    marker = "【未映射：本仓无该码的指标】"
+    unmarked = []
+    marked = 0
+    for vendor in devices.VENDORS:
+        for row in devices.vendor_fields(vendor):
+            if row.metric or not row.loinc:
+                continue
+            if marker in row.note:
+                marked += 1
+            else:
+                unmarked.append(f"{vendor}:{row.key} {row.loinc}")
+    assert not unmarked, unmarked[:6]
+    assert marked >= 10, marked

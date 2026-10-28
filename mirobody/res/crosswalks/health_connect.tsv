@@ -32,12 +32,12 @@ BloodGlucoseRecord		bloodGlucoses	2339-0	confident	含 relationToMeal / specimen
 BodyTemperatureRecord		bodyTemperatures	8310-5	confident	含 measurementLocation 枚举
 BasalBodyTemperatureRecord					LOINC 有基础体温码族（生育相关），本仓无对应 member
 SkinTemperatureRecord		skinTemperature	61008-9	unverified	本次更正上一轮结论：`61008-9` Body surface temperature 是 Temp/Qn/SYSTEM=Surface，是定量体表温度码（IEEE MDC_TEMP_BODY）。HC 该 Record 有 `baseline`（绝对值）+ `deltas`（偏差）+ `measurementLocation`。落码规则见下三行
-SkinTemperatureRecord	baseline+measurementLocation=FINGER		60830-7	confident	Finger temperature，Temp/Qn/SYSTEM=Finger —— 戒指类设备（Oura）的精确落点
-SkinTemperatureRecord	baseline+measurementLocation=TOE		60833-1	confident	Toe temperature
+SkinTemperatureRecord	baseline+measurementLocation=FINGER		60830-7	confident	【未映射：本仓无该码的指标】 Finger temperature，Temp/Qn/SYSTEM=Finger —— 戒指类设备（Oura）的精确落点
+SkinTemperatureRecord	baseline+measurementLocation=TOE		60833-1	confident	【未映射：本仓无该码的指标】 Toe temperature
 SkinTemperatureRecord	deltas	temperatureDelta			偏差量不是温度量，LOINC 无「相对基线温差」码；同 Fitbit tempSkin.nightlyRelative
 StepsRecord		steps	55423-8	confident	count；日汇总用 41950-7
 StepsCadenceRecord		cadence			LOINC 无步频码（轴表 Cadence 0 命中）
-DistanceRecord			103208-5	confident	generic distance, all activities; the catalogue's walkingRunningDistances is walking or running only (112427-0); Distance traveled（2.75）
+DistanceRecord			103208-5	confident	【未映射：本仓无该码的指标】 generic distance, all activities; the catalogue's walkingRunningDistances is walking or running only (112427-0); Distance traveled（2.75）
 ElevationGainedRecord		altitudeGain	101687-2	confident	新增：Elevation climbed（2.75），LRat/Qn
 FloorsClimbedRecord		floors	100304-5	confident	Flights climbed [#] Reporting Period；24H 用 93833-2
 ActiveCaloriesBurnedRecord		activeCalories	41981-2	confident	Calories burned

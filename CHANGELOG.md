@@ -2,6 +2,13 @@
 
 ### Fixed
 
+- **A crosswalk row that names a code but no indicator now says so.** The
+  runtime keys on the catalogue metric, so a row carrying a LOINC with no
+  metric stores nothing — 19 rows were in that state, indistinguishable from a
+  working mapping to a reader. One of them (Honor's elevation, 101687-2) had an
+  indicator available and is now mapped to `altitudeGain`; the other 18 carry
+  the marker 【未映射：本仓无该码的指标】, and a test requires it.
+
 - **Distance is split the way LOINC splits it.** LOINC names four activities'
   distance separately — 93817-5 Running distance, 93816-7 Swimming distance,
   41953-1 Walking distance, 55412-1 Exercise distance — and the catalogue only
