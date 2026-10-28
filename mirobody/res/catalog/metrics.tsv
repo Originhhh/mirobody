@@ -542,3 +542,7 @@ RIBOFLAVIN_BLD	riboflavinBld	Riboflavin [Mass/volume] in Blood	Medical Metrics	u
 VANILLYLMANDELATE_URINE	vanillylmandelateUrine	Vanillylmandelate [Mass/volume] in Urine	Medical Metrics	mg/dL	mg/dL	series	instant	last	9624-8	confident	00:00		last		Vanillylmandelate [Mass/volume] in Urine	1.4.0
 CORTISOL_PM_TROUGH_SPECIMEN_SER_PLAS	cortisolPMTroughSpecimenSerPlas	Cortisol^PM trough specimen	Medical Metrics	ug/dL	ug/dL	series	instant	last	9812-9	confident	00:00		last		Cortisol [Mass/volume] in Serum or Plasma --PM trough specimen	1.4.0
 CORTISOL_AM_PEAK_SPECIMEN_SER_PLAS	cortisolAMPeakSpecimenSerPlas	Cortisol^AM peak specimen	Medical Metrics	ug/dL	ug/dL	series	instant	last	9813-7	confident	00:00		last		Cortisol [Mass/volume] in Serum or Plasma --AM peak specimen	1.4.0
+RUNNING_DISTANCE	runningDistances	Running Distance	Activity Metrics	m	m	series	cumulative	sum_delta	93817-5	confident	00:00		total		Total running distance	1.5.10
+SWIMMING_DISTANCE	swimmingDistances	Swimming Distance	Activity Metrics	m	m	series	cumulative	sum_delta	93816-7	confident	00:00		total		Total swimming distance	1.5.10
+WALKING_DISTANCE	walkingDistances	Walking Distance	Activity Metrics	m	m	series	cumulative	sum_delta	41953-1	confident	00:00		total		Total walking distance	1.5.10
+EXERCISE_DISTANCE	exerciseDistances	Exercise Distance	Activity Metrics	m	m	series	cumulative	sum_delta	55412-1	confident	00:00		total		Distance covered by any recorded exercise	1.5.10

@@ -2,6 +2,15 @@
 
 ### Fixed
 
+- **Distance is split the way LOINC splits it.** LOINC names four activities'
+  distance separately — 93817-5 Running distance, 93816-7 Swimming distance,
+  41953-1 Walking distance, 55412-1 Exercise distance — and the catalogue only
+  carried cycling (93818-3) plus a generic \`DISTANCE\` whose code,
+  112427-0, is 'Distance walking or running'. A treadmill run therefore landed
+  on the walking-or-running indicator and answered "how far did I walk" with
+  the running figure. The catalogue carries the four now, so a source that
+  knows the activity can file it where LOINC puts it.
+
 - **A keyword search reaches every series that shares a name.** `_by_keywords`
   kept one series per printed or display name (`dict.setdefault`), so when a
   lab and a device filed the same analyte under the same name, the second
