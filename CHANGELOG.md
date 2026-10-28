@@ -2,6 +2,13 @@
 
 ### Fixed
 
+- **Health Connect activity intensity is filed by level, not by position.**
+  The record carries `moderate` and `vigorous` only — there is no light tier —
+  and the two rows left the field blank and mapped to light (101688-0) and
+  moderate (101689-8). Two blank fields are also one key, so the resolver saw a
+  two-row group it could not disambiguate and filed neither. They now name
+  `moderate` and `vigorous` against 101689-8 and 101690-6.
+
 - **Distance is split the way LOINC splits it.** LOINC names four activities'
   distance separately — 93817-5 Running distance, 93816-7 Swimming distance,
   41953-1 Walking distance, 55412-1 Exercise distance — and the catalogue only
