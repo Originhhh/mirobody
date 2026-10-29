@@ -546,6 +546,9 @@ RUNNING_DISTANCE	runningDistances	Running Distance	Activity Metrics	m	m	series	c
 SWIMMING_DISTANCE	swimmingDistances	Swimming Distance	Activity Metrics	m	m	series	cumulative	sum_delta	93816-7	confident	00:00		total		Total swimming distance	1.5.10
 WALKING_DISTANCE	walkingDistances	Walking Distance	Activity Metrics	m	m	series	cumulative	sum_delta	41953-1	confident	00:00		total		Total walking distance	1.5.10
 EXERCISE_DISTANCE	exerciseDistances	Exercise Distance	Activity Metrics	m	m	series	cumulative	sum_delta	55412-1	confident	00:00		total		Distance covered by any recorded exercise	1.5.10
+WAKE_AFTER_SLEEP_ONSET	waso	Wake After Sleep Onset	Sleep Metrics	ms	ms	series	provider_daily	provider_value	103215-0	confident	18:00				Time awake after falling asleep; WASO, not total awake time	1.5.10
+ALTITUDE	altitudes	Altitude	Activity Metrics	m	m	series	instant	last	41905-1	confident	00:00				Altitude above sea level at a moment	1.5.10
+BLOOD_GLUCOSE_MOLES	bloodGlucoseMoles	Blood Glucose (mmol/L)	Medical Metrics	mmol/L	mmol/L	series	instant	last	15074-8	confident	00:00		last		Glucose [Moles/volume] in Blood	1.5.10
 DNA_SINGLE_STRAND_AB_IGG_SER	dNASingleStrandAbIgGSer	DNA single strand IgG Ab [Units/volume] in Serum	Medical Metrics	[arb'U]/mL	[arb'U]/mL	series	instant	last	10360-6	confident	00:00		last		DNA single strand IgG Ab [Units/volume] in Serum	1.4.0
 COTININE_URINE	cotinineUrine	Cotinine [Mass/volume] in Urine	Medical Metrics	ng/mL	ng/mL	series	instant	last	10366-3	confident	00:00		last		Cotinine [Mass/volume] in Urine	1.4.0
 LUTROPIN_SER_PLAS	lutropinSerPlas	Lutropin [Units/volume] in Serum or Plasma	Medical Metrics	m[IU]/mL	m[IU]/mL	series	instant	last	10501-5	confident	00:00		last		Lutropin [Units/volume] in Serum or Plasma	1.4.0
