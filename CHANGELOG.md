@@ -2,6 +2,13 @@
 
 ### Fixed
 
+- **A crosswalk row that names a code but no indicator now says so.** The
+  runtime needs a mapped metric, so a candidate LOINC alone does not establish
+  an active mapping. Such rows now carry an explicit unmapped marker without
+  claiming the catalogue lacks that code. Honor's elevation remains unmapped
+  because its distinct vendor field has not been verified: sharing the
+  distance permission scope cannot identify a measurement. Regression tests
+  check both the notes and the actual scope lookup.
 - **Health Connect activity intensity is filed by level, not by position.**
   The record carries `moderate` and `vigorous` only — there is no light tier —
   and the two rows left the field blank and mapped to light (101688-0) and

@@ -1450,6 +1450,30 @@ def test_a_posting_row_is_an_axis_row_and_never_a_skipped_code(resolver):
     assert skipped.isdisjoint(axis.field_raw(row, AXIS_CODE) for row in range(len(axis)))
 
 
+def test_a_row_that_names_a_code_but_no_metric_says_so():
+    """A candidate code with no metric is not an active vendor mapping.
+
+    The catalogue may already carry the code while the vendor's field or
+    aggregation shape remains unverified. The note must not imply either
+    successful integration or absence of that code from the catalogue.
+    """
+    from mirobody.standardize import devices
+
+    markers = ("【未映射：尚未接入本仓指标】", "【未映射：厂商字段未核实】")
+    unmarked = []
+    marked = 0
+    for vendor in devices.VENDORS:
+        for row in devices.vendor_fields(vendor):
+            if row.metric or not row.loinc:
+                continue
+            if any(marker in row.note for marker in markers):
+                marked += 1
+            else:
+                unmarked.append(f"{vendor}:{row.key} {row.loinc}")
+    assert not unmarked, unmarked[:6]
+    assert marked >= 10, marked
+
+
 def test_a_multi_metric_record_names_its_fields():
     """A record that carries several metrics must say which field is which.
 

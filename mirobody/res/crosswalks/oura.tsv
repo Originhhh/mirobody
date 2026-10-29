@@ -71,7 +71,7 @@ daily_cardiovascular_age	vascular_age	bodyAge			LOINC 无血管年龄 / 体能�
 daily_cardiovascular_age	pulse_wave_velocity	pulseWaveVelocity	77196-4	confident	新增：`77196-4` Pulse wave velocity，Vel/Qn —— 本仓无对应 member,建议新增
 vO2_max	vo2_max	vo2Maxs	94122-9	unverified	Oura 为估算值,非 CPET
 workout	calories	activeCalories	41981-2	unverified	单次运动,非日汇总
-workout	distance		103208-5	unverified	generic distance, all activities; the catalogue's walkingRunningDistances is walking or running only (112427-0); 换算量不是实测距离,须声明
+workout	distance		103208-5	unverified	【未映射：尚未接入本仓指标】 generic distance, all activities; the catalogue's walkingRunningDistances is walking or running only (112427-0); 换算量不是实测距离,须声明
 workout	intensity	trainingLoad	103223-4	unverified	`103223-4` Workout intensity 是 Type/Ord；Oura 是枚举,SCALE 相符,但取值域须映射
 session	heart_rate_variability	hrvDatas			冥想/呼吸练习会话内的 HRV,同为 RMSSD,无码
 sleep_time	optimal_bedtime				推荐入睡窗口,不是测量值
