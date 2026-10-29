@@ -2,6 +2,12 @@
 
 ### Fixed
 
+- **Health Connect activity intensity is filed by level, not by position.**
+  The record carries `moderate` and `vigorous` only — there is no light tier —
+  and the two rows left the field blank and mapped to light (101688-0) and
+  moderate (101689-8). Two blank fields are also one key, so the resolver saw a
+  two-row group it could not disambiguate and filed neither. They now name
+  `moderate` and `vigorous` against 101689-8 and 101690-6.
 - **Vendor crosswalks corrected against the vendors' own documentation.** A
   field-by-field review of Apple, Fitbit, Garmin, Huawei and Samsung (235 rows)
   found seven mappings whose catalogue quantities did not match the fields.
