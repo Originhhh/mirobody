@@ -2,6 +2,13 @@
 
 ### Fixed
 
+- **Valid LOINC units no longer exclude queryable laboratory orders.** The
+  generator accepted only a small hand-written unit list, dropping orders
+  whose declared UCUM unit was already supported by the unit-family table.
+  Both sources now validate the code's PROPERTY, admitting 352 additional
+  catalogue rows. Their displays, numeric readings, units and six LOINC axes
+  are checked against the source manifest.
+
 - **Distance is split the way LOINC splits it.** LOINC names four activities'
   distance separately — 93817-5 Running distance, 93816-7 Swimming distance,
   41953-1 Walking distance, 55412-1 Exercise distance — and the catalogue only
