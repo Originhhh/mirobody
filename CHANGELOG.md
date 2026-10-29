@@ -13,6 +13,12 @@
   unspecified-time indicator; Apple's step *length* (metres) no longer lands in
   the step *duration* (ms) series; and Samsung's apnoea field, an enum of
   detected / not detected, is no longer read as an AHI index.
+- **Valid LOINC units no longer exclude queryable laboratory orders.** The
+  generator accepted only a small hand-written unit list, dropping orders
+  whose declared UCUM unit was already supported by the unit-family table.
+  Both sources now validate the code's PROPERTY, admitting 352 additional
+  catalogue rows. Their displays, numeric readings, units and six LOINC axes
+  are checked against the source manifest.
 
 - **Distance is split the way LOINC splits it.** LOINC names four activities'
   distance separately — 93817-5 Running distance, 93816-7 Swimming distance,
@@ -22,6 +28,17 @@
   on the walking-or-running indicator and answered "how far did I walk" with
   the running figure. The catalogue carries the four now, so a source that
   knows the activity can file it where LOINC puts it.
+- **The alias index keeps the names LOINC actually prints.** The key cap was 50
+  characters, carried over from the index this replaced, and it dropped 81 of
+  the 287 codes this catalogue carries: their official long names are longer
+  ("Lactate dehydrogenase [Enzymatic activity/volume] in Serum or Plasma by
+  Lactate to pyruvate reaction" is 112). The cap is now 120, which is above
+  every laboratory designation in LOINC 2.83; the classifier-word cap still
+  refuses anything that names hundreds of codes. Measured on the catalogue:
+  long-name recall 73.9% -> 99.3%, short-name 99.3%, and the names a code
+  carried before its current one ("Lactate Dehydrogenase (LDH), Blood") answer
+  again — 721 -> 1,128 of 1,159 — so no override rows are needed for them. The
+  bundle grows 12.7 -> 17.1 MB.
 
 - **A keyword search reaches every series that shares a name.** `_by_keywords`
   kept one series per printed or display name (`dict.setdefault`), so when a
