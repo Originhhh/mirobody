@@ -3,11 +3,12 @@
 ### Fixed
 
 - **A crosswalk row that names a code but no indicator now says so.** The
-  runtime keys on the catalogue metric, so a row carrying a LOINC with no
-  metric stores nothing — 19 rows were in that state, indistinguishable from a
-  working mapping to a reader. One of them (Honor's elevation, 101687-2) had an
-  indicator available and is now mapped to `altitudeGain`; the other 18 carry
-  the marker 【未映射：本仓无该码的指标】, and a test requires it.
+  runtime needs a mapped metric, so a candidate LOINC alone does not establish
+  an active mapping. Such rows now carry an explicit unmapped marker without
+  claiming the catalogue lacks that code. Honor's elevation remains unmapped
+  because its distinct vendor field has not been verified: sharing the
+  distance permission scope cannot identify a measurement. Regression tests
+  check both the notes and the actual scope lookup.
 - **Health Connect activity intensity is filed by level, not by position.**
   The record carries `moderate` and `vigorous` only — there is no light tier —
   and the two rows left the field blank and mapped to light (101688-0) and

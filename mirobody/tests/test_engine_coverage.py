@@ -1451,24 +1451,22 @@ def test_a_posting_row_is_an_axis_row_and_never_a_skipped_code(resolver):
 
 
 def test_a_row_that_names_a_code_but_no_metric_says_so():
-    """A crosswalk row may record "this vendor field is this LOINC" without the
-    catalogue carrying an indicator for it. That is a legitimate note, but a
-    reader cannot tell it from a mapping that works: the runtime keys on the
-    metric, so loinc alone stores nothing. Such rows carry an explicit marker.
+    """A candidate code with no metric is not an active vendor mapping.
 
-    19 rows were in that state on 2026-10-28; one of them (Honor's elevation)
-    had an indicator available and was mapped, the rest are marked.
+    The catalogue may already carry the code while the vendor's field or
+    aggregation shape remains unverified. The note must not imply either
+    successful integration or absence of that code from the catalogue.
     """
     from mirobody.standardize import devices
 
-    marker = "【未映射：本仓无该码的指标】"
+    markers = ("【未映射：尚未接入本仓指标】", "【未映射：厂商字段未核实】")
     unmarked = []
     marked = 0
     for vendor in devices.VENDORS:
         for row in devices.vendor_fields(vendor):
             if row.metric or not row.loinc:
                 continue
-            if marker in row.note:
+            if any(marker in row.note for marker in markers):
                 marked += 1
             else:
                 unmarked.append(f"{vendor}:{row.key} {row.loinc}")
