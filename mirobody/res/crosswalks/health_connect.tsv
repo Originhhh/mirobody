@@ -28,7 +28,7 @@ HeartRateVariabilityRmssdRecord		hrvRMSSD			类名即 Rmssd。LOINC 只有 SDNN�
 OxygenSaturationRecord		oxygenSaturations	59408-5	confident	percentage；设备为脉搏血氧，用 METHOD=Pulse oximetry 的码
 RespiratoryRateRecord		respiratoryRates	9279-1	confident	rate: breaths/min
 BloodPressureRecord		systolicPressures	8480-6	confident	另有 diastolic → 8462-4；含 bodyPosition / measurementLocation 枚举
-BloodGlucoseRecord		bloodGlucoses	2339-0	confident	含 relationToMeal / specimenSource 枚举；若为血糖仪可用 41653-7
+BloodGlucoseRecord		bloodGlucoseMoles	15074-8	confident	含 relationToMeal / specimenSource 枚举；若为血糖仪可用 41653-7
 BodyTemperatureRecord		bodyTemperatures	8310-5	confident	含 measurementLocation 枚举
 BasalBodyTemperatureRecord					LOINC 有基础体温码族（生育相关），本仓无对应 member
 SkinTemperatureRecord		skinTemperature	61008-9	unverified	本次更正上一轮结论：`61008-9` Body surface temperature 是 Temp/Qn/SYSTEM=Surface，是定量体表温度码（IEEE MDC_TEMP_BODY）。HC 该 Record 有 `baseline`（绝对值）+ `deltas`（偏差）+ `measurementLocation`。落码规则见下三行

@@ -53,13 +53,24 @@ def test_each_display_and_numeric_reading_answers_its_own_code():
 
 
 def test_each_unit_matches_its_code_property():
+    """The unit a row carries must be able to express its code's PROPERTY.
+
+    EXPECTED_PROPERTY names the units the first batch used. The later batches
+    take their units from LOINC's own EXAMPLE_UCUM_UNITS, so a unit the table
+    does not name falls back to the repository's mapping
+    (mirobody.units.families), which is the same authority the generator reads
+    and which test_unit_families_vs_loinc.py guards against the LOINC release.
+    """
+    from mirobody.units import unit_families
+
     resolver = get_resolver()
     for expected in _manifest():
         unit = expected["unit_ucum"]
-        assert unit in EXPECTED_PROPERTY, (expected["member"], unit)
         axes = resolver.axes_of(expected["loinc"])
         assert axes is not None, expected["member"]
-        assert axes[1] in EXPECTED_PROPERTY[unit], expected["member"]
+        families = EXPECTED_PROPERTY.get(unit) or unit_families(unit)
+        assert families, (expected["member"], unit)
+        assert axes[1] in families, (expected["member"], unit, axes[1], sorted(families))
 
 
 def test_all_six_axes_match_the_source_release():
