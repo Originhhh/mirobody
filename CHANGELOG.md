@@ -4,15 +4,17 @@
 
 - **Vendor crosswalks corrected against the vendors' own documentation.** A
   field-by-field review of Apple, Fitbit, Garmin, Huawei and Samsung (235 rows)
-  found seven mappings that would store the wrong quantity. Huawei's blood
-  glucose arrives in mmol/L and was filed under the mg/dL code — an 18x error —
-  and now uses `15074-8`; its altitude, metres sampled per moment, was mapped to
+  found seven mappings whose catalogue quantities did not match the fields.
+  Molar blood glucose now names `bloodGlucoseMoles` (`15074-8`), while printed
+  mass units still select the mass-concentration sibling during coding.
+  Huawei's altitude, metres sampled per moment, was mapped to
   "Elevation climbed" and now uses `41905-1` (new `altitudes`); Fitbit's and
   Huawei's awake-at-night duration is WASO and now uses `103215-0` (new `waso`);
   Fitbit's daily step series now targets `dailySteps` (41950-7) instead of the
   unspecified-time indicator; Apple's step *length* (metres) no longer lands in
   the step *duration* (ms) series; and Samsung's apnoea field, an enum of
   detected / not detected, is no longer read as an AHI index.
+
 - **Valid LOINC units no longer exclude queryable laboratory orders.** The
   generator accepted only a small hand-written unit list, dropping orders
   whose declared UCUM unit was already supported by the unit-family table.
