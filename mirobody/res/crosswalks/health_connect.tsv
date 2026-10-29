@@ -37,7 +37,7 @@ SkinTemperatureRecord	baseline+measurementLocation=TOE		60833-1	confident	【未
 SkinTemperatureRecord	deltas	temperatureDelta			偏差量不是温度量，LOINC 无「相对基线温差」码；同 Fitbit tempSkin.nightlyRelative
 StepsRecord		steps	55423-8	confident	count；日汇总用 41950-7
 StepsCadenceRecord		cadence			LOINC 无步频码（轴表 Cadence 0 命中）
-DistanceRecord			103208-5	confident	【未映射：尚未接入本仓指标】 generic distance, all activities; the catalogue's walkingRunningDistances is walking or running only (112427-0); Distance traveled（2.75）
+DistanceRecord			103208-5	confident	【未映射：尚未接入本仓指标】 an interval record: 'distance travelled by the user since the last reading. The total distance over an interval can be calculated by adding together all the values'. dailyDistance keeps one value a day and would keep the last interval; the catalogue has no summed any-activity distance
 ElevationGainedRecord		altitudeGain	101687-2	confident	新增：Elevation climbed（2.75），LRat/Qn
 FloorsClimbedRecord		floors	100304-5	confident	Flights climbed [#] Reporting Period；24H 用 93833-2
 ActiveCaloriesBurnedRecord		activeCalories	41981-2	confident	Calories burned

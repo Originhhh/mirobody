@@ -50,7 +50,7 @@ com.huawei.instantaneous.height		heights	8302-2	confident	本仓已有
 com.huawei.instantaneous.body_weight		bodyMasss	29463-7	confident	本仓已有（华为体脂称 / 三方生态设备）
 com.huawei.continuous.steps.delta		steps	55423-8	confident	Number of steps in unspecified time，METHOD=Pedometer；华为为 delta 累积，与本仓 sum_delta 相符
 com.huawei.daily_activity_summary		dailySteps	41950-7	confident	Number of steps in 24 hour Measured
-com.huawei.continuous.distance.delta			103208-5	confident	【未映射：尚未接入本仓指标】 generic distance, all activities; the catalogue's walkingRunningDistances is walking or running only (112427-0); Distance traveled（2.75）
+com.huawei.continuous.distance.delta			103208-5	confident	【未映射：尚未接入本仓指标】 'Distance covered since the last reading (unit: meter)', an increment. dailyDistance keeps one value a day and would keep the last increment; distance.total is the daily figure. The catalogue has no summed any-activity distance
 com.huawei.continuous.calories.burnt		activeCalories	41981-2	confident	Calories burned
 com.huawei.continuous.exercise_intensity.v2	exercise_type				2026-09-09 修正（上一轮映到 101689-8/101690-6 是错的）：字段级文档显示该类型的字段是 `exercise_type`——运动种类枚举（1 步行/2 跑步/3 骑行/4 训练/5 心率(无实际意义)/6 爬高/7 游泳），不是强度档位。LOINC 的 moderate/vigorous 是强度分档，两者不同维度，不可映射
 com.huawei.continuous.exercise_intensity.v2.statistics	totalIntensity	exerciseMinutes	101691-4	unverified	总锻炼时长（分钟）→ `101691-4` Duration of physical activity（Time/Qn）。注意华为口径是「中高强度」时长，而 `101691-4` 是全部身体活动时长，范围更宽，故 unverified
