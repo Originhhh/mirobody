@@ -146,14 +146,14 @@ SLEEP_ASLEEP_CORE	sleepAnalysis_Asleep(Core)	Sleep Asleep Core	Sleep Metrics	ms	
 SLEEP_ASLEEP_DEEP	sleepAnalysis_Asleep(Deep)	Sleep Asleep Deep	Sleep Metrics	ms	ms	series	session	duration_union	93831-6	confident	18:00				Deep sleep time	1.4.0
 SLEEP_ASLEEP_REM	sleepAnalysis_Asleep(REM)	Sleep Asleep REM	Sleep Metrics	ms	ms	series	session	duration_union	93829-0	confident	18:00				REM sleep time	1.4.0
 SLEEP_AWAKE	sleepAnalysis_Awake	Sleep Awake	Sleep Metrics	ms	ms	series	session	duration_union	103210-1	unverified	18:00				Awake time during sleep period	1.4.0
-SLEEP_CONSISTENCY	sleepConsistency	Sleep Consistency	Sleep Metrics	%	%	series	session	duration_union			18:00				Sleep consistency percentage measuring sleep routine regularity	1.4.0
-SLEEP_DISTURBANCES	sleepDisturbances	Sleep Disturbances	Sleep Metrics	count	{#}	series	session	duration_union	103211-9	confident	18:00		total		Number of disturbances and awakenings during sleep	1.4.0
+SLEEP_CONSISTENCY	sleepConsistency	Sleep Consistency	Sleep Metrics	%	%	series	instant	last			18:00				Sleep consistency percentage measuring sleep routine regularity	1.4.0
+SLEEP_DISTURBANCES	sleepDisturbances	Sleep Disturbances	Sleep Metrics	count	{#}	series	instant	last	103211-9	confident	18:00		total		Number of disturbances and awakenings during sleep	1.4.0
 SLEEP_DURATION	sleepDuration	Sleep Duration	Sleep Metrics	hours	h	series	instant	last			18:00				Total sleep time	1.4.0
-SLEEP_EFFICIENCY	sleepEfficiency	Sleep Efficiency	Sleep Metrics	%	%	series	session	duration_union			18:00		avg		Percentage of actual sleep time relative to time in bed	1.4.0
+SLEEP_EFFICIENCY	sleepEfficiency	Sleep Efficiency	Sleep Metrics	%	%	series	instant	last			18:00		avg		Percentage of actual sleep time relative to time in bed	1.4.0
 SLEEP_IN_BED	sleepAnalysis_InBed	Sleep In Bed	Sleep Metrics	ms	ms	series	session	duration_union	103213-5	confident	18:00		total,sleep_onset_latency	sleep_onset_latency	Total time in bed	1.4.0
 SLEEP_LATENCY	sleepLatency	Sleep Latency	Sleep Metrics	seconds	s	series	session	duration_union			18:00				Time from lying down to falling asleep	1.4.0
 SLEEP_NAP	napDuration	Sleep Nap	Sleep Metrics	ms	ms	series	instant	last			18:00				Short daytime nap duration	1.4.0
-SLEEP_PERFORMANCE	sleepPerformance	Sleep Performance	Sleep Metrics	%	%	series	session	duration_union			18:00				Sleep performance score percentage based on actual vs needed sleep time	1.4.0
+SLEEP_PERFORMANCE	sleepPerformance	Sleep Performance	Sleep Metrics	%	%	series	instant	last			18:00				Sleep performance score percentage based on actual vs needed sleep time	1.4.0
 SLEEP_QUALITY	sleepQuality	Sleep Quality	Sleep Metrics	%	%	series	instant	last			18:00				Sleep quality score	1.4.0
 SLEEP_UNSPECIFIED	sleepAnalysis_Asleep(Unspecified)	Sleep Unspecified	Sleep Metrics	ms	ms	series	interval	duration_union	93832-4	confident	18:00				Unclassified sleep time	1.4.0
 SPEED	speeds	Speed	Activity Metrics	m/s	m/s	series	instant	last			00:00				Exercise speed	1.4.0
