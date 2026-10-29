@@ -10,6 +10,24 @@
   guard. Zero remains visible; a single numeric reading has a median but no
   sample standard deviation. Incompatible units yield no invented statistic.
 
+- **A sleep score summarises to the score, not to the night's length.**
+  `sleepEfficiency`, `sleepPerformance`, `sleepConsistency` (percent) and
+  `sleepDisturbances` (a count) are one figure a vendor computes for one
+  sleep, but the catalogue gave them a sleep stage's shape
+  (`session`/`duration_union`), so `series.aggregate` ignored the value and
+  returned the minutes the sleep spans: WHOOP's 91% efficiency became 480,
+  Oura's 93% became 450, and a count with no span became nothing. They are
+  now `instant`/`last`, as `sleepQuality` already was: a re-scored sleep
+  replaces its earlier score instead of being averaged with it.
+  `TERMINOLOGY_VERSION` is 1.5.10. Stored data is untouched: the four stay
+  `series` on the 18:00 day, so readings land in the same table on the same
+  day, and `dailyAvgSleepEfficiency` and `dailyTotalSleepDisturbances`, which
+  read the values all along, are identical before and after on PostgreSQL. A
+  nap on the same 18:00 day still replaces the night's score, because the
+  decoders file naps under the same names. How to tell:
+  `pytest mirobody/tests/test_sleep_scores.py`, which also refuses
+  `duration_union` for any metric whose unit is not a time.
+
 - **A crosswalk row that names a code but no indicator now says so.** The
   runtime needs a mapped metric, so a candidate LOINC alone does not establish
   an active mapping. Such rows now carry an explicit unmapped marker without
