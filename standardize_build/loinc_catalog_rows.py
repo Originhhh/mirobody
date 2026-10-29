@@ -118,7 +118,7 @@ def main(argv: list[str] | None = None) -> int:
     }
 
     from mirobody.engine import get_resolver
-    from mirobody.units import normalize_unit
+    from mirobody.units import normalize_unit, unit_families
 
     resolver = get_resolver()
     rows: list[dict] = []
@@ -145,7 +145,15 @@ def main(argv: list[str] | None = None) -> int:
         if not unit:
             reasons["missing or unrecognized example unit"] += 1
             continue
-        if unit not in PROPERTY_UNITS[prop]:
+        # The hand-written table above only knows the units this catalogue
+        # happened to use. The repository already carries the LOINC PROPERTY
+        # family of every UCUM unit it understands (mirobody.units.families),
+        # and it is what test_unit_families_vs_loinc.py guards. Accepting the
+        # union admits k[IU]/L, [arb'U]/mL and the other units LOINC declares
+        # for a property without loosening anything: a unit still has to name
+        # this code's own property. The table is kept, not replaced — three of
+        # its entries deliberately disagree with the general mapping.
+        if unit not in PROPERTY_UNITS[prop] and prop not in unit_families(unit):
             reasons[f"单位 {unit} 与 PROPERTY {prop} 不符"] += 1
             continue
         component = (rec.get("COMPONENT") or "").strip()
