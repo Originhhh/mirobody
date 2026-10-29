@@ -2,6 +2,14 @@
 
 ### Fixed
 
+- **`view="stats"` exposes a median and sample standard deviation to every
+  caller.** These statistics were unavailable, and adding them to the SQL row
+  alone still left them hidden from the compact output chat and MCP models
+  read. Both the row and the model's table now carry `median`
+  (`PERCENTILE_CONT(0.5)`) and `stddev` (`STDDEV_SAMP`), using the mean's unit
+  guard. Zero remains visible; a single numeric reading has a median but no
+  sample standard deviation. Incompatible units yield no invented statistic.
+
 - **A crosswalk row that names a code but no indicator now says so.** The
   runtime needs a mapped metric, so a candidate LOINC alone does not establish
   an active mapping. Such rows now carry an explicit unmapped marker without
@@ -9,12 +17,14 @@
   because its distinct vendor field has not been verified: sharing the
   distance permission scope cannot identify a measurement. Regression tests
   check both the notes and the actual scope lookup.
+
 - **Health Connect activity intensity is filed by level, not by position.**
   The record carries `moderate` and `vigorous` only — there is no light tier —
   and the two rows left the field blank and mapped to light (101688-0) and
   moderate (101689-8). Two blank fields are also one key, so the resolver saw a
   two-row group it could not disambiguate and filed neither. They now name
   `moderate` and `vigorous` against 101689-8 and 101690-6.
+
 - **Vendor crosswalks corrected against the vendors' own documentation.** A
   field-by-field review of Apple, Fitbit, Garmin, Huawei and Samsung (235 rows)
   found seven mappings whose catalogue quantities did not match the fields.
@@ -43,6 +53,7 @@
   on the walking-or-running indicator and answered "how far did I walk" with
   the running figure. The catalogue carries the four now, so a source that
   knows the activity can file it where LOINC puts it.
+
 - **The alias index keeps the names LOINC actually prints.** The key cap was 50
   characters, carried over from the index this replaced, and it dropped 81 of
   the 287 codes this catalogue carries: their official long names are longer

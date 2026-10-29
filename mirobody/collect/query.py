@@ -116,6 +116,18 @@ _STAT_AVG = (
     f" WHEN {_COMMON_CANONICAL} THEN AVG(value_canonical) END"
 )
 
+#: A spread or median must use the mean's unit basis too: raw mg/dL and
+#: mmol/L values cannot be compared before conversion to a shared unit.
+_STAT_MEDIAN = (
+    "CASE WHEN COUNT(DISTINCT unit_ucum) <= 1 THEN PERCENTILE_CONT(0.5)"
+    " WITHIN GROUP (ORDER BY value_num)"
+    f" WHEN {_COMMON_CANONICAL} THEN PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY value_canonical) END"
+)
+_STAT_STDDEV = (
+    "CASE WHEN COUNT(DISTINCT unit_ucum) <= 1 THEN STDDEV_SAMP(value_num)"
+    f" WHEN {_COMMON_CANONICAL} THEN STDDEV_SAMP(value_canonical) END"
+)
+
 # Propagate the evidence status of the rows actually used by each result:
 # an out-of-window or unelected reading must not taint an unrelated answer.
 _UNVERIFIED_ROW = f"o.modality = '{MODALITY_UNVERIFIED}' AS unverified"
@@ -498,7 +510,7 @@ class PostgresHealthQuery:
         return [_bucket_row(r) for r in rows]
 
     async def stats(self, subject_id: str, sel: query.Selection, window: query.Window) -> list[dict]:
-        """count/min/max/avg/sum/first/last/change per series over the WHOLE
+        """count/min/max/avg/median/stddev/sum/first/last/change over the WHOLE
         window, in SQL, over `_STATS_CTE`: a day with an elected authority
         counts once, as that value; any other day counts every reading.
 
@@ -535,6 +547,8 @@ class PostgresHealthQuery:
                    {_STAT_VALUE.format(agg="MIN")} AS min,
                    {_STAT_VALUE.format(agg="MAX")} AS max,
                    {_STAT_AVG} AS avg,
+                   {_STAT_MEDIAN} AS median,
+                   {_STAT_STDDEV} AS stddev,
                    {_STAT_VALUE.format(agg="SUM")} AS sum,
                    (ARRAY_AGG(value_text ORDER BY at ASC))[1] AS first,
                    to_char((ARRAY_AGG(local_date ORDER BY at ASC))[1], 'YYYY-MM-DD') AS first_date,
@@ -922,6 +936,8 @@ def _stats_row(r: dict) -> dict:
         "min": _number(r.get("min")),
         "max": _number(r.get("max")),
         "avg": _number(r.get("avg")),
+        "median": _number(r.get("median")),
+        "stddev": _number(r.get("stddev")),
         "sum": _number(r.get("sum")),
         "first": _shown(r.get("first"), r.get("unit")),
         "first_date": r.get("first_date") or "",
