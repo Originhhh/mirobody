@@ -55,7 +55,7 @@ HKQuantityTypeIdentifier	stairAscentSpeed	stairAscentSpeed	112431-2	confident	LO
 HKQuantityTypeIdentifier	stairDescentSpeed	stairDescentSpeed	112430-4	confident	LOINC 2.82 新增，Vel/Qn
 HKQuantityTypeIdentifier	appleWalkingSteadiness				LOINC 无行走稳定性码（轴表 0 命中）
 HKQuantityTypeIdentifier	sixMinuteWalkTestDistance	sixMinuteWalkDistance	64098-7	confident	Six minute walk test，Len/6M/Qn
-HKQuantityTypeIdentifier	walkingStepLength	stepDuration			本仓 stepDuration 是时长(ms)，Apple 是步长(m)，口径本身不同；LOINC 无步长码
+HKQuantityTypeIdentifier	walkingStepLength				步长是长度(m)，stepDuration 是时长(ms)，口径不同；LOINC 无步长码，故不落指标
 HKQuantityTypeIdentifier	bodyMass	bodyMasss	29463-7	confident	本仓已有
 HKQuantityTypeIdentifier	height	heights	8302-2	confident	本仓已有
 HKQuantityTypeIdentifier	bodyMassIndex	bmis	39156-5	confident	本仓已有

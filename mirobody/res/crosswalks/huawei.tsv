@@ -45,7 +45,7 @@ com.huawei.instantaneous.stress	grade				等级 1 放松/2 正常/3 中等/4 偏
 com.huawei.instantaneous.stress.statistics	avg				同上
 com.huawei.instantaneous.blood_pressure		systolicPressures	8480-6	confident	本仓已有（Watch D / 生态血压计）
 com.huawei.instantaneous.blood_pressure		diastolicPressures	8462-4	confident	本仓已有
-com.huawei.instantaneous.blood_glucose		bloodGlucoses	2339-0	confident	本仓已有；数据源为三方血糖仪，可改 41653-7（METHOD=Glucometer）更精确
+com.huawei.instantaneous.blood_glucose		bloodGlucoseMoles	15074-8	confident	本仓已有；数据源为三方血糖仪，可改 41653-7（METHOD=Glucometer）更精确
 com.huawei.instantaneous.height		heights	8302-2	confident	本仓已有
 com.huawei.instantaneous.body_weight		bodyMasss	29463-7	confident	本仓已有（华为体脂称 / 三方生态设备）
 com.huawei.continuous.steps.delta		steps	55423-8	confident	Number of steps in unspecified time，METHOD=Pedometer；华为为 delta 累积，与本仓 sum_delta 相符
@@ -55,7 +55,7 @@ com.huawei.continuous.calories.burnt		activeCalories	41981-2	confident	Calories 
 com.huawei.continuous.exercise_intensity.v2	exercise_type				2026-09-09 修正（上一轮映到 101689-8/101690-6 是错的）：字段级文档显示该类型的字段是 `exercise_type`——运动种类枚举（1 步行/2 跑步/3 骑行/4 训练/5 心率(无实际意义)/6 爬高/7 游泳），不是强度档位。LOINC 的 moderate/vigorous 是强度分档，两者不同维度，不可映射
 com.huawei.continuous.exercise_intensity.v2.statistics	totalIntensity	exerciseMinutes	101691-4	unverified	总锻炼时长（分钟）→ `101691-4` Duration of physical activity（Time/Qn）。注意华为口径是「中高强度」时长，而 `101691-4` 是全部身体活动时长，范围更宽，故 unverified
 com.huawei.continuous.exercise_intensity.v2.statistics	intensity_map				Map<exercise_type, 分钟>。按种类拆分的时长，LOINC 无按运动种类分列的时长码
-com.huawei.instantaneous.altitude		altitudeGain			LOINC 无海拔码
+com.huawei.instantaneous.altitude		altitudes	41905-1	confident	官方 altitude 为 Meter 逐时点 → 41905-1 Altitude；不是 Elevation climbed (101687-2)
 com.huawei.active_hours	isActive / activeHours				2026-09-09 定案：不给码。 字段级文档：明细 `isActive`（1=是），统计 `activeHours`=「活动小时数完成次数」。是达标小时的计数，而 `112425-4` Standing time 1 day 是时长（Time/1D）—— PROPERTY 不同，不可用。对应 Apple 的 `appleStandHour`（同为计数，同样无码）
 com.huawei.vo2max		vo2Maxs	94122-9	unverified	同 Apple vo2Max：替换本仓错码 60842-2；94122-9 指 CPET 实测峰值，穿戴为估算，故 unverified
 com.huawei.continuous.sleep.fragment	sleep_state=1	dailyLightSleep	93830-8	confident	浅睡; Light sleep duration —— 华为用「浅睡」原生对应，比 Apple 的 asleepCore 更直接。本仓 dailyLightSleep 留空，可补
@@ -81,7 +81,7 @@ com.huawei.health.record.sleep	all_sleep_time	dailyTotalSleepTime	93832-4	confid
 com.huawei.health.record.sleep	light_sleep_time	dailyLightSleep	93830-8	confident	浅睡时长，分钟 —— 原生「浅睡」，比 Apple asleepCore 直接
 com.huawei.health.record.sleep	deep_sleep_time	dailyDeepSleep	93831-6	confident	深睡时长，分钟
 com.huawei.health.record.sleep	dream_time	dailyRemSleep	93829-0	confident	「快速眼动时长」= REM，分钟
-com.huawei.health.record.sleep	awake_time	dailyAwakeTime	103210-1	unverified	清醒时长；若口径为入睡后累计清醒应改 103215-0 WASO
+com.huawei.health.record.sleep	awake_time	waso	103215-0	unverified	官方原文 Duration of nighttime wakings → WASO 103215-0
 com.huawei.health.record.sleep	wakeup_count	sleepDisturbances	103211-9	confident	清醒次数 → Number of awakenings（2.75）
 com.huawei.health.record.sleep	go_bed_time / off_bed_time	sleepAnalysis_InBed	103213-5	unverified	上床/最后一次离床时间戳，需相减得卧床时长再落 Duration in bed
 com.huawei.health.record.sleep	fall_asleep_time / prepare_sleep_time	dailySleepLatency	103212-7	unverified	准备入睡→入睡的差值 = 入睡潜伏期 → Duration of falling asleep

@@ -8,6 +8,31 @@
   working mapping to a reader. One of them (Honor's elevation, 101687-2) had an
   indicator available and is now mapped to `altitudeGain`; the other 18 carry
   the marker 【未映射：本仓无该码的指标】, and a test requires it.
+- **Health Connect activity intensity is filed by level, not by position.**
+  The record carries `moderate` and `vigorous` only — there is no light tier —
+  and the two rows left the field blank and mapped to light (101688-0) and
+  moderate (101689-8). Two blank fields are also one key, so the resolver saw a
+  two-row group it could not disambiguate and filed neither. They now name
+  `moderate` and `vigorous` against 101689-8 and 101690-6.
+- **Vendor crosswalks corrected against the vendors' own documentation.** A
+  field-by-field review of Apple, Fitbit, Garmin, Huawei and Samsung (235 rows)
+  found seven mappings whose catalogue quantities did not match the fields.
+  Molar blood glucose now names `bloodGlucoseMoles` (`15074-8`), while printed
+  mass units still select the mass-concentration sibling during coding.
+  Huawei's altitude, metres sampled per moment, was mapped to
+  "Elevation climbed" and now uses `41905-1` (new `altitudes`); Fitbit's and
+  Huawei's awake-at-night duration is WASO and now uses `103215-0` (new `waso`);
+  Fitbit's daily step series now targets `dailySteps` (41950-7) instead of the
+  unspecified-time indicator; Apple's step *length* (metres) no longer lands in
+  the step *duration* (ms) series; and Samsung's apnoea field, an enum of
+  detected / not detected, is no longer read as an AHI index.
+
+- **Valid LOINC units no longer exclude queryable laboratory orders.** The
+  generator accepted only a small hand-written unit list, dropping orders
+  whose declared UCUM unit was already supported by the unit-family table.
+  Both sources now validate the code's PROPERTY, admitting 352 additional
+  catalogue rows. Their displays, numeric readings, units and six LOINC axes
+  are checked against the source manifest.
 
 - **Distance is split the way LOINC splits it.** LOINC names four activities'
   distance separately — 93817-5 Running distance, 93816-7 Swimming distance,
@@ -17,6 +42,17 @@
   on the walking-or-running indicator and answered "how far did I walk" with
   the running figure. The catalogue carries the four now, so a source that
   knows the activity can file it where LOINC puts it.
+- **The alias index keeps the names LOINC actually prints.** The key cap was 50
+  characters, carried over from the index this replaced, and it dropped 81 of
+  the 287 codes this catalogue carries: their official long names are longer
+  ("Lactate dehydrogenase [Enzymatic activity/volume] in Serum or Plasma by
+  Lactate to pyruvate reaction" is 112). The cap is now 120, which is above
+  every laboratory designation in LOINC 2.83; the classifier-word cap still
+  refuses anything that names hundreds of codes. Measured on the catalogue:
+  long-name recall 73.9% -> 99.3%, short-name 99.3%, and the names a code
+  carried before its current one ("Lactate Dehydrogenase (LDH), Blood") answer
+  again — 721 -> 1,128 of 1,159 — so no override rows are needed for them. The
+  bundle grows 12.7 -> 17.1 MB.
 
 - **A keyword search reaches every series that shares a name.** `_by_keywords`
   kept one series per printed or display name (`dict.setdefault`), so when a
