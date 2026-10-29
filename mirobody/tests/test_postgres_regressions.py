@@ -9,6 +9,7 @@ from __future__ import annotations
 import argparse
 import importlib
 import os
+import statistics
 from datetime import UTC, datetime
 from pathlib import Path
 from unittest.mock import AsyncMock
@@ -223,12 +224,42 @@ async def test_a_mixed_unit_mean_keeps_its_precision_and_a_single_basis(database
     for row in (stats, month):
         assert row["unit"] == "mol/L"
         assert row["avg"] == pytest.approx(79.7808e-6, rel=1e-5)
+    canonical = [float(r["value_canonical"]) for r in await database(
+        "SELECT value_canonical FROM v_observation WHERE series_id=:series",
+        {"series": stats["series"]}, log_sql=False)]
+    assert stats["median"] == pytest.approx(statistics.median(canonical), rel=1e-12)
+    assert stats["stddev"] == pytest.approx(statistics.stdev(canonical), rel=1e-12)
     # No molar mass joins g/L to mol/L, so there is no mean to give.
     [stats] = await store.stats("1", albumin, window)
     [month] = await store.buckets("1", albumin, window, resolution="month", limit=10)
     assert stats["count"] == 2 and stats["mixed_units"]
+    assert stats["median"] is None and stats["stddev"] is None
     for row in (stats, month):
         assert (row["min"], row["max"], row["avg"], row["unit"]) == (None, None, None, "")
+
+
+@pytest.mark.parametrize("values", [("1", "2", "9"), ("1", "3"), ("0",), ("4", "4")])
+async def test_median_and_sample_spread_use_every_numeric_reading(database, values):
+    from mirobody.collect import observations
+    from mirobody.collect.query import PostgresHealthQuery
+    from mirobody.kernel import query
+
+    drafts = [observations.Draft(name_text="Synthetic spread", value_text=value, unit_text="kg",
+                                observed_start=datetime(2026, 1, day, tzinfo=UTC))
+              for day, value in enumerate(values, start=1)]
+    report = await observations.ingest("1", drafts, observations.Provenance(
+        modality="lab-report", source_kind="file", source_ref="th_files:synthetic-spread"), user_tz="UTC")
+    assert report.inserted == len(values)
+    [stats] = await PostgresHealthQuery().stats(
+        "1", query.Selection(indicators=("Synthetic spread",)), query.Window(0, 0, "UTC"))
+    numbers = [float(value) for value in values]
+    assert stats["count"] == stats["numeric_count"] == len(values)
+    assert stats["median"] == pytest.approx(statistics.median(numbers))
+    assert stats["unit"] == "kg" and not stats["mixed_units"]
+    if len(numbers) == 1:
+        assert stats["stddev"] is None
+    else:
+        assert stats["stddev"] == pytest.approx(statistics.stdev(numbers))
 
 
 async def test_a_reading_of_exactly_one_enters_the_statistics(database):

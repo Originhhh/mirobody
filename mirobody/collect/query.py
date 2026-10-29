@@ -116,14 +116,8 @@ _STAT_AVG = (
     f" WHEN {_COMMON_CANONICAL} THEN AVG(value_canonical) END"
 )
 
-#: The median and the sample standard deviation, under the same unit guard as
-#: the mean: a median across mg/dL and mmol/L is not a median of anything.
-#:
-#: Their absence was a capability gap, not a modelling choice: 393 of PHIA's
-#: 4,000 objective questions ask for a median and 281 for a standard deviation,
-#: and `stats` returned min/max/avg/sum only — the model had to compute both
-#: from raw rows, which a 2B model does not do (asked for the median deep-sleep
-#: percentage it answered with a single day's value).
+#: A spread or median must use the mean's unit basis too: raw mg/dL and
+#: mmol/L values cannot be compared before conversion to a shared unit.
 _STAT_MEDIAN = (
     "CASE WHEN COUNT(DISTINCT unit_ucum) <= 1 THEN PERCENTILE_CONT(0.5)"
     " WITHIN GROUP (ORDER BY value_num)"
@@ -516,7 +510,7 @@ class PostgresHealthQuery:
         return [_bucket_row(r) for r in rows]
 
     async def stats(self, subject_id: str, sel: query.Selection, window: query.Window) -> list[dict]:
-        """count/min/max/avg/sum/first/last/change per series over the WHOLE
+        """count/min/max/avg/median/stddev/sum/first/last/change over the WHOLE
         window, in SQL, over `_STATS_CTE`: a day with an elected authority
         counts once, as that value; any other day counts every reading.
 

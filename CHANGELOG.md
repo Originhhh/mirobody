@@ -2,14 +2,13 @@
 
 ### Fixed
 
-- **`view="stats"` answers a median and a spread.** It returned min/max/avg/sum
-  only, so a question asking for a median or a standard deviation had to be
-  computed from raw rows — 393 of PHIA's 4,000 objective questions ask for a
-  median and 281 for a standard deviation, and a local 2B, asked for the median
-  deep-sleep percentage, replied with a single day's value. The stats row now
-  carries `median` (`PERCENTILE_CONT(0.5)`) and `stddev` (`STDDEV_SAMP`), under
-  the same unit guard as the mean: a median across mg/dL and mmol/L is not a
-  median of anything.
+- **`view="stats"` exposes a median and sample standard deviation to every
+  caller.** These statistics were unavailable, and adding them to the SQL row
+  alone still left them hidden from the compact output chat and MCP models
+  read. Both the row and the model's table now carry `median`
+  (`PERCENTILE_CONT(0.5)`) and `stddev` (`STDDEV_SAMP`), using the mean's unit
+  guard. Zero remains visible; a single numeric reading has a median but no
+  sample standard deviation. Incompatible units yield no invented statistic.
 
 - **Distance is split the way LOINC splits it.** LOINC names four activities'
   distance separately — 93817-5 Running distance, 93816-7 Swimming distance,

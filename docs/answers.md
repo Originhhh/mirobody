@@ -128,7 +128,7 @@ And `view` is a dispatch TABLE, not a chain of `if`s (`query.DISPATCH`):
 | `raw` | readings, newest first, at most 50 per indicator (`query.ROW_CAP`) |
 | `minute` / `hour` | one point per bucket, the newest 92 per indicator (`query.BUCKET_CAP`) |
 | `day` / `week` / `month` | the same, from the day authority: each day counts once |
-| `stats` | count/min/max/avg/sum/first/last/change over the window |
+| `stats` | count/min/max/avg/median/stddev (sample)/sum/first/last/change over the window |
 | `trend` | numeric direction and shape from the newest 400 elected daily values, with coverage |
 | `latest` | the most recent value per indicator |
 | any, with no `keywords` or `indicators` | the catalogue, and a note that the view waits for names |
