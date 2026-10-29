@@ -1341,6 +1341,29 @@ def test_the_apple_crosswalk_says_what_the_apple_decoder_does():
     assert apple.QUANTITY["HKQuantityTypeIdentifierHeartRateVariabilitySDNN"] == "hrvSDNN"
 
 
+@pytest.mark.parametrize("vendor", ["oura", "whoop"])
+def test_a_decoded_vendor_crosswalk_says_what_its_decoder_does(vendor):
+    """The table and the decoder name the same metric wherever both name one.
+
+    When they disagreed, neither side was right by default: Oura's sleep
+    stages and WHOOP's cycle heart rate were wrong in the decoder, WHOOP's
+    cycle energy and both workout distances in the table. Each was settled
+    against the vendor's own field definition; this keeps them settled.
+    """
+    from mirobody.kernel import decoders
+    from mirobody.standardize import devices
+
+    mapping = getattr(decoders, vendor).MAPPING
+    checked = 0
+    for r in devices.vendor_fields(vendor):
+        entry = mapping.get(r.type, {}).get(r.field)
+        if entry is None or not r.metric:
+            continue
+        assert entry[0] == r.metric, (r.key, entry[0], r.metric)
+        checked += 1
+    assert checked >= 20, checked
+
+
 def test_a_catalogue_alias_lets_the_unit_pick_the_variant():
     """The catalogue says `bloodGlucoses` is 2339-0, glucose as a mass
     concentration in blood; a Honor watch prints mmol/L. The alias names the

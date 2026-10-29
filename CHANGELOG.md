@@ -2,6 +2,36 @@
 
 ### Fixed
 
+- **Oura's and WHOOP's nightly sleep totals are filed as the night's
+  figures.** Deep, light and REM sleep, awake time, latency and the sleeping
+  heart and breathing rates are totals over a whole sleep, and the decoders
+  filed them under the interval metrics (`sleepAnalysis_*`) or the point
+  series (`heartRates`, `respiratoryRates`) with the sleep's start..end. A
+  duration union then read every stage as the whole night (90 minutes of deep
+  sleep became 480), and Oura's sleeping heart rate became the day's
+  average. They now go to the `daily…` summaries, as Garmin's already did, on
+  the day the vendor files the night under (Oura's `day`; the day a WHOOP
+  sleep ends), and only from the main sleep: an Oura nap, a WHOOP nap, and an
+  Oura sleep the user deleted or rejected no longer replace the night. WHOOP's
+  cycle average and maximum heart rate go to `dailyHeartRateAvg` and
+  `dailyHeartRateMax`. Rows already stored keep their old names and days; a
+  re-sync of a night already stored adds the new reading beside the old one.
+  How to tell: `pytest mirobody/tests/test_nightly_sleep_figures.py`.
+
+- **A workout's distance is an exercise distance, and an increment is not a
+  daily total.** Oura's `workout.distance` and WHOOP's
+  `workout.score.distance_meter` cover any sport and were filed under
+  `walkingRunningDistances` (112427-0, walking or running only); both decoders
+  and tables now use `exerciseDistances` (55412-1). Fitbit's
+  `activities-distance` ("the specified resource's daily total") and Honor's
+  daily `DISTANCE` statistic now name `dailyDistance`, unverified because
+  Fitbit calculates it from steps and Honor publishes no field or unit for it.
+  Health Connect's `DistanceRecord` and Huawei's `distance.delta` stay
+  unmapped: each is "distance since the last reading", and `dailyDistance`
+  keeps one value a day. The Oura and WHOOP tables are now held to their
+  decoders by a test, and say what the decoders file for WHOOP's cycle energy
+  (`dailyTotalCalories`), its workout heart rate and Oura's daily sleep score.
+
 - **`view="stats"` exposes a median and sample standard deviation to every
   caller.** These statistics were unavailable, and adding them to the SQL row
   alone still left them hidden from the compact output chat and MCP models

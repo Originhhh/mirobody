@@ -47,7 +47,7 @@ sleep	infoCode				数据质量码（0 充分 / 1 心率数据不足 / 2 睡眠�
 value	activeZoneMinutes	exerciseMinutes			陷阱：AZM 的 cardio 与 peak 区按 2 倍计（文档原文「1 cardio minute = 2 cardio active zone minutes」），是加权分而非真实分钟数,与任何 LOINC 时长码不可比
 value	fatBurnActiveZoneMinutes				同上（fat burn 为 1 倍）
 activities-steps		dailySteps	41950-7	confident	按日的步数时间序列 → dailySteps (41950-7, 24H/Measured)；55423-8 是 unspecified time
-activities-distance			103208-5	confident	【未映射：尚未接入本仓指标】 generic distance, all activities; the catalogue's walkingRunningDistances is walking or running only (112427-0)
+activities-distance		dailyDistance	103208-5	unverified	Fitbit: 'The specified resource's daily total', all activity. 'distance = steps * stride length' until GPS connects, so it is calculated where 103208-5 says measured. The unit follows the Accept-Language header (kilometres or miles): convert to metres
 activities-calories		activeCalories	41981-2	confident	
 activities-floors		floors	100304-5	confident	
 body	weight	bodyMasss	29463-7	confident	
